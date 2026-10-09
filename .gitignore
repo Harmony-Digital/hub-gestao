@@ -20,3 +20,6 @@ next-env.d.ts
 
 # Ferramentas
 .vercel
+
+# Banco local de desenvolvimento (PGlite)
+.data/

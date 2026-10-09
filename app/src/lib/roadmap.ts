@@ -15,20 +15,20 @@ export const roadmap: Milestone[] = [
     title: "Fundação e decisões",
     summary:
       "Repositório, base do app, identidade visual, testes e banco registrado.",
-    status: "em-andamento",
+    status: "concluido",
   },
   {
     code: "M1",
     title: "Núcleo para agentes",
     summary:
       "Modelo de dados com regras de acesso, API, servidor MCP, chaves e auditoria.",
-    status: "planejado",
+    status: "concluido",
   },
   {
     code: "M2",
     title: "Publicação inicial",
     summary: "No ar em hub.harmonydigital.com.br, protegido por login.",
-    status: "planejado",
+    status: "em-andamento",
   },
   {
     code: "M3",

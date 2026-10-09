@@ -27,6 +27,13 @@ const client = (): Actor => ({
   workspaceId: f.wsA,
   name: "Helena",
 });
+const system = (): Actor => ({
+  type: "system",
+  id: null,
+  scope: "internal",
+  workspaceId: f.wsA,
+  name: "Hub",
+});
 const agent = (): Actor => ({
   type: "agent",
   id: f.agent,
@@ -101,6 +108,8 @@ describe("migrations", () => {
       "hub_gestao_0005_advisor_hardening.sql",
       "hub_gestao_0006_human_decisions.sql",
       "hub_gestao_0007_project_agents.sql",
+      "hub_gestao_0008_jobs_webhooks.sql",
+      "hub_gestao_0009_review_hardening.sql",
     ]);
     const tables = await raw.query<{ n: number }>(
       `select count(*)::int as n from pg_tables where schemaname = '${S}'`,
@@ -479,7 +488,11 @@ describe("decisões humanas", () => {
 
   it("o agente pede, mas não decide", async () => {
     const id = await request();
+    // Para agente, a trava da 0009 dispara primeiro; para o sistema, a da 0006.
     await expect(decide(agent(), id, "approved", f.owner)).rejects.toThrow(
+      /somente uma pessoa decide|só cancelam o próprio pedido/,
+    );
+    await expect(decide(system(), id, "approved", f.owner)).rejects.toThrow(
       /somente uma pessoa decide/,
     );
   });
@@ -547,6 +560,9 @@ describe("decisões humanas", () => {
       );
 
     await expect(accept(agent(), f.owner)).rejects.toThrow(
+      /somente uma pessoa aceita|não alteram marcos/,
+    );
+    await expect(accept(system(), f.owner)).rejects.toThrow(
       /somente uma pessoa aceita/,
     );
     await expect(accept(internal(f.wsA, f.owner), f.member)).rejects.toThrow(
@@ -563,7 +579,10 @@ describe("decisões humanas", () => {
         ),
       ),
     ).rejects.toThrow(/aceite registrado/);
-    await expect(reopen(agent())).rejects.toThrow(/somente uma pessoa desfaz/);
+    await expect(reopen(agent())).rejects.toThrow(
+      /somente uma pessoa desfaz|não alteram marcos/,
+    );
+    await expect(reopen(system())).rejects.toThrow(/somente uma pessoa desfaz/);
     expect(await reopen(internal(f.wsA, f.owner))).toEqual({
       accepted_at: null,
       accepted_by_profile_id: null,

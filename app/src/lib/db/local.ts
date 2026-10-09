@@ -108,6 +108,17 @@ export function pgliteDb(pg: PGlite, runtimeRole?: string): Db {
   };
 }
 
+export function seedsDir(): string {
+  return path.resolve(migrationsDir(), "..", "seeds");
+}
+
+/** Seed do workspace da Harmony (idempotente), o mesmo aplicado no banco compartilhado. */
+export async function applySeed(pg: PGlite, dir = seedsDir()): Promise<void> {
+  await pg.exec(
+    await readFile(path.join(dir, "harmony_workspace.sql"), "utf8"),
+  );
+}
+
 /** Banco local pronto: migrations aplicadas e papel do app criado. */
 export async function openLocalDatabase(
   dataDir?: string,
