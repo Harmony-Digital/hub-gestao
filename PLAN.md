@@ -36,7 +36,7 @@
 | Fase | Status |
 |---|---|
 | Preparação (pasta, documentos de planejamento) | ✅ Concluída em 2026-10-08 |
-| M0 — Fundação e decisões | 🔄 Decisões D1–D11 tomadas em 2026-10-09; repositório, bootstrap e schema pendentes |
+| M0 — Fundação e decisões | 🔄 PRD aprovado; repositório, app e CI prontos e verificados em 2026-10-09; falta registrar o schema do banco |
 | M1 — Núcleo para agentes (dados, autorização, REST, MCP, chaves, auditoria) | ⬜ |
 | M2 — Publicação inicial na VPS | ⬜ |
 | M3 — Interface interna essencial | ⬜ |
@@ -65,30 +65,30 @@
 - [x] Ajustar `PRD.md`/`AGENTES.md` conforme as respostas; registrar no Registro de Execução — 2026-10-09: PRD, AGENTES, AGENTS, CLAUDE e este plano ajustados
 
 ### Repositório
-- [ ] Criar repositório privado `Harmony-Digital/hub-gestao` com `GH_TOKEN="$(gh auth token --user fabioalmeidadigital)"` (confirmar `gh api user` → `fabioalmeidadigital` antes)
-- [ ] Copiar os cinco documentos para a raiz do repo; `README.md` curto apontando para eles
-- [ ] `.gitignore` (`.env*`, `node_modules`, `.next`, `coverage`, artefatos), `.editorconfig`, `LICENSE` interno (todos os direitos reservados)
-- [ ] Proteção da branch `main` (PR obrigatório opcional; sem force-push)
+- [x] Criar repositório privado `Harmony-Digital/hub-gestao` com `GH_TOKEN="$(gh auth token --user fabioalmeidadigital)"` (confirmar `gh api user` → `fabioalmeidadigital` antes) — 2026-10-09: https://github.com/Harmony-Digital/hub-gestao, privado, conta conferida (admin da org)
+- [x] Copiar os cinco documentos para a raiz do repo; `README.md` curto apontando para eles — a pasta do projeto é a raiz do repositório; commit 8039d4f
+- [x] `.gitignore` (`.env*`, `node_modules`, `.next`, `coverage`, artefatos), `.editorconfig`, `LICENSE` interno (todos os direitos reservados) — commit 8039d4f; varredura de segredos no conteúdo do commit sem achados
+- [ ] Proteção da branch `main` (PR obrigatório opcional; sem force-push) — ⛔ indisponível: o plano Free da org recusa proteção de branch e rulesets em repositório privado (HTTP 403, 2026-10-09). Até um eventual upgrade, vale o controle por processo do `AGENTS.md` (nunca `--force`)
 
 ### Bootstrap do app (`app/`)
-- [ ] Next.js 16 (App Router, TypeScript estrito) + Tailwind v4 + shadcn/ui + lucide-react; `output: 'standalone'`
-- [ ] Scripts `lint`, `typecheck`, `test` (Vitest + Testing Library), `build`, `check`; ESLint + Prettier
-- [ ] Tokens Harmony em `src/styles/tokens.css` (tema claro padrão + escuro "Sala de Controle"); fontes Sora, DM Sans, JetBrains Mono via `next/font`
-- [ ] Página inicial provisória com o nome do produto e `/api/health` retornando `{ ok, version }`
-- [ ] `app/.env.example` com todas as variáveis (sem valores) e `docs/credenciais.md` explicando onde cada uma vive
-- [ ] `app/AGENTS.md` curto com comandos e convenções locais
+- [x] Next.js 16 (App Router, TypeScript estrito) + Tailwind v4 + shadcn/ui + lucide-react; `output: 'standalone'` — Next.js 16.4.0 com Cache Components e Partial Prefetching (padrões da versão), shadcn estilo radix-nova, lucide-react 1.54; `.next/standalone/server.js` gerado e servido em produção local
+- [x] Scripts `lint`, `typecheck`, `test` (Vitest + Testing Library), `build`, `check`; ESLint + Prettier — `check` = formato + lint + tipos (`next typegen` + `tsc`) + Vitest + build; verde local, em clone limpo e no CI. Testing Library e jsdom entram no M3, com os testes de componentes (hoje conflitam com o babel do instalador do shadcn)
+- [x] Tokens Harmony em `src/styles/tokens.css` (tema claro padrão + escuro "Sala de Controle"); fontes Sora, DM Sans, JetBrains Mono via `next/font` — os tokens ficaram em `app/src/app/globals.css` (padrão do Tailwind v4 com shadcn); fontes conferidas no navegador
+- [x] Página inicial provisória com o nome do produto e `/api/health` retornando `{ ok, version }` — saúde com HTTP 200, `Cache-Control: no-store` e cálculo a cada pedido; página conferida no desktop e em 375 px, sem rolagem lateral e sem erros no console
+- [x] `app/.env.example` com todas as variáveis (sem valores) e `docs/credenciais.md` explicando onde cada uma vive
+- [x] `app/AGENTS.md` curto com comandos e convenções locais — mantém o bloco do Next.js e acrescenta as regras do app; `app/CLAUDE.md` aponta para ele
 
 ### Banco (Supabase compartilhado)
-- [ ] Preflight read-only: MCP `harmony-supabase-readonly` → listar `harmony_admin.projects` e confirmar que `hub-gestao` **não** existe
+- [ ] Preflight read-only: MCP `harmony-supabase-readonly` → listar `harmony_admin.projects` e confirmar que `hub-gestao` **não** existe — ⏳ 2026-10-09: o túnel do conector estava parado; foi religado (LaunchAgent `com.harmonydigital.supabase-mcp-tunnel`, porta 8080, gateway respondendo). Falta reconectar o MCP `harmony-supabase` na sessão
 - [ ] Com autorização do Fábio: `harmony_admin.create_project('hub-gestao', …)` → schema `proj_hub_gestao`; registrar o retorno aqui
 - [ ] Confirmar política de exposição do schema no PostgREST (decidir: UI via `supabase-js` com RLS, ou só server-side)
 
 ### CI
-- [ ] `.github/workflows/ci.yml`: `npm ci`, lint, typecheck, test, build em PR e `main`
-- [ ] Badge/status no README; primeira execução verde
+- [x] `.github/workflows/ci.yml`: `npm ci`, lint, typecheck, test, build em PR e `main` — mais conferência de formato; executor fixado em `ubuntu-24.04`
+- [x] Badge/status no README; primeira execução verde — run 37958296836 verde no commit 8039d4f
 
 ### 🔒 GATE M0 (aprovação do Fábio)
-- [ ] PRD e decisões aprovados
+- [x] PRD e decisões aprovados — aprovado pelo Fábio no chat em 2026-10-09, junto com o protótipo: “Perfeito, tá aprovado. Vamos iniciar a construção.”
 - [ ] Repositório criado, CI verde, schema registrado
 
 ---
@@ -365,3 +365,4 @@
 | 2026-10-08 | Claude (Fable 5.1) · Claude Code | Levantamento read-only da stack real (VPS KVM4 `1821299`: 4 vCPU, 16 GB, 163 GB livres; Supabase compartilhado `/opt/supabase-harmony` + dedicado RELGOV; Traefik/EasyPanel; Hermes em container; n8n em fila; pipeline GitHub→VPS do RELGOV). Pasta `Projetos de IA/Sistema de Gestão da Harmony Digital/` com `CLAUDE.md`, `AGENTS.md`, `PRD.md`, `AGENTES.md`, `PLAN.md`. Nenhuma alteração em infra, banco, DNS ou GitHub. | Fábio responder D1–D11; GATE M0. Observação: a leitura detalhada de `harmony_admin.projects`, do Compose do Hermes e das rotas Traefik foi bloqueada pela política de leitura de produção da sessão; confirmar no M0 com o MCP `harmony-supabase-readonly` e por SSH autorizado. |
 | 2026-10-09 | Claude (Opus 5.5) · Claude Code | Fábio respondeu D1–D11. Documentos ajustados: IA multi-provedor por agente, com chaves cifradas e troca pela tela Agentes (D5); papéis de gestão como skills do Kratos, com chave única e campo `papel` (D6); uso interno e M9 adiado (D7); backup diário antecipado para o M2 (D8); portal só por convite liberado pelo Fábio (D9); importação de todos os projetos por agente no M5, com as ferramentas `hub_create_client`, `hub_create_project` e `hub_import_plan` e revisão em lote (D10). Corrigida a versão do framework nos documentos: Next.js 16, não 15. | 🔒 GATE M0 (aceite do PRD) segue com o Fábio. Próximo passo técnico: criar o repositório e registrar o schema. O MCP `harmony-supabase` estava sem conexão nesta sessão (ECONNREFUSED no endereço local); religar antes do registro do schema. |
 | 2026-10-09 | Claude (Opus 5.5) · Claude Code | Protótipo navegável publicado como artifact privado do tipo Design, com 10 telas e dados de exemplo fictícios: Hoje, Projetos, Hoje no celular, Projeto em três camadas, Quadro e tarefa, Aprovações, Sala de Controle, Departamentos, Portal do cliente e Concierge por voz. Link: https://claude.ai/artifact/F7ss9Ajt9aD6PuAC9D3p2d. Serve de referência visual e de comportamento para o M3 e o M6. | Fábio revisar as telas e apontar ajustes antes da construção. Os cliques não foram testados um a um nesta sessão. |
+| 2026-10-09 | Claude (Opus 5.5) · Claude Code | Construção iniciada após o aceite do PRD. Repositório privado Harmony-Digital/hub-gestao criado; app Next.js 16.4 com identidade Harmony, rota de saúde, página provisória, Vitest e saída standalone; CI verde no primeiro push (run 37958296836). Dependências de produção sem vulnerabilidades; os 9 alertas do npm audit são de ferramentas de desenvolvimento (cadeia braces/micromatch no lint e no instalador do shadcn). O next dev do painel de preview travava com EMFILE; resolvido elevando o limite de arquivos na configuração local de preview. | Registrar o schema `proj_hub_gestao` (preflight + `harmony_admin.create_project`) depois de reconectar o MCP `harmony-supabase`; decidir a exposição do schema no PostgREST; proteção de branch indisponível no plano Free; GATE M0 final com o Fábio. |

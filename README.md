@@ -4,6 +4,8 @@ Sistema de gestão de projetos, departamentos e atividades em que agentes de IA 
 
 **A IA executa. O humano decide.**
 
+[![Qualidade](https://github.com/Harmony-Digital/hub-gestao/actions/workflows/ci.yml/badge.svg)](https://github.com/Harmony-Digital/hub-gestao/actions/workflows/ci.yml)
+
 ## Comece por aqui
 
 1. [`AGENTS.md`](AGENTS.md): instruções canônicas para qualquer IA ou pessoa que trabalhe neste repositório.
