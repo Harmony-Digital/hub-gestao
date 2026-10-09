@@ -558,7 +558,7 @@ Registro **`hub`** (D1) do tipo **CNAME → `srv1821299.hstgr.cloud`** na zona `
 
 ### 13.4 Banco
 
-Schema `proj_hub_gestao` registrado via `harmony_admin.create_project('hub-gestao', …)`; migrations `hub_gestao_NNNN_*.sql` aplicadas pelo MCP `harmony-supabase` (`apply_migration`); schema exposto no PostgREST (`PGRST_DB_SCHEMAS`) se a UI usar `supabase-js` direto (alternativa: só server-side); advisors após cada migration. Acesso do agente de deploy: nenhum. Acesso do app: `service_role` em `.env.production` (pendência conhecida: role restrita ao schema, herdada do RELGOV).
+Schema `proj_hub_gestao` registrado via `harmony_admin.create_project('hub_gestao', 'Hub de Gestão', 'Harmony Digital')` (o catálogo aceita só minúsculas, números e sublinhado); migrations `hub_gestao_NNNN_*.sql` aplicadas pelo MCP `harmony-supabase` (`apply_migration`); schema exposto no PostgREST (`PGRST_DB_SCHEMAS`) se a UI usar `supabase-js` direto (alternativa: só server-side); advisors após cada migration. Acesso do agente de deploy: nenhum. Acesso do app: `service_role` em `.env.production` (pendência conhecida: role restrita ao schema, herdada do RELGOV).
 
 ### 13.5 Backups e recuperação (D8)
 

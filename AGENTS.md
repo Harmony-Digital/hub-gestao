@@ -122,7 +122,7 @@ hub-gestao/
 |---|---|---|
 | GitHub | `GH_TOKEN="$(gh auth token --user fabioalmeidadigital)" gh api user --jq .login` → `fabioalmeidadigital` | Repo `Harmony-Digital/hub-gestao`. A conta global do `gh` não é autorizada. O MCP do GitHub está em outra conta: não usar para este repo. |
 | VPS | `ssh vps-harmony hostname` → `vps-harmony-digital` | KVM4 `1821299`, `217.196.63.157`. Leitura livre; escrita só em `/opt/hub-gestao` e com passo autorizado no `PLAN.md`. Arquivos de Traefik, Compose, systemd e `.env` de produção são do proprietário. |
-| Banco | MCP `harmony-supabase`: `select schema_name from harmony_admin.projects where slug = 'hub-gestao'` | Trabalhar só em `proj_hub_gestao`. Nunca `proj_*` de outros projetos, nunca `supabase-relgov`, nunca `supabase-leonardo`, nunca schemas globais sem autorização. |
+| Banco | MCP `harmony-supabase`: `select schema_name from harmony_admin.projects where slug = 'hub_gestao'` | Trabalhar só em `proj_hub_gestao`. Nunca `proj_*` de outros projetos, nunca `supabase-relgov`, nunca `supabase-leonardo`, nunca schemas globais sem autorização. |
 | DNS | Nenhuma escrita | Registro `hub` é criado pelo Fábio (ou com autorização explícita). Nunca trocar nameservers; a zona hospeda MX/SPF do Microsoft 365 e outros subdomínios. |
 | Vercel | Não se aplica | O Hub roda na VPS. Não criar projeto Vercel para ele. |
 

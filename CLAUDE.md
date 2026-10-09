@@ -42,7 +42,7 @@ Nenhum trabalho é "pronto" sem `npm run check` verde, verificação real (naveg
 
 - **GitHub:** org `Harmony-Digital`, repositório `hub-gestao` (privado). Usar a conta `fabioalmeidadigital` por processo: `GH_TOKEN="$(gh auth token --user fabioalmeidadigital)"`. A conta global do `gh` não é autorizada.
 - **VPS:** `ssh vps-harmony` (KVM4 `1821299`, IPv4 `217.196.63.157`, hostname `vps-harmony-digital`, `srv1821299.hstgr.cloud`). Leitura é livre. Escrita só em `/opt/hub-gestao` e só quando o `PLAN.md` autorizar o passo.
-- **Banco:** MCP `harmony-supabase` (variante `-readonly` para consultas). Resolver o schema pelo catálogo `harmony_admin.projects` (slug `hub-gestao` → `proj_hub_gestao`). Projeto novo só com `harmony_admin.create_project(...)`. Nunca tocar outros `proj_*`, nunca `supabase-relgov`, nunca `supabase-leonardo`.
+- **Banco:** MCP `harmony-supabase` (variante `-readonly` para consultas). Resolver o schema pelo catálogo `harmony_admin.projects` (slug `hub_gestao` → `proj_hub_gestao`; o repositório é `hub-gestao`, o slug do catálogo usa sublinhado). Projeto novo só com `harmony_admin.create_project(...)`. Nunca tocar outros `proj_*`, nunca `supabase-relgov`, nunca `supabase-leonardo`.
 - **DNS:** zona `harmonydigital.com.br` na Hostinger. Só o Fábio cria/altera registros, ou autoriza explicitamente o registro `hub` (CNAME → `srv1821299.hstgr.cloud`).
 - **Segredos:** `/opt/hub-gestao/shared/.env.production` (VPS, `0600`) e `.env.local` (máquina local, fora do git). Nunca em chat, commit, log, comentário de tarefa ou documento.
 
