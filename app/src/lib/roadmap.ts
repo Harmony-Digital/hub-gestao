@@ -15,14 +15,14 @@ export const roadmap: Milestone[] = [
     title: "Fundação e decisões",
     summary:
       "Repositório, base do app, identidade visual, testes e banco registrado.",
-    status: "em-andamento",
+    status: "concluido",
   },
   {
     code: "M1",
     title: "Núcleo para agentes",
     summary:
-      "Modelo de dados com regras de acesso, API, servidor MCP, chaves e auditoria.",
-    status: "planejado",
+      "Modelo de dados com regras de acesso, API, servidor MCP, chaves e auditoria. Pronto, aguardando o seu aceite.",
+    status: "em-andamento",
   },
   {
     code: "M2",
