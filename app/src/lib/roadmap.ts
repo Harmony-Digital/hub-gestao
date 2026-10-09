@@ -21,14 +21,14 @@ export const roadmap: Milestone[] = [
     code: "M1",
     title: "Núcleo para agentes",
     summary:
-      "Modelo de dados com regras de acesso, API, servidor MCP, chaves e auditoria. Pronto, aguardando o seu aceite.",
-    status: "em-andamento",
+      "Modelo de dados com regras de acesso, API, servidor MCP, chaves e auditoria.",
+    status: "concluido",
   },
   {
     code: "M2",
     title: "Publicação inicial",
     summary: "No ar em hub.harmonydigital.com.br, protegido por login.",
-    status: "planejado",
+    status: "em-andamento",
   },
   {
     code: "M3",

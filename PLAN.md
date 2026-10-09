@@ -37,8 +37,8 @@
 |---|---|
 | Preparação (pasta, documentos de planejamento) | ✅ Concluída em 2026-10-08 |
 | M0 — Fundação e decisões | ✅ Concluído e aprovado pelo Fábio em 2026-10-09 |
-| M1 — Núcleo para agentes (dados, autorização, REST, MCP, chaves, auditoria) | 🔄 Pronto para o GATE M1 (2026-10-09); o teto de IA fica para o adaptador do M5 |
-| M2 — Publicação inicial na VPS | ⬜ |
+| M1 — Núcleo para agentes (dados, autorização, REST, MCP, chaves, auditoria) | ✅ Concluído e aprovado pelo Fábio em 2026-10-09; o teto de IA segue para o adaptador do M5 |
+| M2 — Publicação inicial na VPS | 🔄 Iniciado em 2026-10-09 |
 | M3 — Interface interna essencial | ⬜ |
 | M4 — `plan.md`, CLI, GitHub e importação do próprio Hub | ⬜ |
 | M5 — Agentes de gestão (Kratos) + Concierge e Planejador + importação de todos os projetos | ⬜ |
@@ -138,7 +138,7 @@
 - [x] Tabela `jobs` + worker `src/modules/jobs` (`FOR UPDATE SKIP LOCKED`); endpoint `POST /api/internal/cron/tick` com `CRON_SECRET`; jobs `health-rollup`, `approval-aging`, `webhook-dispatch` — mais `idempotency-cleanup`. Periódicos sem duplicar (0008), retentativa com espera crescente, webhooks assinados com HMAC e segredo cifrado. Por HTTP: sem segredo, 401; com segredo, os quatro jobs rodaram
 
 ### 🔒 GATE M1 (aprovação do Fábio)
-- [ ] Demonstração: agente de teste cria e conclui tarefa por MCP e por REST; `activity_log` e rollup conferidos no banco; RLS de cliente testada
+- [x] Demonstração: agente de teste cria e conclui tarefa por MCP e por REST; `activity_log` e rollup conferidos no banco; RLS de cliente testada — aprovado pelo Fábio no chat em 2026-10-09: “Pode avançar na construção.” Evidência: HUB-1 pela API REST, HUB-2 pelo cliente MCP do SDK, HUB-3 e HUB-4 por sessões do Claude Code, com registro e progresso conferidos no banco local; RLS de cliente nos testes de `schema.test.ts`; revisão de segurança independente com os achados corrigidos
 
 ---
 
