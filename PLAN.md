@@ -36,8 +36,8 @@
 | Fase | Status |
 |---|---|
 | Preparação (pasta, documentos de planejamento) | ✅ Concluída em 2026-10-08 |
-| M0 — Fundação e decisões | 🔒 Tarefas concluídas e verificadas em 2026-10-09 (repositório, app, CI e schema `proj_hub_gestao`); aguarda o GATE do Fábio |
-| M1 — Núcleo para agentes (dados, autorização, REST, MCP, chaves, auditoria) | ⬜ |
+| M0 — Fundação e decisões | ✅ Concluído e aprovado pelo Fábio em 2026-10-09 |
+| M1 — Núcleo para agentes (dados, autorização, REST, MCP, chaves, auditoria) | 🔄 Iniciado em 2026-10-09 |
 | M2 — Publicação inicial na VPS | ⬜ |
 | M3 — Interface interna essencial | ⬜ |
 | M4 — `plan.md`, CLI, GitHub e importação do próprio Hub | ⬜ |
@@ -89,7 +89,7 @@
 
 ### 🔒 GATE M0 (aprovação do Fábio)
 - [x] PRD e decisões aprovados — aprovado pelo Fábio no chat em 2026-10-09, junto com o protótipo: “Perfeito, tá aprovado. Vamos iniciar a construção.”
-- [ ] Repositório criado, CI verde, schema registrado
+- [x] Repositório criado, CI verde, schema registrado — aprovado pelo Fábio no chat em 2026-10-09: “Pode continuar.” Ele confirmou que todos os projetos do Supabase compartilhado estão em validação e que o Hub segue na área dele, do jeito que está
 
 ---
 
@@ -98,13 +98,16 @@
 > Objetivo: um agente consegue criar, iniciar e concluir tarefa por MCP e por REST, com auditoria completa, **antes** de existir interface.
 
 ### Modelo de dados
-- [ ] `hub_gestao_0001_foundation.sql`: enums; `workspaces`, `profiles`, `memberships`, `clients`, `client_contacts`, `departments`; funções `has_workspace_access`, `has_project_access`, `is_client_of_project`; RLS
-- [ ] `hub_gestao_0002_work.sql`: `projects`, `project_departments`, `project_members`, `project_agents`, `milestones`, `milestone_date_history`, `workstreams`, `workstream_dependencies`, `task_statuses`, `tasks` (+ sequence `HUB-n` via `fn_next_task_code`), `task_dependencies`, `labels`, `task_labels`, `checklist_items`, `comments`, `attachments`, `time_entries`; RLS
-- [ ] `hub_gestao_0003_agents_governance.sql`: `agents`, `agent_api_keys`, `agent_runs`, `approvals`, `status_reports`, `notifications`, `notification_prefs`, `webhooks`, `webhook_deliveries`, `activity_log` (append-only), `idempotency_keys`, `jobs`, `plan_sync_runs`, `saved_views`, `project_templates`; RLS
-- [ ] `hub_gestao_0004_rollups.sql`: views `v_workstream_progress`, `v_milestone_progress`, `v_project_health`, `v_department_load`; `fn_rollup_project`; triggers leves de `updated_at`
-- [ ] Aplicar cada migration via `apply_migration` (prefixo `hub_gestao_`), rodar `get_advisors` e registrar achados
-- [ ] Seed do workspace Harmony: departamentos padrão (9), status padrão (5), cliente `Harmony Digital (interno)`, projeto `HUB` (este), usuário `owner` = Fábio
-- [ ] `supabase/tests/001_rls_two_workspaces.sql` e `002_rls_client_role.sql` (cliente não lê tarefas nem comentários internos)
+- [x] `hub_gestao_0001_foundation.sql`: enums; `workspaces`, `profiles`, `memberships`, `clients`, `client_contacts`, `departments`; funções `has_workspace_access`, `has_project_access`, `is_client_of_project`; RLS — 2026-10-09, aplicada no banco compartilhado (versão 20261009181320). O acesso usa o contexto do ator, gravado pelo servidor em cada transação: `current_workspace_id()`, `current_actor_id()`, `current_actor_type()`, `current_client_id()`, `actor_is_internal()` e `actor_is_client()`. Sem contexto, nada aparece. O papel dentro do projeto (`has_project_access`) é conferido no `authorize()` do servidor; `is_client_of_project` virou `project_visible_to_client()`, na 0002
+- [x] `hub_gestao_0002_work.sql`: `projects`, `project_departments`, `project_members`, `project_agents`, `milestones`, `milestone_date_history`, `workstreams`, `workstream_dependencies`, `task_statuses`, `tasks` (+ sequence `HUB-n` via `fn_next_task_code`), `task_dependencies`, `labels`, `task_labels`, `checklist_items`, `comments`, `attachments`, `time_entries`; RLS — 2026-10-09, aplicada (20261009181653). O código `HUB-n` sai de `next_task_code()`, com contador no workspace. A trava da tarefa recusa concluir sem evidência quando o projeto exige e mantém data de conclusão e versão. `project_agents` ficou de fora por engano e entrou na 0007
+- [x] `hub_gestao_0003_agents_governance.sql`: `agents`, `agent_api_keys`, `agent_runs`, `approvals`, `status_reports`, `notifications`, `notification_prefs`, `webhooks`, `webhook_deliveries`, `activity_log` (append-only), `idempotency_keys`, `jobs`, `plan_sync_runs`, `saved_views`, `project_templates`; RLS — 2026-10-09, aplicada (20261009181800). Inclui `llm_credentials` (D5) e as consultas de autenticação `agent_key_lookup()` e `workspace_id_by_slug()`, sem acesso público. O registro de atividades recusa alteração e exclusão até para o administrador do banco
+- [x] `hub_gestao_0004_rollups.sql`: views `v_workstream_progress`, `v_milestone_progress`, `v_project_health`, `v_department_load`; `fn_rollup_project`; triggers leves de `updated_at` — 2026-10-09, aplicada (20261009181818). Mudança de desenho: o progresso fica gravado em frente, marco e projeto e é recalculado por `recompute_project_rollup()`, porque o cliente precisa ver o percentual sem acesso às tarefas. A saúde usa `v_project_health_inputs` com a regra no servidor. `v_department_load` como previsto; `updated_at` por trigger nas tabelas que mudam
+- [x] Aplicar cada migration via `apply_migration` (prefixo `hub_gestao_`), rodar `get_advisors` e registrar achados — 2026-10-09. Primeira rodada, só no schema do Hub: nenhum achado de segurança; de desempenho, 90 avisos de políticas permissivas duplicadas (10 pares tabela e ação, vezes 9 papéis do banco), 54 chaves estrangeiras sem índice e 25 índices ainda sem uso. Corrigidos na 0005. Rodada final, depois da 0007: segurança sem achados no Hub; desempenho só com o aviso informativo de índices sem uso (81), esperado num schema que ainda não recebe consultas. Os avisos de outros schemas não foram tocados
+- [x] Seed do workspace Harmony: departamentos padrão (9), status padrão (5), cliente `Harmony Digital (interno)`, projeto `HUB` (este), usuário `owner` = Fábio — 2026-10-09, `supabase/seeds/harmony_workspace.sql` pelo `execute_sql`; idempotente e testado duas vezes seguidas no banco local. Conferido no banco compartilhado: workspace `harmony`, Fábio Almeida como owner, os 9 departamentos do PRD com as cores do protótipo, cliente interno, projeto `HUB` ativo desde 2026-10-08 com o Fábio como líder, e os 5 status com "A fazer" como padrão. Líderes de departamento, departamentos do projeto e fase ficam para o Fábio definir
+- [x] `supabase/tests/001_rls_two_workspaces.sql` e `002_rls_client_role.sql` (cliente não lê tarefas nem comentários internos) — feitos como testes automatizados com PGlite (o mesmo Postgres 17) em `app/src/lib/db/schema.test.ts` e `seed.test.ts`, que rodam no CI a cada envio: dois workspaces isolados; cliente sem acesso a tarefas, agentes, aprovações e registro; comentário de cliente só no canal do projeto e em nome próprio; mais os critérios dos alertas do Supabase e as decisões humanas
+- [x] `hub_gestao_0005_advisor_hardening.sql` (acrescentada em 2026-10-09) — aplicada. Uma política por tabela e ação; funções de contexto calculadas uma vez por consulta; 54 índices de chave estrangeira. Apertos: o registro de atividades só aceita linha em nome do próprio ator; a equipe só altera perfis ligados ao próprio workspace; o contato de cliente só lê o próprio cadastro; workspace não pode ser apagado pela aplicação
+- [x] `hub_gestao_0006_human_decisions.sql` (acrescentada em 2026-10-09) — aplicada. O próprio banco recusa que agente ou sistema decida uma aprovação ou aceite um marco (RF-10 e D9). Só uma pessoa, em nome próprio, decide; decisão registrada não muda depois
+- [x] `hub_gestao_0007_project_agents.sql` (acrescentada em 2026-10-09) — aplicada. Liga agente e projeto com o papel do catálogo, como `GP-01`; agente e projeto precisam ser do mesmo workspace
 
 ### Domínio e autorização
 - [ ] `src/lib/authorize.ts`: `authorize(actor, action, resource)` com matriz de papéis e escopos (PRD §8.2); testes unitários cobrindo cada combinação crítica
@@ -154,6 +157,7 @@
 - [ ] Fábio cria/autoriza o registro DNS `hub` → CNAME `srv1821299.hstgr.cloud` (D1)
 - [ ] Criar `/opt/hub-gestao/{config,shared,releases}` (root), `.env.production` `0600` preenchido pelo Fábio
 - [ ] Usuário de deploy com chave SSH restrita ao comando `load`
+- [ ] (acrescentada em 2026-10-09) Papel de banco próprio para o servidor do Hub: login dedicado, sem passe livre na RLS e com acesso só ao schema `proj_hub_gestao`. É uma mudança global no Supabase compartilhado e só acontece com confirmação específica do Fábio. Sem esse papel, o servidor entraria como administrador e a RLS deixaria de valer como segunda linha de defesa
 - [ ] Rota Traefik instalada em `/etc/easypanel/traefik/config/hub.yaml`; certificado emitido
 - [ ] Segredos no GitHub (`HUB_VPS_HOST`, `HUB_VPS_USER`, `HUB_VPS_SSH_KEY`, `HUB_VPS_KNOWN_HOSTS`, `HUB_NEXT_PUBLIC_SUPABASE_ANON_KEY`) e variável `HUB_DEPLOY_URL` — provisionados pelo Fábio
 - [ ] Primeiro deploy verde; `curl https://hub.harmonydigital.com.br/api/health` com o SHA da `main`
