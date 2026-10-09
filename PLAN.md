@@ -1,0 +1,367 @@
+# PLAN.md — Plano de Ação e Checklist de Execução · Hub de Gestão
+
+> **Nota de 09/10/2026:** o produto chamado RELGOV neste documento passou a se chamar **Certato** (decisão dos sócios). As menções a RELGOV abaixo se referem ao mesmo sistema; repositório, VPS, contêineres e banco mantêm o nome técnico `relgov` até uma migração planejada.
+
+> **Este arquivo é o estado vivo do projeto.** Toda IA (Claude Code, Codex, Hermes ou outra) e toda nova sessão deve: **(1)** ler `AGENTS.md`, `PRD.md` e `AGENTES.md`, **(2)** abrir este arquivo para ver o que já foi feito e o que vem a seguir, **(3)** executar a próxima tarefa pendente do milestone atual, e **(4)** marcar aqui o que concluiu, com evidência.
+
+## Regras de uso deste checklist
+
+1. Marque `[x]` **somente** quando a tarefa estiver concluída **e verificada** (código rodando, consulta feita, teste passando, URL respondendo). Trabalho parcial permanece `[ ]` com nota `⏳ em andamento — <detalhe>`.
+2. Itens **🔒 GATE** são o aceite do milestone e **só o Fábio pode aprovar**. A IA prepara a demonstração e pede a validação. Nunca marque um gate por conta própria.
+3. Não reordene, não apague e não reescreva tarefas. Se o escopo mudar, adicione a tarefa nova e anote no **Registro de Execução**.
+4. **Não pule milestones**: a ordem M0 → M9 espelha as dependências do PRD. Não antecipe escopo sem pedido explícito do Fábio.
+5. Toda tarefa que mexe em infraestrutura (VPS, DNS, Traefik, Compose, segredos) só começa com autorização explícita registrada aqui ou no chat.
+6. Ao terminar qualquer sessão, adicione uma linha no **Registro de Execução** (data, IA/sessão, o que foi entregue, pendências deixadas).
+7. Uma sessão de IA por vez neste repositório.
+8. Quando o Hub estiver no ar, **este arquivo passa a ser sincronizado pelo próprio Hub** (`hub plan pull|push`, projeto `HUB`). As regras acima continuam valendo.
+
+## Decisões do Fábio (tomadas em 2026-10-09)
+
+> Respostas do Fábio às decisões D1–D11. Se alguma mudar, registrar a mudança no Registro de Execução sem apagar esta lista.
+
+- [x] **D1** Domínio: `hub.harmonydigital.com.br`. Um endereço mais amigável só para o portal do cliente pode ser somado depois, sem mexer no que estiver pronto.
+- [x] **D2** Banco: schema `proj_hub_gestao` no Supabase self-hosted compartilhado da Harmony.
+- [x] **D3** Framework: Next.js 16 (App Router), o mesmo do Certato, do IA Posicionamento e da Redação ACM, com o pipeline GitHub Actions → VPS já provado.
+- [x] **D4** Tema claro por padrão; "Sala de Controle" escuro no console dos agentes e como opção do usuário.
+- [x] **D5** IA multi-provedor por agente: todo agente interno do Hub pode usar **Anthropic (Claude), OpenAI ou xAI (Grok)**. O Fábio troca provedor, modelo e chave de API quando quiser, na tela Agentes, sem deploy. Chaves cifradas no banco. Teto de gasto mantido (inicial de US$ 30/mês somados), editável na mesma tela. Os papéis que rodam no Kratos usam o modelo configurado no Hermes.
+- [x] **D6** Agente de gestão: na fase 1, os papéis GP-01 a VP-05 rodam **dentro do Kratos**, como skills dele. Um agente dedicado fica para depois, se o Fábio quiser; no Hub, isso é só trocar a chave.
+- [x] **D7** Sem produto comercial por enquanto: **uso interno da Harmony**. Comercializar só depois de validado, por nova decisão do Fábio. M9 adiado; a arquitetura continua preparada para replicação, sem esforço comercial.
+- [x] **D8** Backups como recomendado: `pg_dump` diário do schema, snapshot semanal da VPS, cópia fora da VPS e teste mensal de restauração. O backup diário foi antecipado para o M2, antes de existir dado real.
+- [x] **D9** Portal do cliente só por convite: entra apenas quem o Fábio cadastrar, e o acesso só é liberado quando ele decidir (convite por e-mail pelo Hub ou link copiado para ele mesmo enviar). O aceite de marco continua com o Fábio; o cliente acompanha.
+- [x] **D10** Depois do Hub pronto, **todos os projetos** serão importados por um agente (o Kratos, ou o Claude Code para projetos que só existem no Mac), com orientação do Fábio. Cada projeto entra "Em revisão" até o ok dele, que pode ser dado em lote.
+- [x] **D11** Publicar cedo: o Hub vai para o endereço definitivo no M2, protegido por login, mesmo com poucas telas prontas.
+
+## Visão geral do progresso
+
+| Fase | Status |
+|---|---|
+| Preparação (pasta, documentos de planejamento) | ✅ Concluída em 2026-10-08 |
+| M0 — Fundação e decisões | 🔄 Decisões D1–D11 tomadas em 2026-10-09; repositório, bootstrap e schema pendentes |
+| M1 — Núcleo para agentes (dados, autorização, REST, MCP, chaves, auditoria) | ⬜ |
+| M2 — Publicação inicial na VPS | ⬜ |
+| M3 — Interface interna essencial | ⬜ |
+| M4 — `plan.md`, CLI, GitHub e importação do próprio Hub | ⬜ |
+| M5 — Agentes de gestão (Kratos) + Concierge e Planejador + importação de todos os projetos | ⬜ |
+| M6 — Portal do cliente e relatórios | ⬜ |
+| M7 — Departamentos, visões avançadas, templates, tempo | ⬜ |
+| M8 — Operação, segurança, backups, LGPD | ⬜ |
+| M9 — Produto replicável | ⏸ Adiado (D7: uso interno) |
+
+---
+
+## ✅ Preparação (concluída em 2026-10-08)
+
+- [x] Levantamento da stack e infraestrutura reais (VPS KVM4 `1821299`, Supabase compartilhado, Traefik, Hermes, pipeline RELGOV) — evidência: inventário read-only por SSH e API da Hostinger em 2026-10-08
+- [x] Levantamento da identidade visual (tokens de `Site 2026/styles.css`, brief da marca, fontes)
+- [x] Pasta `Projetos de IA/Sistema de Gestão da Harmony Digital/` criada
+- [x] `CLAUDE.md` (espelho) · `AGENTS.md` (canônico + Protocolo do Agente Operador) · `PRD.md` (modelo de três camadas, requisitos, stack) · `AGENTES.md` (catálogo) · este `PLAN.md`
+
+---
+
+## M0 — Fundação e decisões
+
+### Decisões e aprovação
+- [x] Fábio lê `PRD.md` e responde D1–D11 (ou aceita as recomendações) — respondidas em 2026-10-09 (ver "Decisões do Fábio")
+- [x] Ajustar `PRD.md`/`AGENTES.md` conforme as respostas; registrar no Registro de Execução — 2026-10-09: PRD, AGENTES, AGENTS, CLAUDE e este plano ajustados
+
+### Repositório
+- [ ] Criar repositório privado `Harmony-Digital/hub-gestao` com `GH_TOKEN="$(gh auth token --user fabioalmeidadigital)"` (confirmar `gh api user` → `fabioalmeidadigital` antes)
+- [ ] Copiar os cinco documentos para a raiz do repo; `README.md` curto apontando para eles
+- [ ] `.gitignore` (`.env*`, `node_modules`, `.next`, `coverage`, artefatos), `.editorconfig`, `LICENSE` interno (todos os direitos reservados)
+- [ ] Proteção da branch `main` (PR obrigatório opcional; sem force-push)
+
+### Bootstrap do app (`app/`)
+- [ ] Next.js 16 (App Router, TypeScript estrito) + Tailwind v4 + shadcn/ui + lucide-react; `output: 'standalone'`
+- [ ] Scripts `lint`, `typecheck`, `test` (Vitest + Testing Library), `build`, `check`; ESLint + Prettier
+- [ ] Tokens Harmony em `src/styles/tokens.css` (tema claro padrão + escuro "Sala de Controle"); fontes Sora, DM Sans, JetBrains Mono via `next/font`
+- [ ] Página inicial provisória com o nome do produto e `/api/health` retornando `{ ok, version }`
+- [ ] `app/.env.example` com todas as variáveis (sem valores) e `docs/credenciais.md` explicando onde cada uma vive
+- [ ] `app/AGENTS.md` curto com comandos e convenções locais
+
+### Banco (Supabase compartilhado)
+- [ ] Preflight read-only: MCP `harmony-supabase-readonly` → listar `harmony_admin.projects` e confirmar que `hub-gestao` **não** existe
+- [ ] Com autorização do Fábio: `harmony_admin.create_project('hub-gestao', …)` → schema `proj_hub_gestao`; registrar o retorno aqui
+- [ ] Confirmar política de exposição do schema no PostgREST (decidir: UI via `supabase-js` com RLS, ou só server-side)
+
+### CI
+- [ ] `.github/workflows/ci.yml`: `npm ci`, lint, typecheck, test, build em PR e `main`
+- [ ] Badge/status no README; primeira execução verde
+
+### 🔒 GATE M0 (aprovação do Fábio)
+- [ ] PRD e decisões aprovados
+- [ ] Repositório criado, CI verde, schema registrado
+
+---
+
+## M1 — Núcleo para agentes (dados, autorização, REST, MCP, chaves, auditoria)
+
+> Objetivo: um agente consegue criar, iniciar e concluir tarefa por MCP e por REST, com auditoria completa, **antes** de existir interface.
+
+### Modelo de dados
+- [ ] `hub_gestao_0001_foundation.sql`: enums; `workspaces`, `profiles`, `memberships`, `clients`, `client_contacts`, `departments`; funções `has_workspace_access`, `has_project_access`, `is_client_of_project`; RLS
+- [ ] `hub_gestao_0002_work.sql`: `projects`, `project_departments`, `project_members`, `project_agents`, `milestones`, `milestone_date_history`, `workstreams`, `workstream_dependencies`, `task_statuses`, `tasks` (+ sequence `HUB-n` via `fn_next_task_code`), `task_dependencies`, `labels`, `task_labels`, `checklist_items`, `comments`, `attachments`, `time_entries`; RLS
+- [ ] `hub_gestao_0003_agents_governance.sql`: `agents`, `agent_api_keys`, `agent_runs`, `approvals`, `status_reports`, `notifications`, `notification_prefs`, `webhooks`, `webhook_deliveries`, `activity_log` (append-only), `idempotency_keys`, `jobs`, `plan_sync_runs`, `saved_views`, `project_templates`; RLS
+- [ ] `hub_gestao_0004_rollups.sql`: views `v_workstream_progress`, `v_milestone_progress`, `v_project_health`, `v_department_load`; `fn_rollup_project`; triggers leves de `updated_at`
+- [ ] Aplicar cada migration via `apply_migration` (prefixo `hub_gestao_`), rodar `get_advisors` e registrar achados
+- [ ] Seed do workspace Harmony: departamentos padrão (9), status padrão (5), cliente `Harmony Digital (interno)`, projeto `HUB` (este), usuário `owner` = Fábio
+- [ ] `supabase/tests/001_rls_two_workspaces.sql` e `002_rls_client_role.sql` (cliente não lê tarefas nem comentários internos)
+
+### Domínio e autorização
+- [ ] `src/lib/authorize.ts`: `authorize(actor, action, resource)` com matriz de papéis e escopos (PRD §8.2); testes unitários cobrindo cada combinação crítica
+- [ ] `src/lib/audit.ts`: gravação em `activity_log` (before/after, source, request_id) em toda mutação
+- [ ] `src/lib/idempotency.ts`: `Idempotency-Key` com hash do corpo; `409` em corpo divergente
+- [ ] `src/modules/{projects,milestones,workstreams,tasks,comments,approvals,agents}`: casos de uso compartilhados por UI, REST e MCP
+- [ ] Regras: conclusão exige evidência (`require_evidence`); GATE recusado para agentes; visibilidade operacional sempre `internal`; teto de IA
+
+### Chaves de agente
+- [ ] Geração `hub_ak_<prefixo>.<segredo>`, hash com pepper, exibição única; `last_used_at`; expiração; revogação
+- [ ] Middleware de autenticação por Bearer para `/api/v1` e `/mcp`; `423 Locked` para agente pausado; rate limit por chave
+
+### API REST v1
+- [ ] Rotas do PRD §8.3 (`/me`, `/projects`, `/plan`, `/milestones`, `/workstreams`, `/tasks` + transições, `/comments`, `/time`, `/approvals`, `/reports`, `/today`, `/search`, `/sync/plan`)
+- [ ] `zod-openapi` gerando `/api/v1/openapi.json`; teste de snapshot do contrato
+- [ ] Erros `problem+json`; paginação por cursor; `ETag`/`If-Match` em `PATCH /tasks`
+- [ ] Testes de integração com banco (Vitest) para cada rota
+
+### Servidor MCP
+- [ ] `src/app/mcp/route.ts` com `@modelcontextprotocol/sdk` (Streamable HTTP, sem estado)
+- [ ] Tools do PRD §8.4 com descrições PT-BR distintas; resources `hub://projects/{code}/plan.md`, `hub://today`; prompts `status-semanal`, `digest-matinal`, `revisar-conclusoes`
+- [ ] Teste automatizado da lista de tools (snapshot) e de autorização por tool
+- [ ] Teste manual: Claude Code registra o servidor e executa `hub_whoami` → `hub_create_task` → `hub_start_task` → `hub_complete_task` com evidência → registro visível em `activity_log`
+
+### Jobs
+- [ ] Tabela `jobs` + worker `src/modules/jobs` (`FOR UPDATE SKIP LOCKED`); endpoint `POST /api/internal/cron/tick` com `CRON_SECRET`; jobs `health-rollup`, `approval-aging`, `webhook-dispatch`
+
+### 🔒 GATE M1 (aprovação do Fábio)
+- [ ] Demonstração: agente de teste cria e conclui tarefa por MCP e por REST; `activity_log` e rollup conferidos no banco; RLS de cliente testada
+
+---
+
+## M2 — Publicação inicial na VPS (atrás de login)
+
+> Autorizações necessárias do Fábio antes de qualquer item de infra: registro DNS, criação de `/opt/hub-gestao`, rota Traefik, segredos do GitHub Actions.
+
+### Pipeline
+- [ ] `deploy/vps/Dockerfile` (multi-stage, Node 22, `standalone`, usuário sem root, rootfs somente leitura)
+- [ ] `deploy/vps/docker-compose.yml` (`hub-app`, rede `hub_proxy`, limites 1,5 CPU / 2 GB, `env_file` apontando para `/opt/hub-gestao/shared/.env.production`)
+- [ ] `deploy/vps/hub-deploy.sh` e `hub-deploy-ssh.sh` (modelo RELGOV: comando restrito `load <sha>`, validação do SHA, troca de container, healthcheck, rollback)
+- [ ] `deploy/vps/hub-traefik.yaml` (rota `Host(hub.harmonydigital.com.br)`, Let's Encrypt, cabeçalhos de segurança)
+- [ ] `deploy/vps/hub-cron.service` e `hub-cron.timer` (a cada 5 min → `/api/internal/cron/tick`)
+- [ ] `.github/workflows/deploy-vps.yml` (ambiente `hub-production`, `needs: ci`, imagem sem segredos, SSH restrito)
+- [ ] `deploy/vps/README.md` documentando o fluxo, segredos (nomes, nunca valores) e operação
+
+### Provisionamento na VPS (com autorização, passo a passo registrado)
+- [ ] Fábio cria/autoriza o registro DNS `hub` → CNAME `srv1821299.hstgr.cloud` (D1)
+- [ ] Criar `/opt/hub-gestao/{config,shared,releases}` (root), `.env.production` `0600` preenchido pelo Fábio
+- [ ] Usuário de deploy com chave SSH restrita ao comando `load`
+- [ ] Rota Traefik instalada em `/etc/easypanel/traefik/config/hub.yaml`; certificado emitido
+- [ ] Segredos no GitHub (`HUB_VPS_HOST`, `HUB_VPS_USER`, `HUB_VPS_SSH_KEY`, `HUB_VPS_KNOWN_HOSTS`, `HUB_NEXT_PUBLIC_SUPABASE_ANON_KEY`) e variável `HUB_DEPLOY_URL` — provisionados pelo Fábio
+- [ ] Primeiro deploy verde; `curl https://hub.harmonydigital.com.br/api/health` com o SHA da `main`
+- [ ] Medição read-only de recursos da VPS antes e depois (CPU, RAM, disco) registrada aqui
+- [ ] **(D8, antecipado)** Backup diário do schema `proj_hub_gestao` (`pg_dump -n` por timer systemd, retenção de 14 dias, cópia fora da VPS com destino a definir com o Fábio) ativo antes de entrar qualquer dado real; primeiro arquivo conferido
+
+### Autenticação mínima
+- [ ] Login por e-mail/senha e magic link (Supabase Auth); primeiro usuário = `owner`; tela de login com identidade Harmony
+- [ ] Toda rota de UI exige sessão; API e MCP exigem chave; `noindex` global até o portal
+
+### 🔒 GATE M2 (aprovação do Fábio)
+- [ ] Fábio faz login em `https://hub.harmonydigital.com.br`; Claude Code conclui tarefa por MCP contra produção; health com SHA
+
+---
+
+## M3 — Interface interna essencial
+
+### Shell
+- [ ] Barra lateral recolhível (Hoje · Minhas tarefas · Aprovações · Clientes › Projetos · Departamentos · Agentes · Relatórios · Configurações), barra superior com `⌘K` (`cmdk`), criação rápida, breadcrumb, abas de visão
+- [ ] Tema claro/escuro com tokens; `prefers-reduced-motion`; foco visível; navegação por teclado
+
+### Hoje (cockpit)
+- [ ] Aprovações pendentes (Aprovar / Ajustar / Recusar), bloqueios que dependem de mim, minhas tarefas, riscos, resumo de agentes (24h); para `owner`, consolidado de todos os projetos
+
+### Clientes e projetos
+- [ ] CRUD de clientes; CRUD de projetos (código, fase, status, departamentos, responsável, agente gestor, repo, `plan_path`, `require_evidence`, `client_can_confirm_receipt`)
+- [ ] Painel do projeto em três blocos: Macro (marcos, saúde, próximos aceites), Tático (frentes por departamento com progresso), Operacional (fila do dia, bloqueios, atividade dos agentes)
+- [ ] Marcos: criar/editar (humanos), critérios de aceite, aceite com registro em `approvals`
+- [ ] Frentes: criar/editar, departamento, visibilidade, responsável
+
+### Tarefas e visões
+- [ ] **Lista** com grupos (status, frente, responsável, prioridade), ordenação, colunas configuráveis, edição em linha de status/prioridade/responsável/data
+- [ ] **Quadro** Kanban com `@dnd-kit` (arrastar entre status e reordenar), swimlanes por frente/responsável, cartões leves
+- [ ] **Painel lateral de tarefa**: tudo da tarefa; comentários (TipTap, Markdown, menções); checklist; anexos (Storage privado, URL assinada); dependências; evidência de conclusão; histórico
+- [ ] Status personalizáveis por projeto sobre categorias fixas; conjunto padrão Harmony
+- [ ] Realtime (Supabase) para atualizar lista/quadro quando um agente escreve
+- [ ] Filtros combináveis e visões salvas por usuário
+
+### Aprovações
+- [ ] Tela de aprovações com filtro por tipo e projeto; decisão com orientação; efeito automático (publicar, promover visibilidade, aceitar marco)
+
+### Agentes (Console "Sala de Controle")
+- [ ] Cadastro de agentes (tipo, departamento, missão, orçamento, dono); criação de chave com exibição única; escopos e projetos; expiração; revogação; pausa (kill switch)
+- [ ] Feed em tempo real de `activity_log` filtrado por agente/projeto; erros de autorização; custo de IA no mês
+
+### Notificações
+- [ ] Inbox no app com menções, atribuições, aprovações, bloqueios; preferências por tipo
+
+### Qualidade
+- [ ] Playwright: criar tarefa → mover no quadro → concluir com evidência → aprovar algo no Hoje
+- [ ] Revisão de acessibilidade (axe) e de identidade (sem emojis, fontes e cores corretas)
+
+### 🔒 GATE M3 (aprovação do Fábio)
+- [ ] Fábio opera um projeto real pela interface por uma semana (dogfooding) e aprova o essencial
+
+---
+
+## M4 — `plan.md`, CLI, GitHub e importação do próprio Hub
+
+### Sincronização
+- [ ] `src/modules/sync`: parser byte-neutro do `PLAN.md` (headings `##` → marcos, `###` → frentes, `- [ ]` → tarefas, aninhado → subtarefas, linhas `🔒 GATE` → aprovações), geração com códigos `(HUB-n)`
+- [ ] Regras: Hub vence; `[x]` em GATE ignorado e alertado; itens removidos do arquivo viram `archived`; divergências em `plan_sync_runs` e comentário
+- [ ] Endpoints `GET/POST /api/v1/sync/plan` e tool `hub_sync_plan`; testes com os `PLAN.md` reais do RELGOV e do IA Posicionamento como fixtures (sem dados sensíveis)
+
+### CLI `hub`
+- [ ] `packages/cli`: `hub init` (`.hub.json`), `hub plan pull`, `hub plan push`, `hub task start|done|new`, `hub today`; `HUB_API_KEY` por ambiente; mensagens em PT-BR
+- [ ] Publicação interna (tarball no repo ou GitHub Packages); instruções em `docs/cli.md`
+- [ ] GitHub Action reutilizável `hub-sync.yml` (`push` em `main` → `hub plan push`)
+
+### GitHub Sync (GH-16)
+- [ ] Webhook `/api/internal/webhooks/github` com segredo; commits/PRs com `HUB-n` viram comentário com link e SHA; `fecha HUB-n` vira proposta de conclusão
+- [ ] Documentação de instalação do webhook por repositório
+
+### Importação (D10)
+- [ ] Importar este `PLAN.md` como projeto `HUB` (dogfooding: o Hub se gerencia)
+- [ ] ~~Importar dois projetos ativos escolhidos pelo Fábio; conferir árvore, códigos e GATEs; `hub plan pull` nos repositórios correspondentes~~ — **cancelado** por D10 (2026-10-09): todos os projetos serão importados por agente no M5
+- [ ] Primeira sessão de Claude Code em um repositório importado concluindo tarefa via CLI e aparecendo no quadro — no M4, o próprio repositório `hub-gestao` (D10)
+
+### 🔒 GATE M4 (aprovação do Fábio)
+- [ ] Projeto `HUB` e dois projetos reais sincronizados; sessão de código fecha tarefa e o quadro reflete — D10: no M4 basta o projeto `HUB`; os projetos reais entram na importação geral do M5
+
+---
+
+## M5 — Agentes de gestão (Kratos no Hermes) + Concierge e Planejador + importação de todos os projetos
+
+### Hermes
+- [ ] Confirmar na instalação da VPS como registrar servidores MCP e crons no Hermes (versão, formato de configuração) e documentar em `agents/hermes/README.md` (sem segredos)
+- [ ] ~~Perfil dedicado "Gestor de Projetos" (D6) com `SOUL.md`, `AGENTS.md` e skills versionados em `agents/hermes/gestor-de-projetos/`~~ — **cancelado** por D6 (2026-10-09), ver item seguinte
+- [ ] **(D6)** Papéis de gestão como skills do Kratos: `gestor-de-projetos`, `coordenador-tatico`, `relator-de-status`, `guardiao-da-qualidade` e `vigia-de-prazos`, versionadas no segundo cérebro (`workspace-backup/skills/gestao-hub/`) com cópia de referência em `agents/hermes/`; nenhuma mudança no `SOUL.md` do Kratos sem aprovação do Fábio
+- [ ] ~~Chaves de agente criadas pelo Fábio para GP-01, CT-02, RL-03, QA-04, VP-05 e KR-00 com os escopos de `AGENTES.md` §4~~ — **cancelado** por D6 (2026-10-09), ver item seguinte
+- [ ] **(D6)** Uma chave de agente para o Kratos, criada pelo Fábio, com a união dos escopos de gestão e `projects:import` (`AGENTES.md` §4); toda escrita informa o `papel` usado (gestor, coordenador, relator, guardiao, vigia, importador), gravado em `activity_log.acting_role`
+- [ ] Crons: digest matinal (8h dias úteis), status interno (segunda), verificação de conclusões (noturno), resumo executivo (fim do dia)
+- [ ] Webhook do Hub → Hermes → Telegram do Fábio para `approval.requested`, `project.health_changed`, `agent.budget_exceeded`
+- [ ] Kratos com chave de leitura; teste "como está o projeto X?" — D6: o Kratos usa a chave de gestão do item acima; o teste continua valendo
+
+### Regras determinísticas no Hub (base do VP-05 e QA-04)
+- [ ] Job `health-rollup` aplicando PRD §5.7 e emitindo `project.health_changed`
+- [ ] Job `evidence-check`: conclusões sem evidência em projetos `require_evidence` são reabertas e notificadas
+- [ ] Job `approval-aging`: aprovações > 3 dias úteis sinalizadas no Hoje
+
+### Agentes internos (IA multi-provedor, D5)
+- [ ] ~~`src/lib/llm`: adaptador multi-provider (Claude padrão, OpenAI alternativo), prompt caching, orçamento por agente, fail-closed~~ — **substituído** por D5 (2026-10-09), ver itens seguintes
+- [ ] **(D5)** `src/lib/llm` com AI SDK v7 e três provedores: Anthropic (Claude), OpenAI e xAI (Grok); provedor, modelo e credencial lidos da configuração do agente a cada chamada; cache de prompt quando o provedor suportar; orçamento por agente; fail-closed
+- [ ] **(D5)** Tabela `llm_credentials` com cifragem AES-256-GCM e `HUB_ENCRYPTION_KEY`; cadastro e troca de chave só pelo `owner`; exibição só dos 4 últimos caracteres; chave nunca no navegador, em logs ou em prompts
+- [ ] **(D5)** Tela Agentes → "Modelo de IA": provedor, modelo (lista buscada na API do provedor, com campo livre), credencial, teto mensal e botão "Testar conexão"; troca registrada em `activity_log` e válida já na chamada seguinte, sem deploy
+- [ ] **(D5)** Teste automatizado: o mesmo agente responde com cada um dos três provedores (mocks em CI e uma chamada real por provedor na homologação) e cai no modo sem IA quando a chave falha
+- [ ] **CO-10 Concierge**: barra `⌘K` com linguagem natural e ditado (Web Speech API); interpretação → prévia estruturada → confirmação → execução em nome do humano; testes de intenções principais
+- [ ] **PL-11 Planejador**: de PRD/brief/template para proposta de marcos, frentes, tarefas e textos para cliente; aprovação cria a estrutura e gera `PLAN.md` inicial
+- [ ] Prompts versionados em `app/src/modules/agents/prompts/` com changelog
+
+### Importação de todos os projetos (D10)
+- [ ] Ferramentas `hub_create_client`, `hub_create_project` e `hub_import_plan` (escopo `projects:import`); o projeto importado nasce `in_review` ("Em revisão") e abre aprovação `import_review`, que o Fábio decide em lote no Hoje
+- [ ] Skill `importar-projetos-no-hub` para o agente importador: onde ler cada projeto, como mapear cliente, projeto, departamentos, marcos, frentes e GATEs, e o que nunca importar (segredos, dados pessoais, respostas manuscritas do manual de posicionamento)
+- [ ] Sessão de orientação: o Fábio explica ao agente como quer os projetos estruturados; a orientação vira parte da skill
+- [ ] Confirmar o acesso de leitura do Kratos aos repositórios da Harmony no GitHub, sem permissão de escrita
+- [ ] Importação de todos os projetos ativos: o Kratos importa os que estão no GitHub; os que só existem em pasta no Mac são importados por uma sessão do Claude Code com a mesma ferramenta
+- [ ] Revisão do Fábio no Hoje; projetos aprovados passam a sincronizar com o `plan.md` de cada repositório
+
+### 🔒 GATE M5 (aprovação do Fábio)
+- [ ] Uma semana de digests reais no Telegram; um replanejamento proposto pelo GP-01 e decidido no Hoje; uma tarefa criada por voz pelo Concierge; todos os projetos ativos importados e aprovados pelo Fábio (D10)
+
+---
+
+## M6 — Portal do cliente e relatórios
+
+### Portal
+- [ ] Rotas `/portal/<cliente>` com magic link para `client_contacts`; sessão curta; `noindex`; sem rastreadores
+- [ ] **(D9)** Acesso só por convite: o contato cadastrado nasce sem acesso; o botão "Liberar acesso", exclusivo do `owner`, envia o convite por e-mail ou gera um link de uso único para o Fábio enviar por onde quiser; revogar a qualquer momento; sem cadastro aberto
+- [ ] Páginas: projetos do cliente; projeto (objetivo, fase, marcos com data e status, frentes `client` com progresso, relatórios aprovados, canal de comentários, arquivos entregues, confirmar recebimento de marco se habilitado — D9)
+- [ ] DTOs do portal sem campos internos; RLS de papel cliente; **teste automatizado de vazamento** (SQL + Playwright) em CI
+- [ ] Identidade: logo Harmony, cor de destaque do cliente em detalhes, mais ar, segunda pessoa
+
+### Relatórios e redação
+- [ ] **RL-03 (cliente)**: rascunho `audience = client` semanal → **RC-12 Redator do Cliente** (tom Harmony + verificação de termos internos, códigos `HUB-n`, agentes, SHAs) → `approval` → publicação no portal → e-mail via Resend se habilitado
+- [ ] Promoção de frente a `client` com proposta de `title_client`/`description_client` pelo RC-12 e aprovação
+- [ ] Versões de relatório guardadas; histórico no portal
+
+### Onboarding (OB-13)
+- [ ] Fluxo: cliente criado → contatos → textos iniciais → convite (aprovação `external_message`) → consentimento LGPD no primeiro acesso — D9: o convite só sai quando o Fábio clicar em "Liberar acesso"; o OB-13 prepara, nunca envia
+
+### 🔒 GATE M6 (aprovação do Fábio)
+- [ ] Cliente piloto (escolhido pelo Fábio) acessa o portal, recebe o primeiro status aprovado e comenta; teste de vazamento verde
+
+---
+
+## M7 — Departamentos, visões avançadas, templates e tempo
+
+- [ ] Visão por departamento: quadro cruzando projetos, carga por agente/pessoa (`v_department_load`), bloqueios, tarefas sem responsável
+- [ ] **Linha do tempo** (marcos e frentes em barras, dependências), **Calendário** (entregas), **Tabela** (edição em linha, grupos, estilo Monday), **Painel** (widgets: saúde, progresso por marco, carga por departamento, atividade de agentes)
+- [ ] Dependências entre frentes com alerta; dependências entre tarefas no quadro
+- [ ] Templates de projeto: estrutura em `project_templates`; os seis iniciais da Harmony; criação a partir de template; exportar projeto como template
+- [ ] Registro de tempo (`time_entries`) por tarefa; **TO-15** consolidando tempo e custo de IA por projeto
+- [ ] Campos personalizados (texto, número, seleção, data, URL) por projeto
+- [ ] **EX-09 Dados** e **N8-17 n8n Bridge** com chaves de escopo mínimo; um fluxo n8n real criando tarefa
+- [ ] Exportação de atividade por período (CSV/JSON)
+
+### 🔒 GATE M7 (aprovação do Fábio)
+- [ ] Revisão mensal de portfólio feita na visão por departamento; um projeto criado de template
+
+---
+
+## M8 — Operação, segurança, backups e LGPD
+
+- [ ] **Backups (D8)**: `pg_dump -n proj_hub_gestao` diário por timer → Storage privado + cópia fora da VPS; snapshot semanal da VPS; **teste de restauração** em banco temporário documentado
+- [ ] Observabilidade: `/api/health` completo (banco, fila, versão), logs `pino` sem PII, alertas via webhook → Telegram (deploy falhou, fila parada, orçamento estourado, autorização recorrente)
+- [ ] Hardening: CSP, HSTS, cookies, CORS, rate limit revisado, cabeçalhos do portal; revisão de RLS com `get_advisors`; role de banco restrita ao schema (pendência herdada do RELGOV) avaliada
+- [ ] **AC-14 Auditor**: relatório semanal de chaves, membros, aprovações antigas, custos; rotação de chaves documentada
+- [ ] LGPD: consentimento, exportação e exclusão por cliente; retenção de logs; `docs/privacidade.md`
+- [ ] Runbook `docs/operacao.md`: deploy, rollback, restauração, pausar agente, rotacionar segredo, incidente de vazamento
+- [ ] Teste de carga leve (lista/quadro p95 < 400 ms com 5 mil tarefas)
+
+### 🔒 GATE M8 (aprovação do Fábio)
+- [ ] Restauração testada e registrada; auditoria de acesso lida e ações decididas
+
+---
+
+## M9 — Produto replicável
+
+> ⏸ **Adiado por decisão do Fábio (D7, 2026-10-09):** o Hub é de uso interno da Harmony. Este milestone só começa depois de validado e com nova decisão dele. As tarefas ficam como referência.
+
+- [ ] Multi-workspace real: isolamento por `workspace_id` em tudo; branding e configurações por workspace; testes de RLS entre workspaces
+- [ ] `hub init-workspace`: cria workspace, departamentos, status, templates, agentes padrão e primeiro `owner`
+- [ ] Pacote de implantação: checklist DNS/Traefik/segredos, migrações, carga de templates, criação dos agentes no Hermes (do cliente ou gerenciado pela Harmony)
+- [ ] Opção de instância dedicada (export/import do schema para Supabase próprio do cliente)
+- [ ] White-label: nenhum texto "Harmony" fixo no código; textos padrão do portal configuráveis
+- [ ] Documentação de produto (`docs/produto/`): o que é, como implantar, como operar, limites
+- [ ] Decisão comercial do Fábio (D7 e modelo): licença + implantação, assinatura com agentes gerenciados, coprodução
+- [ ] Segundo workspace de teste criado do zero em menos de um dia, com um projeto, um agente e um portal funcionando
+
+### 🔒 GATE M9 (aprovação do Fábio)
+- [ ] Oferta definida; segundo workspace funcionando; pacote de implantação validado
+
+---
+
+## Riscos acompanhados
+
+| Risco | Sinal | Ação prevista |
+|---|---|---|
+| Escopo inchar antes do P0 | Tarefas de M7 sendo puxadas para M3 | Recusar; anotar como pedido futuro |
+| Aprovações acumulando no Hoje | > 10 pendentes por mais de 3 dias | GP-01 agrupa; padrões aprovados viram regra |
+| `plan.md` e Hub divergindo com frequência | `plan_sync_runs.conflicts` crescendo | Revisar parser; reforçar `pull` no início da sessão |
+| VPS saturando | RAM disponível < 2 GB após deploy | Reduzir limites, avaliar mover n8n/Evolution ou segundo VPS |
+| Hermes sem suporte estável a MCP | Erros de conexão nos crons | Skill REST de fallback |
+
+## Registro de Execução
+
+| Data | IA / Sessão | Entregue | Pendências deixadas |
+|---|---|---|---|
+| 2026-10-08 | Claude (Fable 5.1) · Claude Code | Levantamento read-only da stack real (VPS KVM4 `1821299`: 4 vCPU, 16 GB, 163 GB livres; Supabase compartilhado `/opt/supabase-harmony` + dedicado RELGOV; Traefik/EasyPanel; Hermes em container; n8n em fila; pipeline GitHub→VPS do RELGOV). Pasta `Projetos de IA/Sistema de Gestão da Harmony Digital/` com `CLAUDE.md`, `AGENTS.md`, `PRD.md`, `AGENTES.md`, `PLAN.md`. Nenhuma alteração em infra, banco, DNS ou GitHub. | Fábio responder D1–D11; GATE M0. Observação: a leitura detalhada de `harmony_admin.projects`, do Compose do Hermes e das rotas Traefik foi bloqueada pela política de leitura de produção da sessão; confirmar no M0 com o MCP `harmony-supabase-readonly` e por SSH autorizado. |
+| 2026-10-09 | Claude (Opus 5.5) · Claude Code | Fábio respondeu D1–D11. Documentos ajustados: IA multi-provedor por agente, com chaves cifradas e troca pela tela Agentes (D5); papéis de gestão como skills do Kratos, com chave única e campo `papel` (D6); uso interno e M9 adiado (D7); backup diário antecipado para o M2 (D8); portal só por convite liberado pelo Fábio (D9); importação de todos os projetos por agente no M5, com as ferramentas `hub_create_client`, `hub_create_project` e `hub_import_plan` e revisão em lote (D10). Corrigida a versão do framework nos documentos: Next.js 16, não 15. | 🔒 GATE M0 (aceite do PRD) segue com o Fábio. Próximo passo técnico: criar o repositório e registrar o schema. O MCP `harmony-supabase` estava sem conexão nesta sessão (ECONNREFUSED no endereço local); religar antes do registro do schema. |
+| 2026-10-09 | Claude (Opus 5.5) · Claude Code | Protótipo navegável publicado como artifact privado do tipo Design, com 10 telas e dados de exemplo fictícios: Hoje, Projetos, Hoje no celular, Projeto em três camadas, Quadro e tarefa, Aprovações, Sala de Controle, Departamentos, Portal do cliente e Concierge por voz. Link: https://claude.ai/artifact/F7ss9Ajt9aD6PuAC9D3p2d. Serve de referência visual e de comportamento para o M3 e o M6. | Fábio revisar as telas e apontar ajustes antes da construção. Os cliques não foram testados um a um nesta sessão. |

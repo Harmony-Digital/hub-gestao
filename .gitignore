@@ -1,0 +1,22 @@
+# Dependências e builds
+node_modules/
+.next/
+out/
+build/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Segredos: nunca versionar (só o modelo sem valores)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Sistema e editores
+.DS_Store
+.idea/
+
+# Ferramentas
+.vercel

@@ -1,0 +1,196 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  Identidade Harmony Digital, direção "Sala de Controle".
+  Tema claro é o padrão (decisão D4). O escuro (.dark) vale para o console
+  dos agentes e como opção do usuário. Origem dos valores: site 2026 e PRD §14.
+*/
+
+@theme {
+  /* Marca */
+  --color-navy: #151a2d;
+  --color-navy-2: #1b2139;
+  --color-navy-3: #10141f;
+  --color-navy-4: #232a45;
+  --color-off: #faf8f4;
+  --color-off-2: #f3f0ea;
+  --color-paper: #fffefb;
+  --color-brand: #f28c1d;
+  --color-brand-soft: #ffa94d;
+  --color-brand-strong: #9e5306;
+  --color-ink: #2b3040;
+  --color-ink-2: #4a5061;
+  --color-caption: #5e6373;
+  --color-mist: #c9ccd6;
+  --color-mist-2: #8e93a3;
+  --color-line: #e7e2d9;
+
+  /* Estados (status de tarefa, saúde do projeto, alertas) */
+  --color-ok: #2f8f5b;
+  --color-ok-fg: #1e6b3f;
+  --color-ok-soft: #e2f3e8;
+  --color-warn: #d98b1e;
+  --color-warn-fg: #8a5208;
+  --color-warn-soft: #fbefd9;
+  --color-danger: #c8463c;
+  --color-danger-fg: #a3302a;
+  --color-danger-soft: #fbe4e2;
+  --color-info: #3b6fb6;
+  --color-info-fg: #1f4f99;
+  --color-info-soft: #e3ecfa;
+  --color-review: #7e5cc4;
+  --color-review-fg: #5b3a9e;
+  --color-review-soft: #ede7f6;
+}
+
+@theme inline {
+  --font-sans: var(--font-dm-sans);
+  --font-heading: var(--font-sora);
+  --font-mono: var(--font-jetbrains);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Tema claro (padrão) */
+:root {
+  --background: #faf8f4;
+  --foreground: #2b3040;
+  --card: #fffefb;
+  --card-foreground: #2b3040;
+  --popover: #fffefb;
+  --popover-foreground: #2b3040;
+  --primary: #f28c1d;
+  --primary-foreground: #151a2d;
+  --secondary: #f3f0ea;
+  --secondary-foreground: #151a2d;
+  --muted: #f3f0ea;
+  --muted-foreground: #5e6373;
+  --accent: #f3f0ea;
+  --accent-foreground: #151a2d;
+  --destructive: #c8463c;
+  --border: #e7e2d9;
+  --input: #c9ccd6;
+  --ring: #f28c1d;
+  --chart-1: #f28c1d;
+  --chart-2: #151a2d;
+  --chart-3: #0f766e;
+  --chart-4: #3b6fb6;
+  --chart-5: #8e93a3;
+  --radius: 0.625rem;
+  --sidebar: #151a2d;
+  --sidebar-foreground: #c9ccd6;
+  --sidebar-primary: #f28c1d;
+  --sidebar-primary-foreground: #151a2d;
+  --sidebar-accent: #232a45;
+  --sidebar-accent-foreground: #faf8f4;
+  --sidebar-border: rgb(250 248 244 / 9%);
+  --sidebar-ring: #f28c1d;
+}
+
+/* Tema escuro "Sala de Controle" */
+.dark {
+  --background: #10141f;
+  --foreground: #c9ccd6;
+  --card: #151a2d;
+  --card-foreground: #faf8f4;
+  --popover: #1b2139;
+  --popover-foreground: #faf8f4;
+  --primary: #f28c1d;
+  --primary-foreground: #151a2d;
+  --secondary: #1b2139;
+  --secondary-foreground: #faf8f4;
+  --muted: #1b2139;
+  --muted-foreground: #8e93a3;
+  --accent: #232a45;
+  --accent-foreground: #faf8f4;
+  --destructive: #f1867c;
+  --border: rgb(250 248 244 / 9%);
+  --input: rgb(250 248 244 / 16%);
+  --ring: #f28c1d;
+  --chart-1: #f28c1d;
+  --chart-2: #c9ccd6;
+  --chart-3: #3fb5a8;
+  --chart-4: #7cc4e8;
+  --chart-5: #8e93a3;
+  --sidebar: #151a2d;
+  --sidebar-foreground: #c9ccd6;
+  --sidebar-primary: #f28c1d;
+  --sidebar-primary-foreground: #151a2d;
+  --sidebar-accent: #232a45;
+  --sidebar-accent-foreground: #faf8f4;
+  --sidebar-border: rgb(250 248 244 / 9%);
+  --sidebar-ring: #f28c1d;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading;
+  }
+  ::selection {
+    background: rgb(242 140 29 / 30%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
