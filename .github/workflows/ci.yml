@@ -94,6 +94,11 @@ jobs:
           test "$status" = "500" || { echo "Esperava 500 sem banco, veio $status"; exit 1; }
           status="$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/mcp)"
           test "$status" = "405" || { echo "Esperava 405 no GET do MCP, veio $status"; exit 1; }
+          # Sem sessão, toda tela vai para o login; sem a chave do login no build, ele fica fechado.
+          gate="$(curl --silent --output /dev/null --write-out '%{http_code} %header{location}' 'http://127.0.0.1:3000/projetos?aba=plano')"
+          test "$gate" = "307 /login?next=%2Fprojetos%3Faba%3Dplano" || { echo "Esperava 307 para o login, veio $gate"; exit 1; }
+          curl --silent --fail http://127.0.0.1:3000/login | grep -q "O login ainda não foi configurado" \
+            || { echo "A tela de login não avisou que o login está sem configuração"; exit 1; }
           test "$(docker exec hub-app-teste id -u)" = "1001"
           docker exec hub-app-teste sh -c 'test ! -e /app/src && test ! -e /app/.data && ! ls -a /app | grep -q "^\.env"'
           echo "Contêiner sem root, sem código-fonte, sem banco local e sem arquivos .env."
