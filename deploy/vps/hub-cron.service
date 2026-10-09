@@ -6,5 +6,7 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
+# Sem o contêiner (antes do primeiro deploy), a rodada é pulada em vez de falhar.
+ExecCondition=/usr/bin/docker inspect --type container hub-app
 ExecStart=/usr/bin/docker exec hub-app node /app/scripts/cron-tick.mjs
 TimeoutStartSec=5min

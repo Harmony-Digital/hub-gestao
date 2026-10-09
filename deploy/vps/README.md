@@ -28,6 +28,7 @@ O que está nesta pasta é a fonte canônica, versionada. As cópias ativas fica
 | `hub-backup.service`, `hub-backup.timer` | `/etc/systemd/system/` |
 | `hub-db-role.sql`, `hub-db-verifier.py` | `/opt/hub-gestao/config/` (usados no provisionamento do banco) |
 | `hub-db-provision.sh` | `/opt/hub-gestao/bin/hub-db-provision.sh` |
+| `hub-provision.sh` | `/opt/hub-gestao/bin/hub-provision.sh` (unidades systemd copiadas antes para `/opt/hub-gestao/config/systemd/`) |
 
 O Dockerfile roda só no runner descartável do GitHub e nunca recebe os segredos de runtime. O publicador automático não tem shell: a chave dele aceita somente `load <sha>` e recebe a imagem pela entrada padrão.
 
@@ -51,6 +52,8 @@ Nomes e origem em `docs/credenciais.md`. As principais para o M2: `DATABASE_URL`
 Segredos do repositório: `HUB_VPS_HOST`, `HUB_VPS_USER`, `HUB_VPS_SSH_KEY`, `HUB_VPS_KNOWN_HOSTS` e `HUB_NEXT_PUBLIC_SUPABASE_ANON_KEY`. Variáveis: `HUB_DEPLOY_URL` e `HUB_DEPLOY_ENABLED`. O plano Free da organização não tem ambientes em repositório privado; por isso são segredos do repositório. Nunca documentar os valores.
 
 ## Provisionamento (uma vez, com autorização do Fábio)
+
+Os passos de root ficam em `hub-provision.sh`, por etapa (`banco`, `publicador`, `rede`, `agenda`, `traefik`, `rota`; `preparar` junta as quatro primeiras). Cada etapa confere o que já existe e pode rodar de novo. A etapa `traefik` reinicia o Traefik e deixa os sites da VPS fora do ar por alguns segundos; se a atualização falhar, ela volta sozinha à configuração anterior.
 
 1. DNS: registro `hub` na zona `harmonydigital.com.br`, CNAME para `srv1821299.hstgr.cloud`.
 2. Banco: papel próprio do Hub no Supabase compartilhado, com login, sem `BYPASSRLS`, com acesso só ao schema `proj_hub_gestao` (seção "Papel de banco").
