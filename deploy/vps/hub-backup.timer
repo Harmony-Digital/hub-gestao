@@ -1,0 +1,11 @@
+[Unit]
+Description=Hub de Gestão - backup diário às 06:00 UTC (03:00 em Brasília)
+
+[Timer]
+OnCalendar=*-*-* 06:00:00 UTC
+Persistent=true
+RandomizedDelaySec=10min
+Unit=hub-backup.service
+
+[Install]
+WantedBy=timers.target

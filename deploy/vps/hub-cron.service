@@ -1,0 +1,10 @@
+[Unit]
+Description=Hub de Gestão - relógio dos jobs
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/docker exec hub-app node /app/scripts/cron-tick.mjs
+TimeoutStartSec=5min
