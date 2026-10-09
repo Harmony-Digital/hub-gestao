@@ -45,9 +45,19 @@ export type Actor = UserActor | ClientActor | AgentActor | SystemActor;
 
 const ROLE_NAME = /^[a-z_][a-z0-9_]{0,62}$/;
 
+/** Troca para o papel de banco do app (sem passe livre na RLS), se configurado. */
+export async function applyRuntimeRole(db: Db, tx: Queryable): Promise<void> {
+  if (!db.runtimeRole) return;
+  if (!ROLE_NAME.test(db.runtimeRole)) {
+    throw new Error("Papel de banco inválido na configuração.");
+  }
+  await tx.query(`set local role ${db.runtimeRole}`);
+}
+
 /**
  * Abre uma transação com o contexto do ator. As políticas de RLS do schema leem esse
- * contexto; sem ele, nada aparece (fail-closed).
+ * contexto; sem ele, nada aparece (fail-closed). O fuso da transação passa a ser o do
+ * workspace, para que "hoje" no banco seja o dia de quem usa o Hub.
  */
 export async function withActor<T>(
   db: Db,
@@ -55,12 +65,7 @@ export async function withActor<T>(
   fn: (tx: Queryable) => Promise<T>,
 ): Promise<T> {
   return db.transaction(async (tx) => {
-    if (db.runtimeRole) {
-      if (!ROLE_NAME.test(db.runtimeRole)) {
-        throw new Error("Papel de banco inválido na configuração.");
-      }
-      await tx.query(`set local role ${db.runtimeRole}`);
-    }
+    await applyRuntimeRole(db, tx);
     await tx.query(
       `select set_config('hub.workspace_id', $1, true),
               set_config('hub.actor_type', $2, true),
@@ -74,6 +79,11 @@ export async function withActor<T>(
         actor.scope,
         actor.scope === "client" ? actor.clientId : "",
       ],
+    );
+    await tx.query(
+      `select set_config('TimeZone', w.timezone, true)
+         from proj_hub_gestao.workspaces w where w.id = $1`,
+      [actor.workspaceId],
     );
     return fn(tx);
   });

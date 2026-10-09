@@ -17,10 +17,16 @@ Sistema de gestão de projetos, departamentos e atividades em que agentes de IA 
 
 | Pasta | Conteúdo |
 |---|---|
-| `app/` | Aplicação Next.js 16: interface, API para agentes e, a partir do M1, servidor MCP |
-| `supabase/` | Migrations e testes do schema `proj_hub_gestao` |
-| `docs/` | Credenciais, operação e decisões técnicas |
+| `app/` | Aplicação Next.js 16: interface, API REST v1 para agentes (`/api/v1`) e servidor MCP (`/mcp`) |
+| `supabase/` | Migrations e seed do schema `proj_hub_gestao` |
+| `docs/` | Credenciais, guia de conexão dos agentes e os contratos da API e do MCP |
 | `.github/workflows/` | Integração contínua |
+
+## Para agentes
+
+- [`docs/agentes-conexao.md`](docs/agentes-conexao.md): como conectar Claude Code, Codex e Kratos por MCP ou REST.
+- [`docs/api/openapi.v1.json`](docs/api/openapi.v1.json): contrato da API REST v1 (OpenAPI 3.1).
+- [`docs/mcp/tools.v1.json`](docs/mcp/tools.v1.json): ferramentas do servidor MCP.
 
 ## Rodar localmente
 
@@ -30,4 +36,4 @@ npm ci
 npm run dev
 ```
 
-Abra http://localhost:3000. Antes de concluir qualquer tarefa, rode `npm run check` dentro de `app/`.
+Abra http://localhost:3000. Sem `DATABASE_URL`, o servidor usa um banco local (PGlite) com as migrations e o seed da Harmony. Antes de concluir qualquer tarefa, rode `npm run check` dentro de `app/`.

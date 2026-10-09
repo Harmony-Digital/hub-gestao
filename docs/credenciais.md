@@ -20,6 +20,13 @@ Nenhum valor secreto entra em chat, commit, log, comentário de tarefa ou docume
 | `GITHUB_WEBHOOK_SECRET` | Valida os webhooks do GitHub | servidor e configuração do webhook | gerado no M4 |
 | `LLM_MONTHLY_BUDGET_USD` | Teto global de gasto com IA | servidor | 30, decisão D5 |
 | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `XAI_API_KEY` | Alternativa só para desenvolvimento local | só `.env.local` | Fábio |
+| `DATABASE_URL` | Conexão do servidor com o banco (papel próprio do Hub, sem passe livre na RLS) | só `.env.production` | Fábio, no M2, depois de autorizar o papel de banco |
+| `HUB_DB_RUNTIME_ROLE` | Papel que o servidor assume em cada transação, se o login for diferente dele | só `.env.production` | definido no M2 |
+| `HUB_WORKSPACE_SLUG` | Workspace usado pelo relógio dos jobs (padrão `harmony`) | servidor | fixo |
+| `HUB_RATE_LIMIT_PER_MIN` | Limite de pedidos por chave de agente (padrão 600) | servidor | opcional |
+| `LOG_LEVEL` | Nível do log estruturado (padrão `info`) | servidor | opcional |
+| `HUB_DATA_DIR` | Pasta do banco local de desenvolvimento (padrão `.data/pglite`, fora do git) | só `.env.local` | opcional |
+| `HUB_DEV_AGENT_KEY` | Chave do "Agente local de teste", registrada no banco local ao subir o servidor | só `.env.local` | gerada localmente; nunca existe em produção |
 
 ## Segredos do GitHub Actions (M2)
 

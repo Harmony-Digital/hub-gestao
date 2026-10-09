@@ -1,0 +1,212 @@
+[
+  {
+    "name": "hub_block_task",
+    "title": "Bloquear tarefa",
+    "description": "Marca a tarefa como bloqueada, dizendo o que falta e de quem depende.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_comment",
+    "title": "Comentar",
+    "description": "Comentário interno em uma tarefa, frente, marco ou projeto: progresso relevante, decisão técnica ou dúvida. Nunca aparece para o cliente.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_complete_task",
+    "title": "Concluir tarefa",
+    "description": "Conclui a tarefa com evidência verificável: SHA do commit, URL, arquivo ou teste. Sem evidência, o Hub recusa.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_create_task",
+    "title": "Criar tarefa",
+    "description": "Cria tarefa operacional com código HUB-n. Use para trabalho descoberto e ligue à frente (workstream_id) ou à tarefa-pai (parent). Marco novo não: peça com hub_request_approval.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_create_workstream",
+    "title": "Criar frente",
+    "description": "Cria uma frente (camada tática) ligada a marco e departamento. Nasce interna; mostrar ao cliente é pedido de aprovação.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_draft_status_report",
+    "title": "Rascunho de status",
+    "description": "Cria o rascunho do relatório de status de um período, interno ou para o cliente. Vira pedido de aprovação; só é publicado com o sim do Fábio.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_get_plan",
+    "title": "Plano do projeto",
+    "description": "Árvore completa do projeto: marcos, frentes e tarefas com subtarefas. Com format \"md\", devolve o texto no formato plan.md.",
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_get_project",
+    "title": "Detalhe do projeto",
+    "description": "Um projeto pelo código (ex.: HUB): objetivo, saúde com motivos, progresso, departamentos e próximos marcos.",
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_get_task",
+    "title": "Detalhe da tarefa",
+    "description": "Uma tarefa pelo código (ex.: HUB-12), com evidência, bloqueio, versão e comentários internos.",
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_get_today",
+    "title": "Minha fila",
+    "description": "Sua fila do dia: tarefas atribuídas a você na ordem de trabalho, bloqueios dos seus projetos, prazos dos próximos 3 dias e seus pedidos de aprovação.",
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_list_approvals",
+    "title": "Listar pedidos de aprovação",
+    "description": "Pedidos de aprovação no seu escopo e a situação de cada um: pendente, aprovado, recusado ou com ajuste pedido.",
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_list_projects",
+    "title": "Listar projetos",
+    "description": "Projetos que esta chave pode ver, com status, fase, saúde e progresso.",
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_list_tasks",
+    "title": "Listar tarefas",
+    "description": "Tarefas com filtros: projeto, responsável (\"me\", \"none\", \"agent:<id>\"), categoria de status, prazo, bloqueio, frente e tarefa-pai. Paginação por cursor.",
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_log_time",
+    "title": "Registrar tempo",
+    "description": "Registra minutos trabalhados em uma tarefa.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_reopen_task",
+    "title": "Reabrir tarefa",
+    "description": "Reabre tarefa concluída ou bloqueada, por exemplo uma conclusão sem prova. O motivo vira comentário interno.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_request_approval",
+    "title": "Pedir aprovação",
+    "description": "Pede uma decisão ao Fábio: aceite de marco, novo marco, replanejamento, mudança de escopo, frente visível ao cliente ou mensagem externa. Você pede; só ele decide.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_search",
+    "title": "Buscar",
+    "description": "Busca por texto ou código (ex.: HUB-12) em projetos, tarefas, marcos e frentes do seu escopo.",
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_start_task",
+    "title": "Iniciar tarefa",
+    "description": "Inicia a tarefa e a assume, se estiver livre. Um agente tem uma tarefa em andamento por vez.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_sync_plan",
+    "title": "Sincronizar plan.md",
+    "description": "Exporta o plano do projeto no formato plan.md (direction \"export\"). A importação (direction \"import\") chega no M4.",
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_update_task",
+    "title": "Atualizar tarefa",
+    "description": "Muda título, descrição, prioridade, datas, responsável, frente ou status (menos concluir e bloquear). Informe expected_version para não sobrescrever a mudança de outro.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_update_workstream",
+    "title": "Atualizar frente",
+    "description": "Atualiza título, marco, departamento, descrição interna, status, ordem ou responsável de uma frente.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_whoami",
+    "title": "Quem sou eu",
+    "description": "Identidade no Hub: agente, workspace, projetos permitidos, escopos da chave e orçamento de IA. Chame primeiro em toda sessão.",
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": false
+    }
+  }
+]
