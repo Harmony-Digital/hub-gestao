@@ -43,14 +43,30 @@ export function canonicalJson(value: unknown): string {
     .join(",")}}`;
 }
 
+/**
+ * Hash do pedido. `credential` identifica a chave de agente usada: a mesma
+ * Idempotency-Key repetida com outra chave do mesmo agente não devolve a resposta
+ * guardada (seria um atalho para dados fora do escopo daquela chave); vira 409.
+ */
 export function requestHash(
   method: string,
   target: string,
   body: unknown,
+  credential: string | null = null,
 ): string {
   return createHash("sha256")
-    .update(`${method.toUpperCase()} ${target}\n${canonicalJson(body)}`)
+    .update(
+      `${method.toUpperCase()} ${target}\n${credential ?? "-"}\n${canonicalJson(body)}`,
+    )
     .digest("hex");
+}
+
+/** Identificador da credencial do ator, para o hash: a chave do agente, quando houver. */
+export function credentialOf(actor: {
+  type: string;
+  keyId?: string;
+}): string | null {
+  return actor.type === "agent" && actor.keyId ? actor.keyId : null;
 }
 
 export async function withIdempotency(
@@ -91,7 +107,7 @@ export async function withIdempotency(
     if (previous && !previous.expired) {
       if (previous.request_hash !== hash) {
         throw conflict(
-          "Esta Idempotency-Key já foi usada com outro pedido. Gere uma chave nova para uma ação nova.",
+          "Esta Idempotency-Key já foi usada com outro pedido ou com outra chave de agente. Gere uma chave nova para uma ação nova.",
           { idempotency_key: key },
         );
       }
@@ -104,14 +120,23 @@ export async function withIdempotency(
       };
     }
 
-    // Chave vencida (mais de 24 horas): vale como nova.
-    await t.tx.query(
+    // Chave vencida (mais de 24 horas): vale como nova. A condição de vencida vai no
+    // próprio UPDATE: se outro pedido renovou a chave antes, nada é renovado aqui e o
+    // pedido é recusado, em vez de rodar a ação duas vezes.
+    const renewed = await t.tx.query(
       `update ${S}.idempotency_keys
           set request_hash = $3, response_status = 0, response_body = '{}'::jsonb,
               created_at = now(), expires_at = now() + interval '24 hours'
-        where actor_id = $1 and key = $2`,
+        where actor_id = $1 and key = $2 and expires_at < now()
+        returning key`,
       [actorId, key, hash],
     );
+    if (renewed.rows.length === 0) {
+      throw conflict(
+        "Outro pedido com esta Idempotency-Key acabou de ser registrado. Consulte o resultado antes de tentar de novo.",
+        { idempotency_key: key },
+      );
+    }
   }
 
   const response = await run();

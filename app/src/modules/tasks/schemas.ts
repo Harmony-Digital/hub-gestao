@@ -6,6 +6,7 @@ import {
   ProjectCode,
   StatusCategory,
   TaskCode,
+  Line,
   Text,
   Timestamp,
   Uuid,
@@ -79,7 +80,7 @@ export type TaskFilter = z.infer<typeof TaskFilter>;
 
 export const CreateTaskInput = z.strictObject({
   project: ProjectCode,
-  title: Text(300),
+  title: Line(300),
   description_md: z.string().max(20000).optional(),
   workstream_id: Uuid.optional(),
   parent: TaskCode.optional().describe("Código da tarefa-pai (subtarefa)."),
@@ -93,7 +94,7 @@ export const CreateTaskInput = z.strictObject({
 export type CreateTaskInput = z.infer<typeof CreateTaskInput>;
 
 export const UpdateTaskInput = z.strictObject({
-  title: Text(300).optional(),
+  title: Line(300).optional(),
   description_md: z.string().max(20000).nullable().optional(),
   priority: Priority.optional(),
   assignee: AssigneeInput.nullable().optional(),

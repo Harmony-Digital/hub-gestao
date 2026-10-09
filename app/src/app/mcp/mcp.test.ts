@@ -2,7 +2,15 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setDbForTests } from "@/lib/db";
-import { count, openTestHub, TEST_PEPPER, type TestHub } from "@/test/hub";
+import { createAgentKey } from "@/modules/agents/service";
+import { inTx } from "@/modules/context";
+import {
+  count,
+  ctxFor,
+  openTestHub,
+  TEST_PEPPER,
+  type TestHub,
+} from "@/test/hub";
 import { DELETE, GET, POST } from "./route";
 
 const S = "proj_hub_gestao";
@@ -56,6 +64,9 @@ async function callTool(
 ) {
   return (await client.callTool({ name, arguments: args })) as CallResult;
 }
+
+let n = 0;
+const ikey = () => `mcp-teste-${Date.now()}-${n++}`;
 
 describe("servidor MCP", () => {
   it("recusa conexão sem chave válida", async () => {
@@ -138,9 +149,15 @@ describe("servidor MCP", () => {
     expect(repeated.structuredContent!.code).toBe(code);
 
     expect(
-      (await callTool(kratos, "hub_start_task", { code })).isError,
+      (
+        await callTool(kratos, "hub_start_task", {
+          idempotency_key: ikey(),
+          code,
+        })
+      ).isError,
     ).toBeFalsy();
     const comment = await callTool(kratos, "hub_comment", {
+      idempotency_key: ikey(),
       task: code,
       body_md: "Texto novo aprovado pela equipe.",
       papel: "GP-01",
@@ -151,12 +168,14 @@ describe("servidor MCP", () => {
     });
 
     const noEvidence = await callTool(kratos, "hub_complete_task", {
+      idempotency_key: ikey(),
       code,
       evidence: "",
     });
     expect(noEvidence.isError).toBe(true);
 
     const done = await callTool(kratos, "hub_complete_task", {
+      idempotency_key: ikey(),
       code,
       evidence: "commit 9b1e4d2 publicado",
     });
@@ -182,6 +201,7 @@ describe("servidor MCP", () => {
   it("erro explica o que fazer, sem derrubar a sessão", async () => {
     const kratos = await connect(h.keys.kratos);
     const outOfScope = await callTool(kratos, "hub_create_task", {
+      idempotency_key: ikey(),
       project: "HUB",
       title: "Fora",
     });
@@ -194,6 +214,7 @@ describe("servidor MCP", () => {
   it("pedir aceite de marco é permitido; decidir não existe como ferramenta", async () => {
     const kratos = await connect(h.keys.kratos);
     const requested = await callTool(kratos, "hub_request_approval", {
+      idempotency_key: ikey(),
       type: "milestone_proposal",
       project: "VIT",
       title: "Novo marco: relatórios automáticos",
@@ -235,5 +256,118 @@ describe("servidor MCP", () => {
       arguments: { project: "VIT" },
     });
     expect(JSON.stringify(prompt.messages)).toMatch(/hub_draft_status_report/);
+  });
+});
+
+describe("correções da revisão de segurança", () => {
+  const rawPost = (
+    key: string,
+    body: string,
+    headers: Record<string, string> = {},
+  ) =>
+    POST(
+      new Request("http://hub.test/mcp", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${key}`,
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream",
+          ...headers,
+        },
+        body,
+      }),
+    );
+
+  it("escrita sem idempotency_key é recusada com explicação", async () => {
+    const kratos = await connect(h.keys.kratos);
+    const result = await callTool(kratos, "hub_create_task", {
+      project: "VIT",
+      title: "Sem chave de idempotência",
+    });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/idempotency_key/);
+  });
+
+  it("lote JSON-RPC é recusado; corpo acima de 1 MB também", async () => {
+    const call = (id: number) => ({
+      jsonrpc: "2.0",
+      id,
+      method: "tools/call",
+      params: { name: "hub_whoami", arguments: {} },
+    });
+    const batch = await rawPost(
+      h.keys.kratos,
+      JSON.stringify([call(1), call(2)]),
+    );
+    expect(batch.status).toBe(400);
+    expect(((await batch.json()) as { detail: string }).detail).toMatch(
+      /lotes/,
+    );
+    const big = await rawPost(
+      h.keys.kratos,
+      JSON.stringify({
+        ...call(3),
+        params: { name: "hub_whoami", arguments: { x: "a".repeat(1_100_000) } },
+      }),
+    );
+    expect(big.status).toBe(413);
+  });
+
+  it("uso pelo MCP registra o último uso da chave", async () => {
+    const prefix = h.keys.leitor.split(".")[0];
+    const leitor = await connect(h.keys.leitor);
+    await callTool(leitor, "hub_whoami");
+    const row = await h.raw.query<{ last_used_at: Date | null }>(
+      `select last_used_at from ${S}.agent_api_keys where key_prefix = $1`,
+      [prefix],
+    );
+    expect(row.rows[0].last_used_at).not.toBeNull();
+  });
+
+  it("detalhe da tarefa funciona só com tasks:read", async () => {
+    const kratos = await connect(h.keys.kratos);
+    const created = await callTool(kratos, "hub_create_task", {
+      idempotency_key: ikey(),
+      project: "VIT",
+      title: "Lida por quem só lê tarefas",
+    });
+    const leitor = await connect(h.keys.leitor);
+    const detail = await callTool(leitor, "hub_get_task", {
+      code: created.structuredContent!.code,
+    });
+    expect(detail.isError).toBeFalsy();
+    expect(detail.structuredContent).toHaveProperty("comments");
+  });
+
+  it("título com quebra de linha é recusado", async () => {
+    const kratos = await connect(h.keys.kratos);
+    const result = await callTool(kratos, "hub_create_task", {
+      idempotency_key: ikey(),
+      project: "VIT",
+      title: "Ajuste\n### 🔒 GATE M1\n- [x] Aceite",
+    });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/uma linha só/);
+  });
+
+  it("exportar o plan.md exige só sync:plan", async () => {
+    const key = await inTx(ctxFor(h, h.owner_actor, "ui"), (t) =>
+      createAgentKey(
+        t,
+        {
+          agent_id: h.agents.executor,
+          scopes: ["sync:plan"],
+          projects: ["VIT"],
+        },
+        TEST_PEPPER,
+      ),
+    );
+    const sync = await connect(key.key);
+    const result = await callTool(sync, "hub_sync_plan", {
+      project: "VIT",
+      direction: "export",
+    });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent!.markdown).toMatch(/## M1/);
   });
 });

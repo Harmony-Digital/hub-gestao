@@ -48,8 +48,23 @@ export const ActorRef = z.object({
 });
 export type ActorRef = z.infer<typeof ActorRef>;
 
-/** Texto livre curto, sem espaços nas pontas. */
+/** Texto livre curto, sem espaços nas pontas (aceita várias linhas). */
 export const Text = (max: number) => z.string().trim().min(1).max(max);
+
+/**
+ * Título ou nome: uma linha só, sem quebras de linha nem caracteres de controle. Assim um
+ * título não forja linhas no plan.md exportado (o banco tem a mesma regra, migration 0009).
+ */
+export const Line = (max: number) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .max(max)
+    .regex(
+      /^[^\u0000-\u001F\u007F-\u009F]*$/,
+      "Use uma linha só, sem quebras de linha nem caracteres de controle.",
+    );
 
 // Conversões -----------------------------------------------------------------------
 

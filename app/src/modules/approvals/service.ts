@@ -14,7 +14,7 @@ import {
   ProjectCode,
   projectScopeSql,
   resolveProject,
-  Text,
+  Line,
   Timestamp,
   Uuid,
 } from "@/modules/common";
@@ -56,7 +56,7 @@ export const ApprovalStatus = z.enum([
 export const RequestApprovalInput = z.strictObject({
   type: RequestableType,
   project: ProjectCode,
-  title: Text(300),
+  title: Line(300),
   summary: z.string().trim().max(4000).optional(),
   milestone: MilestoneCode.optional().describe(
     "Obrigatório para milestone_acceptance: o marco cujo aceite é pedido.",

@@ -611,6 +611,12 @@ export async function startTask(t: TxCtx, code: string): Promise<TaskDto> {
     return taskById(t, row.id);
   }
   if (t.actor.type === "agent") {
+    // Uma trava por agente até o fim da transação: dois inícios ao mesmo tempo não
+    // conseguem passar juntos pelo limite de tarefas em andamento.
+    await t.tx.query(
+      `select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('hub:start:' || $1::text, 0))`,
+      [t.actor.id],
+    );
     const max = await maxInProgress(t, t.actor.id);
     const others = await many<{ code: string }>(
       t,

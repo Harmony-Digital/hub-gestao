@@ -11,7 +11,7 @@ import {
   ProjectCode,
   resolveAssignee,
   resolveProject,
-  Text,
+  Line,
   Uuid,
 } from "@/modules/common";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
@@ -29,7 +29,7 @@ const DepartmentSlug = z
 /** Frente nova (camada tática). Nasce interna; ir para o cliente passa por aprovação. */
 export const CreateWorkstreamInput = z.strictObject({
   project: ProjectCode,
-  title: Text(200),
+  title: Line(200),
   milestone: MilestoneCode.optional().describe("Código do marco, como M2."),
   department: DepartmentSlug.optional(),
   description_internal: z.string().max(4000).optional(),
@@ -40,7 +40,7 @@ export const CreateWorkstreamInput = z.strictObject({
 export type CreateWorkstreamInput = z.infer<typeof CreateWorkstreamInput>;
 
 export const UpdateWorkstreamInput = z.strictObject({
-  title: Text(200).optional(),
+  title: Line(200).optional(),
   milestone: MilestoneCode.nullable().optional(),
   department: DepartmentSlug.nullable().optional(),
   description_internal: z.string().max(4000).nullable().optional(),

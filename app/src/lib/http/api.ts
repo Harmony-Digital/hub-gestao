@@ -15,6 +15,7 @@ import {
 } from "@/lib/errors";
 import {
   assertIdempotencyKey,
+  credentialOf,
   requestHash,
   withIdempotency,
 } from "@/lib/idempotency";
@@ -22,6 +23,7 @@ import { log } from "@/lib/log";
 import { RateLimiter } from "@/lib/rate-limit";
 import {
   authenticateAgent,
+  claimKeyTouch,
   touchKey,
   withActingRole,
 } from "@/modules/agents/service";
@@ -122,7 +124,7 @@ function parseIfMatch(header: string | null): number | undefined {
   return Number(match[1]);
 }
 
-async function readJsonBody(req: Request): Promise<unknown> {
+export async function readJsonBody(req: Request): Promise<unknown> {
   const declared = Number(req.headers.get("content-length") ?? "0");
   if (declared > MAX_BODY_BYTES)
     throw payloadTooLarge("O corpo passa de 1 MB.");
@@ -224,9 +226,16 @@ export function apiRoute<
       if (options.write) {
         const body = await readJsonBody(req);
         const key = assertIdempotencyKey(req.headers.get("idempotency-key"));
-        const hash = requestHash(req.method, url.pathname + url.search, body);
+        const hash = requestHash(
+          req.method,
+          url.pathname + url.search,
+          body,
+          credentialOf(actor),
+        );
         const { replayed, response } = await inTx(ctx, async (t) => {
-          if (actor.type === "agent") await touchKey(t, actor.keyId);
+          if (actor.type === "agent" && claimKeyTouch(actor.keyId)) {
+            await touchKey(t, actor.keyId);
+          }
           return withIdempotency(t, key, hash, () =>
             options.handler({ req, url, params, t, body, ifMatch }),
           );
@@ -238,7 +247,9 @@ export function apiRoute<
       }
 
       const result = await inTx(ctx, async (t) => {
-        if (actor.type === "agent") await touchKey(t, actor.keyId);
+        if (actor.type === "agent" && claimKeyTouch(actor.keyId)) {
+          await touchKey(t, actor.keyId);
+        }
         return options.handler({
           req,
           url,

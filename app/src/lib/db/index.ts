@@ -26,7 +26,15 @@ async function openDb(): Promise<Db> {
   const env = serverEnv();
   if (env.databaseUrl) {
     const { pgDb } = await import("./pg");
-    return pgDb(env.databaseUrl, env.dbRuntimeRole ?? undefined);
+    const { assertRlsEnforced } = await import("./guard");
+    const db = pgDb(env.databaseUrl, env.dbRuntimeRole ?? undefined);
+    try {
+      await assertRlsEnforced(db);
+    } catch (err) {
+      await db.close().catch(() => undefined);
+      throw err;
+    }
+    return db;
   }
   // O teste usa process.env.NODE_ENV direto: no build de produção ele vira constante e
   // o ramo inteiro some, junto com o banco local (PGlite) e o acesso a arquivos dele.

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { authorize } from "@/lib/authorize";
 import { notImplemented } from "@/lib/errors";
 import { apiRoute, ok, parseQuery } from "@/lib/http/api";
 import { ProjectCode } from "@/modules/common";
@@ -15,8 +14,7 @@ export const GET = apiRoute({
       url,
       z.strictObject({ project: ProjectCode }),
     );
-    authorize(t.actor, "sync.plan");
-    const plan = await getPlan(t, project);
+    const plan = await getPlan(t, project, "sync.plan");
     return ok({
       project_code: plan.project.code,
       plan_path: plan.project.plan_path,

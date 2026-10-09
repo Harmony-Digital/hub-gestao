@@ -1,4 +1,4 @@
-import { authorize } from "@/lib/authorize";
+import { authorize, type Action } from "@/lib/authorize";
 import {
   ACTOR_NAME_SQL,
   actorRef,
@@ -178,8 +178,13 @@ export function toTaskSummary(r: TaskSummaryRow): TaskSummary {
   };
 }
 
-export async function getPlan(t: TxCtx, code: string): Promise<PlanDto> {
-  const ref = await resolveProject(t, code, "project.read");
+/** Árvore do plano. `action` permite ler o plano para exportar (sync.plan). */
+export async function getPlan(
+  t: TxCtx,
+  code: string,
+  action: Action = "project.read",
+): Promise<PlanDto> {
+  const ref = await resolveProject(t, code, action);
   const project = toSummary(await projectRow(t, ref.id));
   const milestones = await milestonesOfProject(t, ref.id);
   const workstreams = await workstreamsOfProject(t, ref.id);
@@ -239,23 +244,30 @@ export async function getPlan(t: TxCtx, code: string): Promise<PlanDto> {
  * Projeção do plano no formato `plan.md` (PRD §5.5). É a exportação simples do M1;
  * a sincronização nos dois sentidos, que preserva o resto do arquivo, chega no M4.
  */
+/** Texto de uma linha só: quebras e espaços repetidos viram um espaço (defesa em camadas). */
+export function oneLine(text: string): string {
+  return text.replace(/[\s\u0000-\u001F\u007F-\u009F]+/g, " ").trim();
+}
+
 export function renderPlanMarkdown(plan: PlanDto): string {
-  const lines: string[] = [`# PLAN.md — ${plan.project.name}`, ""];
+  const lines: string[] = [`# PLAN.md — ${oneLine(plan.project.name)}`, ""];
   const box = (category: string) => (category === "done" ? "[x]" : "[ ]");
   const taskLines = (tasks: PlanDto["unplanned"]["tasks"]) => {
     for (const task of tasks) {
-      lines.push(`- ${box(task.status_category)} ${task.title} (${task.code})`);
+      lines.push(
+        `- ${box(task.status_category)} ${oneLine(task.title)} (${task.code})`,
+      );
       for (const sub of task.subtasks) {
         lines.push(
-          `  - ${box(sub.status_category)} ${sub.title} (${sub.code})`,
+          `  - ${box(sub.status_category)} ${oneLine(sub.title)} (${sub.code})`,
         );
       }
     }
   };
   for (const m of plan.milestones) {
-    lines.push(`## ${m.code} — ${m.title}`, "");
+    lines.push(`## ${m.code} — ${oneLine(m.title)}`, "");
     for (const w of m.workstreams) {
-      lines.push(`### ${w.title}`);
+      lines.push(`### ${oneLine(w.title)}`);
       taskLines(w.tasks);
       lines.push("");
     }
@@ -266,7 +278,9 @@ export function renderPlanMarkdown(plan: PlanDto): string {
         lines.push(`- ${accepted ? "[x]" : "[ ]"} Aceite do marco ${m.code}`);
       }
       for (const c of m.acceptance_criteria) {
-        lines.push(`- ${accepted || c.done ? "[x]" : "[ ]"} ${c.text}`);
+        lines.push(
+          `- ${accepted || c.done ? "[x]" : "[ ]"} ${oneLine(c.text)}`,
+        );
       }
       lines.push("");
     }
@@ -277,7 +291,7 @@ export function renderPlanMarkdown(plan: PlanDto): string {
   ) {
     lines.push("## Sem marco", "");
     for (const w of plan.unplanned.workstreams) {
-      lines.push(`### ${w.title}`);
+      lines.push(`### ${oneLine(w.title)}`);
       taskLines(w.tasks);
       lines.push("");
     }

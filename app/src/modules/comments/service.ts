@@ -148,7 +148,12 @@ export async function listComments(
   t: TxCtx,
   target: CommentTarget,
 ): Promise<{ items: CommentDto[] }> {
-  const where = await resolveTarget(t, target, "comment.read");
+  // Comentário de tarefa se lê com a leitura de tarefas; o resto, com a de projetos.
+  const where = await resolveTarget(
+    t,
+    target,
+    "task" in target ? "task.read" : "comment.read",
+  );
   const rows = await many<CommentRow>(
     t,
     `${COMMENT_SELECT}

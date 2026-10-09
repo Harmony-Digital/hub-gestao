@@ -2308,7 +2308,8 @@
           "title": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 300
+            "maxLength": 300,
+            "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F]*$"
           },
           "description_md": {
             "type": "string",
@@ -2396,7 +2397,8 @@
           "title": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 300
+            "maxLength": 300,
+            "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F]*$"
           },
           "description_md": {
             "anyOf": [
@@ -2697,7 +2699,8 @@
           "title": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 200
+            "maxLength": 200,
+            "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F]*$"
           },
           "milestone": {
             "description": "Código do marco, como M2.",
@@ -2769,7 +2772,8 @@
           "title": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 200
+            "maxLength": 200,
+            "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F]*$"
           },
           "milestone": {
             "anyOf": [
@@ -2881,7 +2885,8 @@
           "title": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 300
+            "maxLength": 300,
+            "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F]*$"
           },
           "summary": {
             "type": "string",

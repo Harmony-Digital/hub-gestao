@@ -6,6 +6,7 @@ import { z } from "zod";
 import { badRequest, toHubError } from "@/lib/errors";
 import {
   assertIdempotencyKey,
+  credentialOf,
   requestHash,
   withIdempotency,
 } from "@/lib/idempotency";
@@ -69,7 +70,6 @@ import {
   updateWorkstream,
   UpdateWorkstreamInput,
 } from "@/modules/workstreams/service";
-import { authorize } from "@/lib/authorize";
 
 /**
  * Servidor MCP do Hub (PRD §8.4): sem estado, uma instância por pedido, ligada ao agente
@@ -83,7 +83,7 @@ export const MCP_INSTRUCTIONS = `Você está conectado ao Hub de Gestão da Harm
 3. Bloqueio: hub_block_task dizendo o que falta e de quem depende.
 4. Nunca marque GATE, nunca crie ou mude marco, nunca escreva texto para o cliente: peça com hub_request_approval. Só o Fábio decide.
 5. Nunca coloque segredos, tokens, senhas ou dados pessoais em título, descrição, comentário ou evidência.
-6. Em escritas, envie idempotency_key (um valor novo por ação) para poder repetir com segurança. Se você acumula papéis, informe papel (ex.: GP-01).`;
+6. Toda escrita exige idempotency_key, um valor novo por ação (por exemplo, um UUID); repetir a mesma chave com os mesmos dados é seguro. Se você acumula papéis, informe papel (ex.: GP-01).`;
 
 type ToolResult = {
   [key: string]: unknown;
@@ -119,13 +119,12 @@ const writeFields = {
     .string()
     .min(8)
     .max(200)
-    .optional()
     .describe(
-      "Valor único por ação; repetir com os mesmos dados devolve o mesmo resultado.",
+      "Obrigatório. Valor novo por ação (por exemplo, um UUID); repetir com os mesmos dados devolve o mesmo resultado, sem duplicar.",
     ),
 };
 
-type WriteArgs = { papel?: string; idempotency_key?: string };
+type WriteArgs = { papel?: string; idempotency_key: string };
 
 export function buildMcpServer(base: Ctx, version: string): McpServer {
   const server = new McpServer(
@@ -156,11 +155,10 @@ export function buildMcpServer(base: Ctx, version: string): McpServer {
   ): Promise<ToolResult> => {
     try {
       const ctx: Ctx = { ...base, actor: withActingRole(actor, args.papel) };
-      if (!args.idempotency_key) return success(await inTx(ctx, fn));
       const key = assertIdempotencyKey(args.idempotency_key);
       const { idempotency_key: _ignored, ...rest } = args;
       void _ignored;
-      const hash = requestHash("MCP", tool, rest);
+      const hash = requestHash("MCP", tool, rest, credentialOf(actor));
       const { response } = await inTx(ctx, (t) =>
         withIdempotency(t, key, hash, async () => ({
           status: 200,
@@ -618,8 +616,7 @@ export function buildMcpServer(base: Ctx, version: string): McpServer {
               "A importação do plan.md chega no M4 (hub plan push). Use as ações de tarefa por enquanto.",
             );
           }
-          authorize(t.actor, "sync.plan");
-          const plan = await getPlan(t, project);
+          const plan = await getPlan(t, project, "sync.plan");
           return {
             project_code: plan.project.code,
             plan_path: plan.project.plan_path,

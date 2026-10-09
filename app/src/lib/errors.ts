@@ -104,6 +104,20 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
     "Escopo proibido para agentes: approvals:decide, portal:read, portal:write e agents:keys.",
   tasks_workspace_id_code_key: "Já existe uma tarefa com esse código.",
   projects_workspace_id_code_key: "Já existe um projeto com esse código.",
+  approvals_one_pending_per_item:
+    "Já existe um pedido pendente igual para este item.",
+  status_reports_version_unique:
+    "Outro rascunho do mesmo período acabou de ser criado. Tente de novo.",
+  tasks_title_single_line: "Use uma linha só no título, sem quebras de linha.",
+  workstreams_title_single_line:
+    "Use uma linha só no título, sem quebras de linha.",
+  milestones_title_single_line:
+    "Use uma linha só no título, sem quebras de linha.",
+  approvals_title_single_line:
+    "Use uma linha só no título, sem quebras de linha.",
+  projects_name_single_line: "Use uma linha só no nome, sem quebras de linha.",
+  clients_name_single_line: "Use uma linha só no nome, sem quebras de linha.",
+  agents_name_single_line: "Use uma linha só no nome, sem quebras de linha.",
 };
 
 type DatabaseErrorLike = {

@@ -11,9 +11,9 @@ Guia prático para Claude Code, Codex, Kratos (Hermes) e integrações. As regra
 
 | Escopo | Permite |
 |---|---|
-| `projects:read` | Projetos, plano, frentes, comentários, aprovações e relatórios |
+| `projects:read` | Projetos, plano, frentes, comentários de projeto, marco e frente, aprovações e relatórios |
 | `milestones:read` | Marcos |
-| `tasks:read` | Tarefas |
+| `tasks:read` | Tarefas e os comentários delas |
 | `tasks:write` | Criar e editar tarefas |
 | `tasks:complete` | Iniciar, bloquear, concluir com evidência e reabrir |
 | `workstreams:write` | Criar e editar frentes (sempre internas) |
@@ -63,7 +63,11 @@ O servidor mostra só as ferramentas que a chave pode usar. A primeira chamada �
 
 Recursos: `hub://projects/{code}/plan.md`, `hub://projects/{code}/health` e `hub://today`. Prompts: `status-semanal`, `digest-matinal` e `revisar-conclusoes`.
 
-Em escritas, envie `idempotency_key` (um valor novo por ação) para poder repetir com segurança, e `papel` (ex.: `GP-01`) quando o agente acumula papéis, como o Kratos (D6).
+Toda ferramenta de escrita exige `idempotency_key`: um valor novo por ação, como um UUID. Repetir a mesma chave com os mesmos dados devolve o mesmo resultado, sem duplicar; a mesma chave com outros dados, ou com outra chave de agente, é recusada. Informe também `papel` (ex.: `GP-01`) quando o agente acumula papéis, como o Kratos (D6).
+
+O servidor aceita uma mensagem JSON-RPC por pedido, com corpo de até 1 MB; lotes de mensagens são recusados, para que nenhum pedido escape do limite de pedidos da chave.
+
+Títulos e nomes têm uma linha só: quebras de linha são recusadas pela API e pelo banco. Texto para o cliente, visibilidade, marcos, chaves e cadastros de pessoas não são escritos por agentes; o banco recusa mesmo que algum caminho do servidor tente.
 
 ## 3. API REST
 
@@ -72,7 +76,7 @@ Base: `https://hub.harmonydigital.com.br/api/v1`. Contrato em `/api/v1/openapi.j
 | Cabeçalho | Quando |
 |---|---|
 | `Authorization: Bearer <chave>` | Sempre |
-| `Idempotency-Key` | Toda escrita (POST e PATCH). Mesma chave e mesmo corpo devolvem a mesma resposta (`Idempotent-Replayed: true`); corpo diferente, 409 |
+| `Idempotency-Key` | Toda escrita (POST e PATCH). Mesma chave e mesmo corpo devolvem a mesma resposta (`Idempotent-Replayed: true`); corpo diferente ou outra chave de agente, 409 |
 | `Hub-Acting-Role` | Opcional: papel do catálogo nesta escrita |
 | `If-Match` | Opcional no PATCH de tarefa: use o `ETag` da leitura; se a tarefa mudou, 412 |
 

@@ -25,7 +25,7 @@ import {
   isoOrNull,
   ProjectCode,
   RoleCode,
-  Text,
+  Line,
   Timestamp,
   Uuid,
 } from "@/modules/common";
@@ -103,7 +103,13 @@ export async function authenticateAgent(
     keyId: row.key_id,
     kind: row.agent_kind,
     scopes,
-    projectIds: scopes.includes("workspace:*") ? null : (row.project_ids ?? []),
+    // Lista de projetos guardada vale sempre; sem lista, workspace:* dá todos e o resto, nenhum.
+    projectIds:
+      row.project_ids !== null
+        ? row.project_ids
+        : scopes.includes("workspace:*")
+          ? null
+          : [],
     roles: row.agent_roles ?? [],
   };
 }
@@ -130,14 +136,16 @@ export function withActingRole(
 
 /** Marca o último uso da chave no máximo uma vez por minuto, para não pesar no banco. */
 const lastTouch = new Map<string, number>();
-export async function touchKey(
-  t: TxCtx,
-  keyId: string,
-  now = Date.now(),
-): Promise<void> {
+
+/** true quando passou um minuto desde a última marcação desta chave (e reserva a vez). */
+export function claimKeyTouch(keyId: string, now = Date.now()): boolean {
   const last = lastTouch.get(keyId) ?? 0;
-  if (now - last < 60_000) return;
+  if (now - last < 60_000) return false;
   lastTouch.set(keyId, now);
+  return true;
+}
+
+export async function touchKey(t: TxCtx, keyId: string): Promise<void> {
   await t.tx.query(
     `update ${S}.agent_api_keys set last_used_at = now() where id = $1`,
     [keyId],
@@ -255,7 +263,7 @@ export async function whoami(t: TxCtx): Promise<MeDto> {
 // Cadastro de agentes e chaves (pessoas, pela interface; M3 traz as telas) -------------
 
 export const CreateAgentInput = z.strictObject({
-  name: Text(80),
+  name: Line(80),
   kind: z.enum(["hermes", "internal", "session", "integration"]),
   department: z.string().optional(),
   mission: z.string().trim().max(2000).optional(),
@@ -353,6 +361,11 @@ export async function createAgentKey(
   if (input.projects === "all" && !scopes.includes("workspace:*")) {
     throw badRequest(
       'Acesso a todos os projetos exige o escopo "workspace:*".',
+    );
+  }
+  if (input.projects !== "all" && scopes.includes("workspace:*")) {
+    throw badRequest(
+      'O escopo "workspace:*" vale para todos os projetos. Para projetos específicos, use os escopos comuns.',
     );
   }
   const agent = await maybeOne<{ id: string; name: string; status: string }>(
