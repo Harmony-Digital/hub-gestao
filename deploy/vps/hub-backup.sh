@@ -30,8 +30,13 @@ main() {
     > "$tmp"
 
   # O dump só conta se abrir: a lista de objetos precisa sair sem erro e não vazia.
-  docker exec -i "$DB_CONTAINER" pg_restore --list < "$tmp" | grep -q "TABLE DATA" \
-    || { log "ERRO: o dump gerado não abre ou está vazio."; exit 1; }
+  # A lista vai para uma variável antes da busca, para o grep não cortar a saída no meio
+  # (com pipefail, isso viraria uma falha falsa).
+  local listing
+  listing="$(docker exec -i "$DB_CONTAINER" pg_restore --list < "$tmp")" \
+    || { log "ERRO: o dump gerado não abre."; exit 1; }
+  grep -q "TABLE DATA" <<<"$listing" \
+    || { log "ERRO: o dump gerado está vazio."; exit 1; }
 
   final="${BACKUP_DIR}/hub-${stamp}.dump"
   mv -- "$tmp" "$final"

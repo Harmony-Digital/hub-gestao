@@ -53,6 +53,8 @@ Segredos do repositório: `HUB_VPS_HOST`, `HUB_VPS_USER`, `HUB_VPS_SSH_KEY`, `HU
 
 ## Provisionamento (uma vez, com autorização do Fábio)
 
+A parte que envolve contas de acesso (o papel no banco e o usuário de publicação, com a chave do GitHub Actions) o Fábio roda no próprio Mac com `hub-provision-local.sh`: o script gera a chave, roda as etapas `banco` e `publicador` na VPS, confere que a chave só aceita o comando de publicação e só então guarda a parte privada no GitHub.
+
 Os passos de root ficam em `hub-provision.sh`, por etapa (`banco`, `publicador`, `rede`, `agenda`, `traefik`, `rota`; `preparar` junta as quatro primeiras). Cada etapa confere o que já existe e pode rodar de novo. A etapa `traefik` reinicia o Traefik e deixa os sites da VPS fora do ar por alguns segundos; se a atualização falhar, ela volta sozinha à configuração anterior.
 
 1. DNS: registro `hub` na zona `harmonydigital.com.br`, CNAME para `srv1821299.hstgr.cloud`.
