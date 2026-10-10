@@ -5,6 +5,8 @@ import { toHubError } from "@/lib/errors";
 import { actionContext, actionErrorMessage } from "@/lib/ui-context";
 import { createComment } from "@/modules/comments/service";
 import { inTx } from "@/modules/context";
+import { deleteView, saveView } from "@/modules/views/service";
+import { listQuery, readListState } from "./list-state";
 import {
   addChecklistItem,
   addDependency,
@@ -25,6 +27,8 @@ import {
   parseChecklistForm,
   parseCommentForm,
   parseDependencyForm,
+  parseInlineEdit,
+  parseViewForm,
   parseMoveForm,
   parseNewTaskForm,
   parseTaskFieldsForm,
@@ -211,6 +215,72 @@ export async function removerAnexo(
   }
   try {
     await inTx(ctx, (t) => removeAttachment(t, id));
+    refresh();
+    return { status: "ok" };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+/** Edição na linha da Lista: prioridade, responsável, prazo ou status, com a versão lida. */
+export async function editarNaLista(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseInlineEdit(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  const { code, version, change } = parsed.value;
+  try {
+    await inTx(ctx, (t) =>
+      change.field === "status"
+        ? moveTask(t, code, { status_id: change.value }, version)
+        : updateTask(
+            t,
+            code,
+            UpdateTaskInput.parse({ [change.field]: change.value }),
+            version,
+          ),
+    );
+    refresh();
+    return { status: "ok" };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+/** Salva os filtros atuais com um nome (só os parâmetros válidos, normalizados). */
+export async function salvarVisao(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseViewForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  const { project, type, name, query } = parsed.value;
+  const state = readListState(Object.fromEntries(new URLSearchParams(query)));
+  try {
+    await inTx(ctx, (t) =>
+      saveView(t, project, { type, name, query: listQuery(state).toString() }),
+    );
+    refresh();
+    return { status: "ok", message: `Visão “${name}” salva.` };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+export async function apagarVisao(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const id = form.get("id");
+  if (typeof id !== "string" || !ID.test(id)) {
+    return { status: "error", message: "Recarregue a página e tente de novo." };
+  }
+  try {
+    await inTx(ctx, (t) => deleteView(t, id));
     refresh();
     return { status: "ok" };
   } catch (err) {

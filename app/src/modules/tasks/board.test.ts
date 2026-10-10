@@ -330,3 +330,35 @@ describe("histórico em PT-BR", () => {
     expect(describeTaskEvent("outra.coisa", null).text).toBe("outra.coisa");
   });
 });
+
+describe("filtros combináveis da lista", () => {
+  it("responsável, prioridade, prazo e busca, juntos ou separados", async () => {
+    const make = (title: string, extra: Record<string, unknown>) =>
+      inTx(asOwner(), (t) =>
+        createTask(t, { project: "VIT", title, ...extra } as never),
+      );
+    const mine = await make("Filtro: minha urgente", {
+      priority: "urgent",
+      assignee: "me",
+      due_date: "2020-01-10",
+    });
+    const nobody = await make("Filtro: sem dono baixa", { priority: "low" });
+    const codes = async (filter: Parameters<typeof projectTaskList>[2]) =>
+      (await inTx(asOwner(), (t) => projectTaskList(t, "VIT", filter))).tasks
+        .map((t) => t.code)
+        .filter((c) => c === mine.code || c === nobody.code);
+
+    expect(await codes({ assignee: "me" })).toEqual([mine.code]);
+    expect(await codes({ assignee: "none", priorities: ["low"] })).toEqual([
+      nobody.code,
+    ]);
+    expect(await codes({ due: "late" })).toEqual([mine.code]);
+    expect(await codes({ due: "none", search: "sem dono" })).toEqual([
+      nobody.code,
+    ]);
+    expect(await codes({ search: mine.code.toLowerCase() })).toEqual([
+      mine.code,
+    ]);
+    expect(await codes({ search: "100%_" })).toEqual([]);
+  });
+});

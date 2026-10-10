@@ -6,18 +6,21 @@ import { can } from "@/lib/authorize";
 import { pageContext } from "@/lib/ui-context";
 import { inTx } from "@/modules/context";
 import { projectTaskList, type ProjectTaskList } from "@/modules/tasks/board";
+import { listSavedViews, type SavedViewDto } from "@/modules/views/service";
 import { boardColumns, toBoardCard } from "../_tasks/board-state";
 import { KanbanBoard } from "../_tasks/kanban";
-import { NewTaskButton } from "../_tasks/new-task";
+import { ListToolbar } from "../_tasks/list-toolbar";
 import {
-  firstParam,
-  openTaskParam,
-  PROJECT_CODE,
-  viewHref,
-} from "../_tasks/params";
+  hasFilters,
+  listQuery,
+  readListState,
+  toTaskFilter,
+} from "../_tasks/list-state";
+import { NewTaskButton } from "../_tasks/new-task";
+import { openTaskParam, PROJECT_CODE } from "../_tasks/params";
 import { ProjectHeader } from "../_tasks/project-header";
+import { SavedViews } from "../_tasks/saved-views";
 import { TaskPanel, taskHref } from "../_tasks/task-panel";
-import { WorkstreamFilter } from "../_tasks/workstream-filter";
 
 export async function generateMetadata({
   params,
@@ -44,12 +47,24 @@ async function BoardView({
   const { code } = await params;
   if (!PROJECT_CODE.test(code)) notFound();
   const query = await searchParams;
+  // O Quadro usa só os filtros (agrupar, ordem e colunas são da Lista).
+  const state = {
+    ...readListState(query),
+    agrupar: "status" as const,
+    ordem: "padrao" as const,
+    colunas: readListState({}).colunas,
+  };
   const { user, ctx } = await pageContext();
   let data: ProjectTaskList;
+  let views: SavedViewDto[];
   try {
-    data = await inTx(ctx, (t) =>
-      projectTaskList(t, code, { workstream: firstParam(query.frente) }),
-    );
+    ({ data, views } = await inTx(ctx, async (t) => {
+      const list = await projectTaskList(t, code, toTaskFilter(state));
+      return {
+        data: list,
+        views: await listSavedViews(t, list.project.id, "board"),
+      };
+    }));
   } catch (err) {
     // Projeto inexistente ou fora do alcance de quem vê: a mesma página de "não achei".
     if (err instanceof HubError && (err.status === 404 || err.status === 403)) {
@@ -59,9 +74,8 @@ async function BoardView({
   }
 
   const basePath = `/projetos/${code}/quadro`;
-  const keep: Record<string, string> = data.workstream
-    ? { frente: data.workstream }
-    : {};
+  const current = listQuery(state);
+  const keep = Object.fromEntries(current);
   const open = openTaskParam(query.tarefa);
   const columns = boardColumns(data.statuses, data.tasks, data.doneTotal);
   const cards = data.tasks.map((task) =>
@@ -90,11 +104,25 @@ async function BoardView({
           }
         />
         <main className="flex w-full min-w-0 flex-col gap-5 px-4 py-6 sm:px-8">
-          <WorkstreamFilter
+          <SavedViews
+            projectCode={code}
+            type="board"
             basePath={basePath}
-            workstreams={data.workstreams}
-            active={data.workstream}
+            views={views}
+            currentQuery={current.toString()}
           />
+          <ListToolbar
+            basePath={basePath}
+            state={state}
+            workstreams={data.workstreams}
+            assignees={data.assignees}
+            mode="board"
+          />
+          {hasFilters(state) && data.tasks.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-line p-5 text-sm text-ink-2">
+              Nenhuma tarefa com estes filtros.
+            </p>
+          ) : null}
           <p className="text-sm text-caption">
             Arraste as tarefas entre as colunas (no celular, toque e segure
             antes de arrastar). Concluir pede a evidência e bloquear pede o
@@ -107,7 +135,7 @@ async function BoardView({
         <TaskPanel
           projectCode={code}
           taskCode={open}
-          closeHref={viewHref(basePath, data.workstream)}
+          closeHref={current.size ? `${basePath}?${current}` : basePath}
           basePath={basePath}
           keep={keep}
         />

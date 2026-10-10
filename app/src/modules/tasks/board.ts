@@ -121,8 +121,18 @@ async function today(t: TxCtx): Promise<string> {
 export const DONE_LIMIT = 50;
 const OPEN_LIMIT = 500;
 
-/** "none" mostra as tarefas sem frente; um id, as daquela frente. */
-export type TaskListFilter = { workstream?: string };
+/**
+ * Filtros combináveis da Lista e do Quadro. Frente: "none" (sem frente) ou um id.
+ * Responsável: "me", "none", "user:<id>" ou "agent:<id>". Prazo: atrasadas, próximos 7
+ * dias ou sem prazo. Busca: título ou código (HUB-12).
+ */
+export type TaskListFilter = {
+  workstream?: string | null;
+  assignee?: string | null;
+  priorities?: string[];
+  due?: "late" | "week" | "none" | null;
+  search?: string | null;
+};
 
 export type ProjectTaskList = TaskFormOptions & {
   project: ProjectDetail;
@@ -155,11 +165,41 @@ export async function projectTaskList(
         : null;
   const params: unknown[] = [project.id];
   let where = "t.project_id = $1 and t.archived_at is null";
+  const param = (value: unknown) => {
+    params.push(value);
+    return `$${params.length}`;
+  };
   if (workstream === "none") {
     where += " and t.workstream_id is null";
   } else if (workstream) {
-    params.push(workstream);
-    where += " and t.workstream_id = $2";
+    where += ` and t.workstream_id = ${param(workstream)}`;
+  }
+  const who = filter.assignee;
+  if (who === "me") {
+    where += ` and t.assignee_type::text = ${param(t.actor.type)} and t.assignee_id = ${param(t.actor.id)}`;
+  } else if (who === "none") {
+    where += " and t.assignee_type is null";
+  } else if (who && /^(user|agent):[0-9a-f-]{36}$/i.test(who)) {
+    const [type, id] = who.split(":");
+    where += ` and t.assignee_type::text = ${param(type)} and t.assignee_id = ${param(id)}::uuid`;
+  }
+  const priorities = (filter.priorities ?? []).filter((p) =>
+    ["urgent", "high", "normal", "low"].includes(p),
+  );
+  if (priorities.length) {
+    where += ` and t.priority::text = any(${param(priorities)}::text[])`;
+  }
+  if (filter.due === "late") {
+    where += " and t.due_date < current_date and t.status_category <> 'done'";
+  } else if (filter.due === "week") {
+    where += " and t.due_date between current_date and current_date + 7";
+  } else if (filter.due === "none") {
+    where += " and t.due_date is null";
+  }
+  const search = filter.search?.trim();
+  if (search) {
+    const like = `%${search.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    where += ` and (t.title ilike ${param(like)} or t.code = ${param(search.toUpperCase())})`;
   }
 
   const open = await many<TaskRow>(
