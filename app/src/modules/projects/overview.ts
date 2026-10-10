@@ -47,6 +47,8 @@ const VERBS: Record<string, string> = {
   "time.logged": "lançou tempo em",
   "workstream.created": "criou uma frente",
   "workstream.updated": "atualizou uma frente",
+  "project.created": "criou o projeto",
+  "project.updated": "atualizou o projeto",
   "project.health_changed": "mudou a saúde do projeto",
   "approval.requested": "pediu uma aprovação",
   "approval.decided": "decidiu uma aprovação",
