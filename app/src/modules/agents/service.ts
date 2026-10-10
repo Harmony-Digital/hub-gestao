@@ -15,6 +15,7 @@ import { applyRuntimeRole, type Actor, type AgentActor } from "@/lib/db/actor";
 import type { Db } from "@/lib/db/types";
 import {
   badRequest,
+  conflict,
   locked,
   notFound,
   unauthorized,
@@ -451,19 +452,30 @@ export async function revokeAgentKey(t: TxCtx, keyId: string): Promise<void> {
   });
 }
 
-/** Pausar e reativar um agente (kill switch do console, RF-31). */
+/**
+ * Pausar e reativar um agente (kill switch do console, RF-31). Pausado, toda chamada dele
+ * recebe 423 até alguém reativar. Revogado não volta pela tela. Repetir o mesmo status
+ * não grava nada.
+ */
 export async function setAgentStatus(
   t: TxCtx,
   agentId: string,
   status: "active" | "paused" | "revoked",
 ): Promise<void> {
   authorize(t.actor, "agent.manage");
+  if (!Uuid.safeParse(agentId).success) throw badRequest("Agente inválido.");
   const before = await maybeOne<{ status: string }>(
     t,
     `select status from ${S}.agents where id = $1 for update`,
     [agentId],
   );
   if (!before) throw notFound("Agente não encontrado neste workspace.");
+  if (before.status === status) return;
+  if (before.status === "revoked") {
+    throw unprocessable(
+      "Agente revogado não volta a operar. Cadastre um agente novo, com chave nova.",
+    );
+  }
   await t.tx.query(`update ${S}.agents set status = $2 where id = $1`, [
     agentId,
     status,
@@ -475,6 +487,143 @@ export async function setAgentStatus(
     before: { status: before.status },
     after: { status },
   });
+}
+
+export const UpdateAgentInput = z.strictObject({
+  name: Line(80).optional(),
+  /** Slug do departamento; null tira o departamento. */
+  department: z.string().nullable().optional(),
+  mission: z.string().trim().max(2000).nullable().optional(),
+  budget_usd_month: z.number().min(0).max(10_000).optional(),
+  /** Pessoa da equipe responsável pelo agente; null deixa sem ninguém. */
+  owner: Uuid.nullable().optional(),
+});
+export type UpdateAgentInput = z.infer<typeof UpdateAgentInput>;
+
+type AgentEditRow = {
+  name: string;
+  department: string | null;
+  mission: string | null;
+  budget: number;
+  owner: string | null;
+  status: string;
+};
+
+/**
+ * Edita o cadastro de um agente (dono e administração): nome, departamento, missão,
+ * orçamento de IA do mês e a pessoa responsável. Só o que mudou é gravado, com o antes e
+ * o depois num registro `agent.updated`. Devolve os campos que mudaram.
+ */
+export async function updateAgent(
+  t: TxCtx,
+  agentId: string,
+  raw: UpdateAgentInput,
+): Promise<string[]> {
+  authorize(t.actor, "agent.manage");
+  if (!Uuid.safeParse(agentId).success) throw badRequest("Agente inválido.");
+  const input = UpdateAgentInput.parse(raw);
+  const row = await maybeOne<AgentEditRow>(
+    t,
+    `select a.name, d.slug as department, a.mission,
+            a.budget_usd_month::float8 as budget, a.owner_profile_id as owner,
+            a.status::text as status
+       from ${S}.agents a
+       left join ${S}.departments d on d.id = a.department_id
+      where a.id = $1
+      for update of a`,
+    [agentId],
+  );
+  if (!row) throw notFound("Agente não encontrado neste workspace.");
+  if (row.status === "revoked") {
+    throw unprocessable("Agente revogado não é mais editado.");
+  }
+
+  const mission =
+    input.mission === undefined ? undefined : input.mission || null;
+  const next = {
+    name: input.name ?? row.name,
+    department:
+      input.department === undefined ? row.department : input.department,
+    mission: mission === undefined ? row.mission : mission,
+    budget_usd_month: input.budget_usd_month ?? Number(row.budget),
+    owner: input.owner === undefined ? row.owner : input.owner,
+  };
+  const current = {
+    name: row.name,
+    department: row.department,
+    mission: row.mission,
+    budget_usd_month: Number(row.budget),
+    owner: row.owner,
+  };
+  const changed = (Object.keys(next) as (keyof typeof next)[]).filter(
+    (k) => next[k] !== current[k],
+  );
+  if (changed.length === 0) return [];
+
+  let departmentId: string | null | undefined;
+  if (changed.includes("department")) {
+    departmentId = null;
+    if (next.department) {
+      const d = await maybeOne<{ id: string }>(
+        t,
+        `select id from ${S}.departments where workspace_id = $1 and slug = $2`,
+        [t.actor.workspaceId, next.department],
+      );
+      if (!d)
+        throw unprocessable(`Departamento "${next.department}" não existe.`);
+      departmentId = d.id;
+    }
+  }
+  if (changed.includes("owner") && next.owner) {
+    const member = await maybeOne<{ id: string }>(
+      t,
+      `select p.id from ${S}.memberships m
+         join ${S}.profiles p on p.id = m.profile_id
+        where m.workspace_id = $1 and m.profile_id = $2 and m.status = 'active'
+          and p.deactivated_at is null`,
+      [t.actor.workspaceId, next.owner],
+    );
+    if (!member) {
+      throw unprocessable(
+        "O responsável precisa ser uma pessoa ativa da equipe.",
+      );
+    }
+  }
+  if (changed.includes("name")) {
+    const same = await maybeOne<{ id: string }>(
+      t,
+      `select id from ${S}.agents where workspace_id = $1 and name = $2 and id <> $3`,
+      [t.actor.workspaceId, next.name, agentId],
+    );
+    if (same) throw conflict(`Já existe um agente chamado "${next.name}".`);
+  }
+
+  await t.tx.query(
+    `update ${S}.agents
+        set name = $2,
+            department_id = case when $3::boolean then $4::uuid else department_id end,
+            mission = $5, budget_usd_month = $6, owner_profile_id = $7
+      where id = $1`,
+    [
+      agentId,
+      next.name,
+      departmentId !== undefined,
+      departmentId ?? null,
+      next.mission,
+      next.budget_usd_month,
+      next.owner,
+    ],
+  );
+  const pick = (from: typeof next) =>
+    Object.fromEntries(changed.map((k) => [k, from[k]]));
+  await audit(t, {
+    action: "agent.updated",
+    entityType: "agent",
+    entityId: agentId,
+    before: pick(current),
+    after: pick(next),
+  });
+  return changed;
 }
 
 // Console de agentes (interface) ------------------------------------------------------
@@ -498,16 +647,25 @@ export type ConsoleAgent = {
   kind: AgentActor["kind"];
   status: "active" | "paused" | "revoked";
   roles: string[];
+  department: { slug: string; name: string } | null;
+  mission: string | null;
+  /** Orçamento de IA do mês, em dólares (0 = sem orçamento). */
+  budgetUsdMonth: number;
+  spentUsdMonth: number;
+  owner: { id: string; name: string } | null;
   createdAt: string;
   keys: ConsoleKey[];
 };
 
 export type AgentsConsole = {
   agents: ConsoleAgent[];
-  /** Pode cadastrar agentes (owner e admin). */
+  /** Pode cadastrar, editar e pausar agentes (owner e admin). */
   canManage: boolean;
   /** Pode ver, criar e revogar chaves (só o owner, decisão D9). */
   canManageKeys: boolean;
+  /** Opções dos formulários (vazias para quem não gere agentes). */
+  departments: { slug: string; name: string }[];
+  people: { id: string; name: string }[];
 };
 
 type ConsoleAgentRow = {
@@ -516,6 +674,13 @@ type ConsoleAgentRow = {
   kind: AgentActor["kind"];
   status: ConsoleAgent["status"];
   roles: string[];
+  department_slug: string | null;
+  department_name: string | null;
+  mission: string | null;
+  budget: number;
+  spent: number;
+  owner_id: string | null;
+  owner_name: string | null;
   created_at: Date | string;
 };
 
@@ -547,9 +712,14 @@ export async function listAgentsConsole(
 
   const agents = await many<ConsoleAgentRow>(
     t,
-    `select id, name, kind::text as kind, status::text as status, roles, created_at
-       from ${S}.agents
-      order by created_at, name`,
+    `select a.id, a.name, a.kind::text as kind, a.status::text as status, a.roles,
+            d.slug as department_slug, d.name as department_name, a.mission,
+            a.budget_usd_month::float8 as budget, a.spent_usd_month::float8 as spent,
+            p.id as owner_id, p.full_name as owner_name, a.created_at
+       from ${S}.agents a
+       left join ${S}.departments d on d.id = a.department_id
+       left join ${S}.profiles p on p.id = a.owner_profile_id
+      order by a.created_at, a.name`,
   );
   const keys = canManageKeys
     ? await many<ConsoleKeyRow>(
@@ -590,10 +760,39 @@ export async function listAgentsConsole(
       kind: a.kind,
       status: a.status,
       roles: a.roles,
+      department:
+        a.department_slug && a.department_name
+          ? { slug: a.department_slug, name: a.department_name }
+          : null,
+      mission: a.mission,
+      budgetUsdMonth: Number(a.budget),
+      spentUsdMonth: Number(a.spent),
+      owner:
+        a.owner_id && a.owner_name
+          ? { id: a.owner_id, name: a.owner_name }
+          : null,
       createdAt: iso(a.created_at),
       keys: keys.filter((k) => k.agent_id === a.id).map(toKey),
     })),
     canManage,
     canManageKeys,
+    departments: canManage
+      ? await many<{ slug: string; name: string }>(
+          t,
+          `select slug, name from ${S}.departments
+            where workspace_id = $1 order by sort_order, name`,
+          [t.actor.workspaceId],
+        )
+      : [],
+    people: canManage
+      ? await many<{ id: string; name: string }>(
+          t,
+          `select p.id, p.full_name as name
+             from ${S}.memberships m join ${S}.profiles p on p.id = m.profile_id
+            where m.workspace_id = $1 and m.status = 'active' and p.deactivated_at is null
+            order by p.full_name`,
+          [t.actor.workspaceId],
+        )
+      : [],
   };
 }

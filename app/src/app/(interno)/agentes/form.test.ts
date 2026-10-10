@@ -3,6 +3,9 @@ import { AGENT_SCOPES, FORBIDDEN_AGENT_SCOPES } from "@/lib/agent-keys";
 import {
   DEFAULT_KEY_SCOPES,
   KEY_SCOPES,
+  parseAgentEditForm,
+  parseAgentStatusForm,
+  parseBudget,
   parseNewAgentForm,
   parseNewKeyForm,
   parseRevokeForm,
@@ -66,6 +69,114 @@ describe("cadastro de agente", () => {
     ],
   ] as [string, [string, string][]][])("recusa %s", (_label, entries) => {
     expect(parseNewAgentForm(form(entries)).ok).toBe(false);
+  });
+});
+
+describe("detalhes do agente", () => {
+  it("cadastro leva departamento, missão e orçamento quando preenchidos", () => {
+    expect(
+      parseNewAgentForm(
+        form([
+          ["name", "Kratos"],
+          ["kind", "hermes"],
+          ["department", "gestao"],
+          ["mission", "  Gerir os projetos.  "],
+          ["budget", "12,50"],
+        ]),
+      ),
+    ).toEqual({
+      ok: true,
+      value: {
+        name: "Kratos",
+        kind: "hermes",
+        department: "gestao",
+        mission: "Gerir os projetos.",
+        budget_usd_month: 12.5,
+      },
+    });
+  });
+
+  it("orçamento: vazio é zero; vírgula ou ponto; até 10.000 e 2 casas", () => {
+    expect(parseBudget("")).toEqual({ ok: true, value: 0 });
+    expect(parseBudget(" 20 ")).toEqual({ ok: true, value: 20 });
+    expect(parseBudget("7.25")).toEqual({ ok: true, value: 7.25 });
+    expect(parseBudget("10000")).toEqual({ ok: true, value: 10_000 });
+    for (const bad of ["10001", "-5", "1,234", "abc", "1e3", "20 dólares"]) {
+      expect(parseBudget(bad).ok).toBe(false);
+    }
+  });
+
+  it("edição traz tudo, com vazio virando nulo", () => {
+    expect(
+      parseAgentEditForm(
+        form([
+          ["id", AGENT_ID],
+          ["name", "Executor"],
+          ["department", ""],
+          ["mission", ""],
+          ["budget", ""],
+          ["owner", ""],
+        ]),
+      ),
+    ).toEqual({
+      ok: true,
+      value: {
+        id: AGENT_ID,
+        input: {
+          name: "Executor",
+          department: null,
+          mission: null,
+          budget_usd_month: 0,
+          owner: null,
+        },
+      },
+    });
+    for (const bad of [
+      [
+        ["id", "x"],
+        ["name", "A"],
+      ],
+      [
+        ["id", AGENT_ID],
+        ["name", ""],
+      ],
+      [
+        ["id", AGENT_ID],
+        ["name", "A"],
+        ["department", "Gestão!"],
+      ],
+      [
+        ["id", AGENT_ID],
+        ["name", "A"],
+        ["owner", "fulano"],
+      ],
+      [
+        ["id", AGENT_ID],
+        ["name", "A"],
+        ["budget", "muito"],
+      ],
+    ] as [string, string][][]) {
+      expect(parseAgentEditForm(form(bad)).ok).toBe(false);
+    }
+  });
+
+  it("pausar e reativar só com agente e status conhecidos", () => {
+    expect(
+      parseAgentStatusForm(
+        form([
+          ["id", AGENT_ID],
+          ["status", "paused"],
+        ]),
+      ),
+    ).toEqual({ ok: true, value: { id: AGENT_ID, status: "paused" } });
+    expect(
+      parseAgentStatusForm(
+        form([
+          ["id", AGENT_ID],
+          ["status", "revoked"],
+        ]),
+      ).ok,
+    ).toBe(false);
   });
 });
 

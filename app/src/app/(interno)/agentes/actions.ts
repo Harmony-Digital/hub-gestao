@@ -3,15 +3,20 @@
 import { refresh } from "next/cache";
 import { appUrl } from "@/lib/auth/config";
 import { apiKeyPepper } from "@/lib/env";
+import type { ActionState } from "@/lib/action-state";
 import { actionContext, actionErrorMessage } from "@/lib/ui-context";
 import {
   createAgent,
   CreateAgentInput,
   createAgentKey,
   revokeAgentKey,
+  setAgentStatus,
+  updateAgent,
 } from "@/modules/agents/service";
 import { inTx } from "@/modules/context";
 import {
+  parseAgentEditForm,
+  parseAgentStatusForm,
   parseNewAgentForm,
   parseNewKeyForm,
   parseRevokeForm,
@@ -38,6 +43,40 @@ export async function criarAgente(
       status: "ok",
       message: `Agente "${agent.name}" cadastrado. Agora crie a chave dele.`,
     };
+  } catch (err) {
+    return { status: "error", message: messageOf(err, ctx.requestId) };
+  }
+}
+
+export async function salvarAgente(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseAgentEditForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  try {
+    await inTx(ctx, (t) => updateAgent(t, parsed.value.id, parsed.value.input));
+    refresh();
+    return { status: "ok" };
+  } catch (err) {
+    return { status: "error", message: messageOf(err, ctx.requestId) };
+  }
+}
+
+export async function mudarStatusAgente(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseAgentStatusForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  try {
+    await inTx(ctx, (t) =>
+      setAgentStatus(t, parsed.value.id, parsed.value.status),
+    );
+    refresh();
+    return { status: "ok" };
   } catch (err) {
     return { status: "error", message: messageOf(err, ctx.requestId) };
   }

@@ -103,11 +103,11 @@ function texts(form: FormData, name: string): string[] {
     .filter((v): v is string => typeof v === "string" && v.length > 0);
 }
 
-export function parseNewAgentForm(
-  form: FormData,
-): Parsed<{ name: string; kind: AgentKind }> {
+const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const BUDGET = /^\d{1,5}(?:[.,]\d{1,2})?$/;
+
+function agentName(form: FormData): Parsed<string> {
   const name = text(form, "name").trim();
-  const kind = text(form, "kind");
   if (!name) return { ok: false, message: "Dê um nome ao agente." };
   if (name.length > 80 || CONTROL.test(name)) {
     return {
@@ -115,10 +115,121 @@ export function parseNewAgentForm(
       message: "O nome precisa ter até 80 caracteres, numa linha só.",
     };
   }
+  return { ok: true, value: name };
+}
+
+/** Orçamento em dólares: vazio vale 0; aceita vírgula ou ponto e até 2 casas. */
+export function parseBudget(raw: string): Parsed<number> {
+  const value = raw.trim();
+  if (!value) return { ok: true, value: 0 };
+  const amount = BUDGET.test(value) ? Number(value.replace(",", ".")) : NaN;
+  if (!Number.isFinite(amount) || amount > 10_000) {
+    return {
+      ok: false,
+      message:
+        "Orçamento em dólares, de 0 a 10.000, com até 2 casas (ex.: 20 ou 12,50).",
+    };
+  }
+  return { ok: true, value: amount };
+}
+
+/** Departamento, missão e orçamento: comuns ao cadastro e à edição. */
+function agentDetails(form: FormData): Parsed<{
+  department: string | null;
+  mission: string | null;
+  budget_usd_month: number;
+}> {
+  const department = text(form, "department");
+  if (department && !SLUG.test(department)) {
+    return {
+      ok: false,
+      message: "Departamento inválido. Recarregue a página.",
+    };
+  }
+  const mission = text(form, "mission").trim();
+  if (mission.length > 2000) {
+    return { ok: false, message: "A missão precisa ter até 2.000 caracteres." };
+  }
+  const budget = parseBudget(text(form, "budget"));
+  if (!budget.ok) return budget;
+  return {
+    ok: true,
+    value: {
+      department: department || null,
+      mission: mission || null,
+      budget_usd_month: budget.value,
+    },
+  };
+}
+
+export function parseNewAgentForm(form: FormData): Parsed<{
+  name: string;
+  kind: AgentKind;
+  department?: string;
+  mission?: string;
+  budget_usd_month?: number;
+}> {
+  const name = agentName(form);
+  if (!name.ok) return name;
+  const kind = text(form, "kind");
   if (!(kind in KIND_LABELS)) {
     return { ok: false, message: "Escolha o tipo do agente." };
   }
-  return { ok: true, value: { name, kind: kind as AgentKind } };
+  const details = agentDetails(form);
+  if (!details.ok) return details;
+  const { department, mission, budget_usd_month } = details.value;
+  return {
+    ok: true,
+    value: {
+      name: name.value,
+      kind: kind as AgentKind,
+      ...(department ? { department } : {}),
+      ...(mission ? { mission } : {}),
+      ...(budget_usd_month ? { budget_usd_month } : {}),
+    },
+  };
+}
+
+export function parseAgentEditForm(form: FormData): Parsed<{
+  id: string;
+  input: {
+    name: string;
+    department: string | null;
+    mission: string | null;
+    budget_usd_month: number;
+    owner: string | null;
+  };
+}> {
+  const id = text(form, "id");
+  if (!UUID.test(id)) {
+    return { ok: false, message: "Agente inválido. Recarregue a página." };
+  }
+  const name = agentName(form);
+  if (!name.ok) return name;
+  const details = agentDetails(form);
+  if (!details.ok) return details;
+  const owner = text(form, "owner");
+  if (owner && !UUID.test(owner)) {
+    return { ok: false, message: "Responsável inválido. Recarregue a página." };
+  }
+  return {
+    ok: true,
+    value: {
+      id,
+      input: { name: name.value, ...details.value, owner: owner || null },
+    },
+  };
+}
+
+export function parseAgentStatusForm(
+  form: FormData,
+): Parsed<{ id: string; status: "active" | "paused" }> {
+  const id = text(form, "id");
+  const status = text(form, "status");
+  if (!UUID.test(id) || (status !== "active" && status !== "paused")) {
+    return { ok: false, message: "Pedido inválido. Recarregue a página." };
+  }
+  return { ok: true, value: { id, status } };
 }
 
 export function parseNewKeyForm(form: FormData): Parsed<{
