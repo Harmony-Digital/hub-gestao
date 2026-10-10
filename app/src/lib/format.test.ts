@@ -5,6 +5,7 @@ import {
   formatDayMonth,
   formatLongDate,
   formatMoment,
+  formatTimestampDate,
   formatTimestampDay,
   greetingFor,
   initials,
@@ -30,6 +31,8 @@ describe("datas nas telas", () => {
   it("dia de um instante segue Brasília", () => {
     expect(formatTimestampDay("2026-10-10T01:26:16Z")).toBe("09/10");
     expect(formatTimestampDay("2026-10-10T15:00:00Z")).toBe("10/10");
+    expect(formatTimestampDate("2026-10-10T01:26:16Z")).toBe("09/10/2026");
+    expect(formatTimestampDate("2026-01-01T02:00:00Z")).toBe("31/12/2025");
   });
 
   it("data por extenso e saudação seguem o relógio de Brasília", () => {

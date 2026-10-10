@@ -86,6 +86,51 @@ test("o dono libera o acesso e o contato acompanha os projetos pelo portal", asy
   await expect(client.getByText(/painel para a recepção/)).toHaveCount(0);
   expect(await violations(client)).toEqual([]);
 
+  // A página do projeto: entregas e frentes marcadas para o cliente, nada interno.
+  await client
+    .getByRole("link", {
+      name: "Ver as entregas de Atendimento com IA (exemplo)",
+    })
+    .click();
+  await expect(client).toHaveURL(/\/portal\/clinica-exemplo\/EXE$/);
+  await expect(
+    client.getByRole("heading", { name: "Entregas", exact: true }),
+  ).toBeVisible();
+  for (const visible of [
+    "Diagnóstico e desenho do atendimento",
+    "Agente de atendimento no WhatsApp",
+    "Fluxo de conversa do agente",
+    "Integração com a agenda da clínica",
+  ]) {
+    await expect(client.getByText(visible, { exact: true })).toBeVisible();
+  }
+  await expect(client.locator('[aria-current="step"]')).toHaveText(/Validar/);
+  const text = await client.getByRole("main").innerText();
+  for (const hidden of [
+    // frentes internas, tarefas, agentes e o objetivo interno
+    "Telas do painel da recepção",
+    "Mensagens e respostas padrão",
+    "Mapear as perguntas mais frequentes",
+    "Escrever o fluxo de agendamento",
+    "Revisar o tom das mensagens",
+    "Kratos",
+    "Codex",
+    "painel para a recepção",
+  ]) {
+    expect({ hidden, found: text.includes(hidden) }).toEqual({
+      hidden,
+      found: false,
+    });
+  }
+  expect(text).not.toMatch(/\bHUB-\d+\b/);
+  expect(await violations(client)).toEqual([]);
+  // Projeto que não é do cliente: a mesma resposta de "não encontrado".
+  await client.goto("/portal/clinica-exemplo/HUB");
+  await expect(
+    client.getByRole("heading", { name: "Projeto não encontrado" }),
+  ).toBeVisible();
+  await client.goto("/portal/clinica-exemplo");
+
   // Sair encerra a sessão; o mesmo link não vale de novo.
   await client.getByRole("button", { name: "Sair" }).click();
   await expect(

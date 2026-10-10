@@ -1,6 +1,7 @@
-import { forbidden } from "@/lib/errors";
+import { forbidden, notFound } from "@/lib/errors";
 import type { Actor } from "@/lib/db/actor";
-import { many, S, type TxCtx } from "@/modules/context";
+import { iso } from "@/modules/common";
+import { many, maybeOne, S, type TxCtx } from "@/modules/context";
 
 /**
  * Leituras do portal do cliente (D9). Rodam com o ator de cliente: a RLS só devolve os
@@ -77,4 +78,171 @@ export async function portalProjects(t: TxCtx): Promise<PortalProject[]> {
         : null,
     };
   });
+}
+
+// Página do projeto ---------------------------------------------------------------------
+
+/** Estado do marco para o cliente: o aceite é do dono (D9); para o cliente, é "concluída". */
+export type PortalMilestoneStatus =
+  "planned" | "in_progress" | "delivered" | "accepted";
+
+/** Frente marcada para o cliente: o texto para ele e o andamento (PRD §9), sem o estado. */
+export type PortalWorkstream = {
+  title: string;
+  description: string | null;
+  progressPct: number;
+};
+
+export type PortalMilestone = {
+  title: string;
+  description: string | null;
+  dueDate: string | null;
+  /** Quantas vezes a data foi revista (nunca o motivo, que é interno: RF-11). */
+  revisions: number;
+  status: PortalMilestoneStatus;
+  /** Quando foi entregue (ou concluída), para "Entregue em". */
+  deliveredAt: string | null;
+  workstreams: PortalWorkstream[];
+};
+
+export type PortalReport = {
+  periodStart: string;
+  periodEnd: string;
+  publishedAt: string;
+  bodyMd: string;
+};
+
+export type PortalProjectDetail = PortalProject & {
+  milestones: PortalMilestone[];
+  /** Frentes marcadas para o cliente sem um marco que ele veja. */
+  otherWorkstreams: PortalWorkstream[];
+  reports: PortalReport[];
+};
+
+type DetailMilestoneRow = {
+  id: string;
+  title_client: string;
+  description_client: string | null;
+  due_date: string | null;
+  status: PortalMilestoneStatus;
+  delivered_at: Date | string | null;
+  accepted_at: Date | string | null;
+};
+
+type DetailWorkstreamRow = {
+  milestone_id: string | null;
+  title_client: string | null;
+  description_client: string | null;
+  progress_pct: number;
+};
+
+type ReportRow = {
+  period_start: string;
+  period_end: string;
+  published_at: Date | string;
+  body_md: string;
+};
+
+/**
+ * Um projeto do cliente, com os marcos (texto para o cliente, data vigente, quantas vezes
+ * foi revista e o estado), as frentes marcadas para ele com o andamento e os relatórios
+ * publicados. Projeto de outro cliente, em revisão ou arquivado: 404, como se não
+ * existisse.
+ */
+export async function portalProject(
+  t: TxCtx,
+  code: string,
+): Promise<PortalProjectDetail> {
+  assertClient(t.actor);
+  const project = await maybeOne<ProjectRow>(
+    t,
+    `select p.id, p.code, p.name, p.phase::text as phase, p.objective_client,
+            p.progress_pct, p.target_date::text as target_date
+       from ${S}.projects p
+      where p.code = $1`,
+    [code],
+  );
+  if (!project) throw notFound("Projeto não encontrado.");
+
+  const milestoneRows = await many<DetailMilestoneRow>(
+    t,
+    `select m.id, m.title_client, m.description_client, m.due_date::text as due_date,
+            m.status::text as status, m.delivered_at, m.accepted_at
+       from ${S}.milestones m
+      where m.project_id = $1 and m.title_client is not null
+      order by m.sort_order, m.code`,
+    [project.id],
+  );
+  const revisions = new Map(
+    (
+      await many<{ milestone_id: string; revisions: number }>(
+        t,
+        `select milestone_id, revisions
+           from ${S}.client_milestone_revisions($1)`,
+        [project.id],
+      )
+    ).map((r) => [r.milestone_id, Number(r.revisions)]),
+  );
+  const workstreamRows = await many<DetailWorkstreamRow>(
+    t,
+    `select w.milestone_id, w.title_client, w.description_client, w.progress_pct
+       from ${S}.workstreams w
+      where w.project_id = $1 and w.title_client is not null
+      order by w.sort_order, w.created_at`,
+    [project.id],
+  );
+  const reports = await many<ReportRow>(
+    t,
+    `select r.period_start::text as period_start, r.period_end::text as period_end,
+            r.published_at, r.body_md
+       from ${S}.status_reports r
+      where r.project_id = $1
+      order by r.published_at desc
+      limit 24`,
+    [project.id],
+  );
+
+  const toWorkstream = (w: DetailWorkstreamRow): PortalWorkstream => ({
+    title: w.title_client ?? "",
+    description: w.description_client,
+    progressPct: Number(w.progress_pct),
+  });
+  const shown = new Set(milestoneRows.map((m) => m.id));
+  const milestones = milestoneRows.map((m) => ({
+    title: m.title_client,
+    description: m.description_client,
+    dueDate: m.due_date,
+    revisions: revisions.get(m.id) ?? 0,
+    status: m.status,
+    deliveredAt:
+      (m.status === "delivered" || m.status === "accepted") &&
+      (m.delivered_at ?? m.accepted_at)
+        ? iso(m.delivered_at ?? m.accepted_at)
+        : null,
+    workstreams: workstreamRows
+      .filter((w) => w.milestone_id === m.id)
+      .map(toWorkstream),
+  }));
+  const next = milestones.find(
+    (m) => m.status !== "delivered" && m.status !== "accepted",
+  );
+  return {
+    code: project.code,
+    name: project.name,
+    phase: project.phase,
+    objective: project.objective_client,
+    progressPct: Number(project.progress_pct),
+    targetDate: project.target_date,
+    nextMilestone: next ? { title: next.title, dueDate: next.dueDate } : null,
+    milestones,
+    otherWorkstreams: workstreamRows
+      .filter((w) => !w.milestone_id || !shown.has(w.milestone_id))
+      .map(toWorkstream),
+    reports: reports.map((r) => ({
+      periodStart: r.period_start,
+      periodEnd: r.period_end,
+      publishedAt: iso(r.published_at),
+      bodyMd: r.body_md,
+    })),
+  };
 }
