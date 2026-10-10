@@ -225,9 +225,41 @@ export function changedTaskFields(
 
 // Comentário -------------------------------------------------------------------------
 
+export type Mention = { type: "user" | "agent"; id: string };
+
+/** Menções escolhidas na sugestão do @, enviadas como JSON num campo escondido. */
+function mentions(raw: string): Parsed<Mention[]> {
+  if (!raw) return { ok: true, value: [] };
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return { ok: false, message: RELOAD };
+  }
+  if (!Array.isArray(data) || data.length > 10) {
+    return {
+      ok: false,
+      message: "Cite até 10 pessoas ou agentes por comentário.",
+    };
+  }
+  const out: Mention[] = [];
+  for (const item of data) {
+    const m = item as Record<string, unknown>;
+    if (
+      (m?.type !== "user" && m?.type !== "agent") ||
+      typeof m.id !== "string" ||
+      !UUID.test(m.id)
+    ) {
+      return { ok: false, message: RELOAD };
+    }
+    out.push({ type: m.type, id: m.id });
+  }
+  return { ok: true, value: out };
+}
+
 export function parseCommentForm(
   form: FormData,
-): Parsed<{ code: string; body_md: string }> {
+): Parsed<{ code: string; body_md: string; mentions: Mention[] }> {
   const ref = taskRef(form);
   if (!ref.ok) return ref;
   const body = multiline(text(form, "body"));
@@ -238,7 +270,12 @@ export function parseCommentForm(
       message: "O comentário passou de 10 mil caracteres. Divida em partes.",
     };
   }
-  return { ok: true, value: { code: ref.value.code, body_md: body } };
+  const cited = mentions(text(form, "mentions"));
+  if (!cited.ok) return cited;
+  return {
+    ok: true,
+    value: { code: ref.value.code, body_md: body, mentions: cited.value },
+  };
 }
 
 // Nova tarefa ------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Action } from "@/lib/authorize";
 import { audit } from "@/lib/audit";
-import { badRequest, notFound } from "@/lib/errors";
+import { badRequest, notFound, unprocessable } from "@/lib/errors";
 import { assertNoSecrets } from "@/lib/text-guards";
 import {
   actorRef,
@@ -17,7 +17,8 @@ import {
   Uuid,
   Visibility,
 } from "@/modules/common";
-import { many, maybeOne, S, type TxCtx } from "@/modules/context";
+import { json, many, maybeOne, S, type TxCtx } from "@/modules/context";
+import { notifyProfile } from "@/modules/notifications";
 
 /** Onde o comentário fica: tarefa, projeto, marco ou frente (um de cada vez). */
 export const CommentTarget = z.union([
@@ -28,7 +29,23 @@ export const CommentTarget = z.union([
 ]);
 export type CommentTarget = z.infer<typeof CommentTarget>;
 
-export const CreateCommentInput = z.strictObject({ body_md: Text(10000) });
+/** Pessoa ou agente citado com @ no comentário. */
+export const MentionInput = z.strictObject({
+  type: z.enum(["user", "agent"]),
+  id: Uuid,
+});
+export type MentionInput = z.infer<typeof MentionInput>;
+
+export const CreateCommentInput = z.strictObject({
+  body_md: Text(10000),
+  mentions: z
+    .array(MentionInput)
+    .max(10)
+    .optional()
+    .describe(
+      "Pessoas ou agentes citados com @ no texto. As pessoas recebem aviso na caixa de entrada.",
+    ),
+});
 
 export const CommentDto = z.object({
   id: Uuid,
@@ -39,6 +56,13 @@ export const CommentDto = z.object({
   visibility: Visibility,
   author: ActorRef,
   acting_role: z.string().nullable(),
+  mentions: z.array(
+    z.object({
+      type: z.enum(["user", "agent"]),
+      id: Uuid,
+      name: z.string(),
+    }),
+  ),
   created_at: Timestamp,
   edited_at: Timestamp.nullable(),
 });
@@ -110,7 +134,8 @@ async function resolveTarget(
 
 const COMMENT_SELECT = `
   select c.id, p.code as project_code, c.entity_type, c.entity_id, c.body_md, c.visibility,
-         c.author_type, c.author_id, c.author_name, c.acting_role, c.created_at, c.edited_at
+         c.author_type, c.author_id, c.author_name, c.acting_role, c.mentions,
+         c.created_at, c.edited_at
     from ${S}.comments c
     join ${S}.projects p on p.id = c.project_id`;
 
@@ -125,6 +150,7 @@ type CommentRow = {
   author_id: string | null;
   author_name: string;
   acting_role: string | null;
+  mentions: CommentDto["mentions"] | null;
   created_at: Date | string;
   edited_at: Date | string | null;
 };
@@ -139,6 +165,7 @@ function toCommentDto(r: CommentRow): CommentDto {
     visibility: r.visibility,
     author: actorRef(r.author_type, r.author_id, r.author_name)!,
     acting_role: r.acting_role,
+    mentions: Array.isArray(r.mentions) ? r.mentions : [],
     created_at: iso(r.created_at),
     edited_at: isoOrNull(r.edited_at),
   };
@@ -165,20 +192,73 @@ export async function listComments(
   return { items: rows.map(toCommentDto) };
 }
 
+/** Confere os citados: pessoas ativas do workspace e agentes não revogados. */
+async function resolveMentions(
+  t: TxCtx,
+  mentions: MentionInput[],
+): Promise<CommentDto["mentions"]> {
+  const unique = [
+    ...new Map(mentions.map((m) => [`${m.type}:${m.id}`, m])).values(),
+  ];
+  const users = unique.filter((m) => m.type === "user").map((m) => m.id);
+  const agents = unique.filter((m) => m.type === "agent").map((m) => m.id);
+  const found = [
+    ...(users.length
+      ? await many<{ id: string; name: string }>(
+          t,
+          `select p.id, p.full_name as name
+             from ${S}.profiles p
+             join ${S}.memberships m on m.profile_id = p.id
+            where p.id = any($1::uuid[]) and m.workspace_id = $2
+              and m.status = 'active' and p.deactivated_at is null`,
+          [users, t.actor.workspaceId],
+        )
+      : []
+    ).map((r) => ({ type: "user" as const, ...r })),
+    ...(agents.length
+      ? await many<{ id: string; name: string }>(
+          t,
+          `select id, name from ${S}.agents
+            where id = any($1::uuid[]) and status <> 'revoked'`,
+          [agents],
+        )
+      : []
+    ).map((r) => ({ type: "agent" as const, ...r })),
+  ];
+  if (found.length !== unique.length) {
+    throw unprocessable(
+      "Alguém citado com @ não faz mais parte do workspace. Recarregue e cite de novo.",
+    );
+  }
+  return found;
+}
+
+/** Trecho curto do comentário, sem as marcas do Markdown, para o aviso. */
+export function excerpt(body: string, max = 140): string {
+  const flat = body
+    .replace(/[*_`>#~[\]]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return flat.length > max ? `${flat.slice(0, max - 1).trimEnd()}…` : flat;
+}
+
 /** Comentário interno. Texto para o cliente segue outro caminho, com aprovação (PRD §5.2). */
 export async function createComment(
   t: TxCtx,
   target: CommentTarget,
-  input: { body_md: string },
+  input: { body_md: string; mentions?: MentionInput[] },
 ): Promise<CommentDto> {
   const where = await resolveTarget(t, target, "comment.write");
   assertNoSecrets({ body_md: input.body_md });
+  const mentions = input.mentions?.length
+    ? await resolveMentions(t, input.mentions)
+    : [];
   const inserted = await maybeOne<{ id: string }>(
     t,
     `insert into ${S}.comments
        (workspace_id, project_id, entity_type, entity_id, body_md, visibility,
-        author_type, author_id, author_name, acting_role)
-     values ($1, $2, $3, $4, $5, 'internal', $6, $7, $8, $9)
+        author_type, author_id, author_name, acting_role, mentions)
+     values ($1, $2, $3, $4, $5, 'internal', $6, $7, $8, $9, $10::jsonb)
      returning id`,
     [
       t.actor.workspaceId,
@@ -190,6 +270,7 @@ export async function createComment(
       t.actor.id,
       t.actor.name,
       t.actor.actingRole ?? null,
+      json(mentions),
     ],
   );
   const dto = toCommentDto(
@@ -206,7 +287,24 @@ export async function createComment(
       entity_type: dto.entity_type,
       entity_id: dto.entity_id,
       visibility: "internal",
+      ...(mentions.length ? { mentions: mentions.map((m) => m.name) } : {}),
     },
   });
+  for (const m of mentions) {
+    if (m.type !== "user") continue;
+    await notifyProfile(
+      t,
+      m.id,
+      "mention",
+      { type: where.entityType, id: where.entityId },
+      {
+        author: t.actor.name,
+        project_code: dto.project_code,
+        task_code: "task" in target ? target.task : null,
+        comment_id: dto.id,
+        excerpt: excerpt(input.body_md),
+      },
+    );
+  }
   return dto;
 }

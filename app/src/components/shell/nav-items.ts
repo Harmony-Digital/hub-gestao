@@ -2,6 +2,7 @@ import {
   Bot,
   CircleCheckBig,
   FolderKanban,
+  Inbox,
   Sun,
   type LucideIcon,
 } from "lucide-react";
@@ -13,6 +14,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Hoje", icon: Sun },
   { href: "/projetos", label: "Projetos", icon: FolderKanban },
   { href: "/aprovacoes", label: "Aprovações", icon: CircleCheckBig },
+  { href: "/caixa-de-entrada", label: "Caixa de entrada", icon: Inbox },
   { href: "/agentes", label: "Sala de Controle", icon: Bot },
 ];
 

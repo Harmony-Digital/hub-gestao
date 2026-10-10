@@ -22,6 +22,7 @@ import {
 import {
   CommentDto,
   createComment,
+  CreateCommentInput,
   listComments,
 } from "@/modules/comments/service";
 import { ProjectCode, RoleCode, TaskCode, Text, Uuid } from "@/modules/common";
@@ -459,6 +460,7 @@ export function buildMcpServer(base: Ctx, version: string): McpServer {
           milestone_id: Uuid.optional(),
           workstream_id: Uuid.optional(),
           body_md: Text(10000),
+          mentions: CreateCommentInput.shape.mentions,
           ...writeFields,
         }),
         outputSchema: CommentDto,
@@ -477,7 +479,10 @@ export function buildMcpServer(base: Ctx, version: string): McpServer {
               "Informe um só destino: task, project, milestone_id ou workstream_id.",
             );
           }
-          return createComment(t, targets[0], { body_md: args.body_md });
+          return createComment(t, targets[0], {
+            body_md: args.body_md,
+            mentions: args.mentions,
+          });
         }),
     );
   }

@@ -11,17 +11,20 @@ import {
 } from "./nav-items";
 
 /** Menu com o item da tela atual destacado (lê o endereço: só dentro de Suspense). */
+/** Contador ao lado do item do menu, com o texto que o leitor de tela anuncia. */
+export type NavBadge = { n: number; label: string };
+
 export function SidebarNav({
   badges = {},
 }: {
-  badges?: Record<string, number>;
+  badges?: Record<string, NavBadge>;
 }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Menu principal" className="flex flex-col gap-0.5">
       {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
         const active = isActive(href, pathname);
-        const badge = badges[href] ?? 0;
+        const badge = badges[href];
         return (
           <Link
             key={href}
@@ -34,12 +37,12 @@ export function SidebarNav({
               className={`size-[18px] shrink-0 ${active ? "text-brand" : ""}`}
             />
             <span className="flex-1">{label}</span>
-            {badge > 0 ? (
+            {badge && badge.n > 0 ? (
               <span
                 className="rounded-full bg-brand px-2 font-mono text-[11px] font-semibold text-navy"
-                aria-label={`${badge} decisões esperando você`}
+                aria-label={badge.label}
               >
-                {badge}
+                {badge.n}
               </span>
             ) : null}
           </Link>

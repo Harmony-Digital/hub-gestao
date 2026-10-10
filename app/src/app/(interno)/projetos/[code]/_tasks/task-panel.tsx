@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import { Ban, CircleCheck, CornerDownRight } from "lucide-react";
+import { Markdown } from "@/components/markdown";
 import { Linkified } from "@/components/shell/linkified";
 import { Avatar, Pill } from "@/components/shell/pill";
 import { HubError } from "@/lib/errors";
@@ -12,8 +13,8 @@ import { taskDetail, type TaskDetail } from "@/modules/tasks/board";
 import { assigneeValue } from "./form";
 import { TaskPanelFrame } from "./panel-frame";
 import { ChecklistEditor, DependenciesEditor } from "./task-extras";
+import { CommentForm } from "./comment-editor";
 import {
-  CommentForm,
   DescriptionField,
   StatusPicker,
   TaskFieldsForm,
@@ -157,9 +158,7 @@ async function PanelContent({
           version={task.version}
           description={task.description_md}
         >
-          {task.description_md ? (
-            <Linkified text={task.description_md} />
-          ) : null}
+          {task.description_md ? <Markdown text={task.description_md} /> : null}
         </DescriptionField>
       </Section>
 
@@ -229,15 +228,22 @@ async function PanelContent({
                     </span>{" "}
                     · {formatMoment(c.created_at)}
                   </p>
-                  <div className="mt-1 text-sm leading-relaxed break-words whitespace-pre-wrap text-ink">
-                    <Linkified text={c.body_md} />
+                  <div className="mt-1">
+                    <Markdown text={c.body_md} />
                   </div>
                 </div>
               </li>
             ))}
           </ol>
         ) : null}
-        <CommentForm code={task.code} />
+        <CommentForm
+          code={task.code}
+          people={data.assignees.map(({ type, id, name }) => ({
+            type,
+            id,
+            name,
+          }))}
+        />
       </Section>
 
       <Section title="Histórico">

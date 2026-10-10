@@ -1,6 +1,7 @@
 import { can } from "@/lib/authorize";
 import { projectScopeSql } from "@/modules/common";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
+import { unreadCount } from "@/modules/notifications";
 
 /** O que a barra lateral mostra além dos links. Uma consulta leve por tela. */
 export type ShellData = {
@@ -10,6 +11,8 @@ export type ShellData = {
   featured: { code: string; name: string; health: string }[];
   /** Agentes com alguma ação registrada nas últimas 24 horas. */
   agentsActive24h: number;
+  /** Avisos sem ler na caixa de entrada de quem está vendo. */
+  unread: number;
 };
 
 export async function shellData(t: TxCtx): Promise<ShellData> {
@@ -50,5 +53,6 @@ export async function shellData(t: TxCtx): Promise<ShellData> {
     pendingDecisions: pending?.n ?? 0,
     featured,
     agentsActive24h: agents?.n ?? 0,
+    unread: await unreadCount(t),
   };
 }
