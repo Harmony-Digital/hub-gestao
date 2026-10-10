@@ -8,7 +8,12 @@ import { PRIORITY } from "@/lib/labels";
 import type { AssigneeOption, WorkstreamOption } from "@/modules/tasks/board";
 import { criarTarefa } from "./actions";
 import { IDLE, PRIORITIES, type CreateTaskState } from "./form";
-import { ErrorNote, inputClass, textareaClass, useSubmit } from "./task-forms";
+import {
+  ErrorNote,
+  inputClass,
+  textareaClass,
+  useSubmit,
+} from "@/components/forms";
 
 type Props = {
   projectCode: string;

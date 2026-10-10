@@ -6,12 +6,15 @@ export type Crumb = { label: string; href?: string };
 /** Topo de cada tela: trilha, título, explicação curta e ações. */
 export function PageHeader({
   trail,
+  eyebrow,
   title,
   description,
   actions,
   children,
 }: {
   trail: Crumb[];
+  /** Linha curta acima do título (por exemplo, a data de hoje). */
+  eyebrow?: ReactNode;
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
@@ -46,6 +49,11 @@ export function PageHeader({
       </nav>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1.5">
+          {eyebrow ? (
+            <p className="font-mono text-[11px] tracking-[0.12em] text-brand-strong uppercase">
+              {eyebrow}
+            </p>
+          ) : null}
           <h1 className="font-heading text-2xl font-semibold tracking-tight text-navy sm:text-3xl">
             {title}
           </h1>

@@ -7,11 +7,11 @@ Projeto: **Hub de Gestão da Harmony Digital**. Sistema de gestão de projetos, 
 - **No ar** em https://hub.harmonydigital.com.br, atrás de login (D11). Cada merge na `main` passa pelo CI "Qualidade" e é publicado sozinho na VPS ("Publicação na VPS").
 - **M0, M1 e M2 concluídos e aprovados pelo Fábio** (GATE M2 em 2026-10-10: "Vamos em frente."). **M3 (interface interna) em construção.**
 - **Já funciona:**
-  - telas: barra lateral; Projetos com filtro de saúde; em cada projeto, as abas Visão geral (três camadas), Lista e Quadro (Kanban de arrastar); painel lateral da tarefa (`?tarefa=HUB-n`); Nova tarefa;
+  - telas: Hoje (decisões com Aprovar, Ajustar e Recusar, bloqueios, riscos e o que os agentes fizeram); barra lateral; Projetos com filtro de saúde; em cada projeto, as abas Visão geral (três camadas), Lista e Quadro (Kanban de arrastar); painel lateral da tarefa (`?tarefa=HUB-n`); Nova tarefa;
   - `/agentes`: cadastro de agentes e chaves com exibição única;
   - `/conta`: a própria pessoa define a senha;
   - agentes operam por MCP e REST em produção: o Claude Code concluiu a HUB-1 em 2026-10-10.
-- **Próximo:** tela Hoje (cockpit) e Aprovações; depois o restante do M3.
+- **Próximo:** tela Aprovações (filtros e histórico); depois o restante do M3.
 - **Aberto com o Fábio:** destino da cópia do backup fora da VPS (D8); se quiser, o texto do e-mail do link de acesso (hoje sai com o modelo do IA Posicionamento).
 - Detalhe de cada item, com evidência, em `PLAN.md` (seção "Onde estamos" e checklist). Este resumo não substitui o plano.
 
@@ -50,6 +50,8 @@ npm run check     # formato + lint + tipos + testes + build (obrigatório antes 
 ```
 
 Nenhum trabalho é "pronto" sem `npm run check` verde, verificação real (navegador, banco ou chamada de API) e evidência registrada no `PLAN.md`.
+
+**Se o `next dev` não subir** com "unable to start FSEvent stream" (o macOS esgotou os observadores de arquivos, comum com muitos servidores abertos), rode com `HUB_DEV_POLL_MS=1000`; a configuração `hub-gestao` do preview já usa.
 
 **Ver as telas no computador sem a senha de produção:** `HUB_DEV_LOGIN=on`, `HUB_DEV_LOGIN_SECRET` (32 caracteres ou mais) e `HUB_DEV_SAMPLE=on` no `app/.env.local` ligam o botão "Entrar como dono, sem senha (só neste computador)" no `/login` e o projeto de exemplo `EXE`. Nunca vale em produção: o CI confere que a imagem recusa o login de teste. Conferir no computador (1440 px) e no celular (375 px).
 

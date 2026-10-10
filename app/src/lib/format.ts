@@ -41,6 +41,50 @@ export function formatMoment(timestamp: string, now = new Date()): string {
   return dayFmt.format(at);
 }
 
+const longDateFmt = new Intl.DateTimeFormat("pt-BR", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  timeZone: TZ,
+});
+const hourFmt = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  hourCycle: "h23",
+  timeZone: TZ,
+});
+
+/** O dia de hoje em Brasília (AAAA-MM-DD), para comparar com prazos. */
+export function todayKey(now: Date): string {
+  return dayKeyFmt.format(now);
+}
+
+/** Data por extenso em Brasília, com inicial maiúscula: "Sábado, 10 de outubro". */
+export function formatLongDate(now: Date): string {
+  const text = longDateFmt.format(now);
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** Saudação pela hora de Brasília: "Bom dia" até 12h, "Boa tarde" até 18h, depois "Boa noite". */
+export function greetingFor(now: Date): string {
+  const hour = Number(hourFmt.format(now));
+  return hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+}
+
+/** Há quanto tempo, no fuso de Brasília: "agora", "há 5 min", "há 2 h", "ontem", "há 3 dias", depois o dia. */
+export function formatAge(timestamp: string, now = new Date()): string {
+  const at = new Date(timestamp);
+  const minutes = Math.floor((now.getTime() - at.getTime()) / 60_000);
+  if (minutes < 1) return "agora";
+  if (minutes < 60) return `há ${minutes} min`;
+  const day = dayKeyFmt.format(at);
+  const today = dayKeyFmt.format(now);
+  if (day === today) return `há ${Math.floor(minutes / 60)} h`;
+  const yesterday = dayKeyFmt.format(new Date(now.getTime() - 86_400_000));
+  if (day === yesterday) return "ontem";
+  const days = Math.round((Date.parse(today) - Date.parse(day)) / 86_400_000);
+  return days < 7 ? `há ${days} dias` : dayFmt.format(at);
+}
+
 /** Dia de um instante, em Brasília: "2026-10-10T01:26:16Z" → "09/10". */
 export function formatTimestampDay(timestamp: string): string {
   return dayFmt.format(new Date(timestamp));

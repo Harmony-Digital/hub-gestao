@@ -157,7 +157,7 @@ Contatos e conteúdos de clientes ficam no schema do Hub com RLS por `workspace_
 - **Login de teste**: `HUB_DEV_LOGIN=on` e `HUB_DEV_LOGIN_SECRET` (32 caracteres ou mais) no `app/.env.local` ligam o botão "Entrar como dono, sem senha (só neste computador)" no `/login`. O cookie é assinado com esse segredo. O código fica atrás de `NODE_ENV !== "production"`, e o CI confere que a imagem de produção recusa o cookie e não mostra o botão.
 - **Projeto de exemplo**: `HUB_DEV_SAMPLE=on` cria no banco local o cliente "Clínica Exemplo" e o projeto `EXE`, com marcos, frentes, agentes e tarefas de exemplo. Só no banco local.
 - `HUB_DEV_AGENT_KEY` registra o "Agente local de teste" para chamar a API e o MCP locais.
-- Preview no app Claude: configuração `hub-gestao` (porta 3100), que sobe com `WATCHPACK_POLLING=true` porque o observador de arquivos do macOS esgota com EMFILE.
+- Preview no app Claude: configuração `hub-gestao` (porta 3100), que sobe com `WATCHPACK_POLLING=true` e `HUB_DEV_POLL_MS=1000`. Com muitos servidores abertos no Mac, o macOS esgota os observadores de arquivos (EMFILE ou "unable to start FSEvent stream"); `HUB_DEV_POLL_MS` faz o `next dev` observar por consulta periódica (`watchOptions.pollIntervalMs` no `next.config.ts`), só quando a variável existe.
 - Conferência visual no computador (1440 px) e no celular (375 px), olhando o console do navegador e o log do servidor.
 
 ## 7. Regras de negócio que não podem quebrar
