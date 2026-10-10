@@ -28,14 +28,14 @@ export const roadmap: Milestone[] = [
     code: "M2",
     title: "Publicação inicial",
     summary: "No ar em hub.harmonydigital.com.br, protegido por login.",
-    status: "em-andamento",
+    status: "concluido",
   },
   {
     code: "M3",
     title: "Interface essencial",
     summary:
       "Hoje, projetos, lista, quadro, tarefa, aprovações e Sala de Controle.",
-    status: "planejado",
+    status: "em-andamento",
   },
   {
     code: "M4",
