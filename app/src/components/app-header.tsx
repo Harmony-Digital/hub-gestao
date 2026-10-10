@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
-import { LogOut } from "lucide-react";
+import { LogOut, UserRound } from "lucide-react";
 import { sair } from "@/app/login/actions";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/auth/current-user";
@@ -44,7 +44,14 @@ async function UserMenu() {
   const user = await getCurrentUser();
   return (
     <div className="flex items-center gap-3">
-      <span className="hidden text-sm text-off sm:inline">{user.fullName}</span>
+      <Link
+        href="/conta"
+        aria-label="Minha conta"
+        className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-off transition-colors hover:bg-navy-4"
+      >
+        <UserRound aria-hidden="true" className="size-4" />
+        <span className="hidden sm:inline">{user.fullName}</span>
+      </Link>
       <span className="rounded-full border border-brand/40 px-3 py-1 font-mono text-[11px] tracking-[0.12em] text-brand-soft uppercase">
         {roleLabel[user.actor.role]}
       </span>
