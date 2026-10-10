@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@electric-sql/pglite"],
   cacheComponents: true,
   partialPrefetching: true,
+  experimental: {
+    // Anexo de tarefa: até 10 MB por arquivo (mais a folga do envio multipart).
+    serverActions: { bodySizeLimit: "11mb" },
+  },
   turbopack: {
     rules: {
       "*.css": {

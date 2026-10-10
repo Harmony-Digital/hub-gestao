@@ -1,5 +1,9 @@
 import { formatDate } from "@/lib/format";
 import { PRIORITY } from "@/lib/labels";
+import {
+  attachmentsOf,
+  type AttachmentDto,
+} from "@/modules/attachments/service";
 import { listComments, type CommentDto } from "@/modules/comments/service";
 import {
   ACTOR_NAME_SQL,
@@ -202,6 +206,7 @@ export type TaskDetail = TaskFormOptions & {
   subtasks: TaskDto[];
   checklist: ChecklistItemDto[];
   dependencies: TaskDependencies;
+  attachments: AttachmentDto[];
   comments: CommentDto[];
   history: TaskEvent[];
 };
@@ -250,6 +255,7 @@ export async function taskDetail(t: TxCtx, code: string): Promise<TaskDetail> {
     subtasks: subtasks.map(toTaskDto),
     checklist: await checklistOf(t, task.id),
     dependencies: await dependenciesOf(t, task.id),
+    attachments: await attachmentsOf(t, task.id),
     comments,
     history: history.map((h) => ({
       at: iso(h.created_at),
@@ -352,6 +358,10 @@ export function describeTaskEvent(
       return { text: "renomeou um item do checklist", detail: text(a.text) };
     case "checklist.removed":
       return { text: "tirou do checklist", detail: text(a.text) };
+    case "attachment.added":
+      return { text: "anexou um arquivo", detail: text(a.filename) };
+    case "attachment.removed":
+      return { text: "tirou um anexo", detail: text(a.filename) };
     case "dependency.added":
       return {
         text: `passou a depender de ${text(a.blocked_by) ?? "outra tarefa"}`,

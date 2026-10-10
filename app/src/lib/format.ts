@@ -102,3 +102,10 @@ export function initials(name: string | null | undefined): string {
   const last = words.length > 1 ? (words[words.length - 1][0] ?? "") : "";
   return (first + last).toUpperCase();
 }
+
+/** Tamanho de arquivo em PT-BR: "820 bytes", "320 KB", "1,2 MB". */
+export function formatBytes(n: number): string {
+  if (n < 1024) return `${n} bytes`;
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / (1024 * 1024)).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} MB`;
+}

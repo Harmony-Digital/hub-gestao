@@ -51,6 +51,8 @@ const VERBS: Record<string, string> = {
   "checklist.removed": "mexeu no checklist de",
   "dependency.added": "mudou as dependências de",
   "dependency.removed": "mudou as dependências de",
+  "attachment.added": "anexou um arquivo em",
+  "attachment.removed": "tirou um anexo de",
   "time.logged": "lançou tempo em",
   "workstream.created": "criou uma frente",
   "workstream.updated": "atualizou uma frente",
@@ -82,6 +84,8 @@ const ABOUT_TASK = new Set([
   "checklist.removed",
   "dependency.added",
   "dependency.removed",
+  "attachment.added",
+  "attachment.removed",
 ]);
 
 export function describeActivity(action: string, taskCode: string | null) {
