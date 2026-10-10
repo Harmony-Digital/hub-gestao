@@ -11,7 +11,7 @@ Projeto: **Hub de Gestão da Harmony Digital**. Sistema de gestão de projetos, 
   - `/agentes` (Sala de Controle): números do dia, feed ao vivo do que os agentes fazem (filtros por agente e projeto), recusas de acesso (401, 403 e 423, tabela `agent_denials`) e custo de IA do mês; cadastro completo de agentes (departamento, missão, orçamento de IA, responsável), Editar, Pausar e Reativar, e chaves com exibição única;
   - `/conta`: a própria pessoa define a senha;
   - agentes operam por MCP e REST em produção: o Claude Code concluiu a HUB-1 em 2026-10-10.
-- **Próximo:** a semana de uso real (GATE M3) começa quando o Fábio quiser. Em paralelo, o restante do M3: corrigir o gatilho que cobra a evidência em toda gravação de tarefa concluída (deve cobrar só ao concluir); testes Playwright e revisão de acessibilidade; depois o restante da lista do plano.
+- **Próximo:** a semana de uso real (GATE M3) começa quando o Fábio quiser. Em paralelo, o restante do M3: testes Playwright e revisão de acessibilidade; depois o restante da lista do plano.
 - **Aberto com o Fábio:** destino da cópia do backup fora da VPS (D8); se quiser, o texto do e-mail do link de acesso (hoje sai com o modelo do IA Posicionamento).
 - Detalhe de cada item, com evidência, em `PLAN.md` (seção "Onde estamos" e checklist). Este resumo não substitui o plano.
 
