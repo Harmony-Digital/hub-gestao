@@ -33,27 +33,53 @@ import { Avatar, Pill } from "@/components/shell/pill";
 import { Button } from "@/components/ui/button";
 import { formatDayMonth, initials } from "@/lib/format";
 import { PRIORITY, STATUS_CATEGORY_TONE } from "@/lib/labels";
-import { mudarStatus } from "./actions";
+import { mudarStatus, reordenarColuna } from "./actions";
 import {
   columnBeside,
-  moveCard,
+  columnCodes,
+  laneOf,
   needsNote,
+  placeCard,
   type BoardCard,
   type BoardColumn,
+  type LaneBy,
 } from "./board-state";
 import { IDLE, type ActionState } from "./form";
 import { ErrorNote, textareaClass } from "@/components/forms";
 
-/** Pedido de texto ao soltar em Concluída (evidência) ou Bloqueada (motivo). */
-type NoteRequest = { card: BoardCard; column: BoardColumn };
+/**
+ * Alvos de soltar: a coluna (fim dela) ou um cartão (antes dele). Ids com "|" porque o
+ * código da raia pode ter ":" (responsável "user:<id>").
+ */
+const COL = "col|";
+const CARD = "card|";
+const colId = (lane: string, statusId: string) => `${COL}${lane}|${statusId}`;
+const cardId = (code: string) => `${CARD}${code}`;
 
-// Com o mouse, vale o ponteiro; no teclado não há ponteiro, então vale a área do cartão.
-const collision: CollisionDetection = (args) => {
-  const within = pointerWithin(args);
-  return within.length > 0 ? within : rectIntersection(args);
+type Target = { statusId: string; before: string | null };
+
+/** Pedido de texto ao soltar em Concluída (evidência) ou Bloqueada (motivo). */
+type NoteRequest = {
+  card: BoardCard;
+  column: BoardColumn;
+  before: string | null;
 };
 
-/** Setas para os lados levam o cartão à coluna vizinha; para cima e para baixo, rolam. */
+// Com o mouse, vale o ponteiro; no teclado não há ponteiro, então vale a área do cartão.
+// Sobre um cartão, ele é o alvo (soltar antes dele); senão, a coluna.
+const collision: CollisionDetection = (args) => {
+  const within = pointerWithin(args);
+  const hits = within.length > 0 ? within : rectIntersection(args);
+  const self = cardId(String(args.active.id));
+  const onCards = hits.filter(
+    (h) => String(h.id).startsWith(CARD) && String(h.id) !== self,
+  );
+  return onCards.length > 0
+    ? onCards
+    : hits.filter((h) => String(h.id).startsWith(COL));
+};
+
+/** Setas para os lados levam o cartão à coluna vizinha; para cima e para baixo, andam. */
 const keyboardCoordinates: KeyboardCoordinateGetter = (
   event,
   { currentCoordinates, context },
@@ -62,12 +88,15 @@ const keyboardCoordinates: KeyboardCoordinateGetter = (
   if (!collisionRect) return undefined;
   if (event.code === "ArrowRight" || event.code === "ArrowLeft") {
     event.preventDefault();
-    const spans = droppableContainers.getEnabled().flatMap((container) => {
-      const rect = droppableRects.get(container.id);
-      return rect
-        ? [{ id: String(container.id), left: rect.left, width: rect.width }]
-        : [];
-    });
+    const spans = droppableContainers
+      .getEnabled()
+      .filter((container) => String(container.id).startsWith(COL))
+      .flatMap((container) => {
+        const rect = droppableRects.get(container.id);
+        return rect
+          ? [{ id: String(container.id), left: rect.left, width: rect.width }]
+          : [];
+      });
     const target = columnBeside(
       spans,
       collisionRect.left + collisionRect.width / 2,
@@ -89,18 +118,39 @@ const keyboardCoordinates: KeyboardCoordinateGetter = (
   return undefined;
 };
 
+function readTarget(id: string | undefined, cards: BoardCard[]): Target | null {
+  if (!id) return null;
+  if (id.startsWith(CARD)) {
+    const code = id.slice(CARD.length);
+    const over = cards.find((c) => c.code === code);
+    return over ? { statusId: over.statusId, before: over.code } : null;
+  }
+  if (id.startsWith(COL)) {
+    return { statusId: id.slice(id.lastIndexOf("|") + 1), before: null };
+  }
+  return null;
+}
+
 export function KanbanBoard({
+  projectCode,
   columns,
   cards: serverCards,
+  lanes,
+  laneBy,
 }: {
+  projectCode: string;
   columns: BoardColumn[];
+  /** Já na ordem do quadro (posição manual, depois a do servidor). */
   cards: BoardCard[];
+  /** Raias (frente ou responsável), ou null para o quadro único. */
+  lanes: { key: string; label: string }[] | null;
+  laneBy: LaneBy | null;
 }) {
   const router = useRouter();
-  const [cards, applyMove] = useOptimistic(
+  const [cards, applyPlace] = useOptimistic(
     serverCards,
-    (state, move: { code: string; statusId: string }) =>
-      moveCard(state, move.code, move.statusId),
+    (state, move: { code: string; statusId: string; before: string | null }) =>
+      placeCard(state, move.code, move.statusId, move.before),
   );
   const [saving, startSaving] = useTransition();
   const [active, setActive] = useState<BoardCard | null>(null);
@@ -109,6 +159,7 @@ export function KanbanBoard({
   const [noteError, setNoteError] = useState<string | null>(null);
   // Soltar o cartão no mesmo lugar não pode virar clique (abrir o painel).
   const justDragged = useRef(false);
+  const activeLane = active && laneBy ? laneOf(active, laneBy) : null;
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
@@ -131,36 +182,62 @@ export function KanbanBoard({
     () => new Map(columns.map((c) => [c.id, c.name])),
     [columns],
   );
+  const describe = (id: string | undefined) => {
+    const target = readTarget(id, cards);
+    if (!target) return "fora das colunas";
+    const name = columnName.get(target.statusId) ?? "";
+    return target.before
+      ? `antes de ${target.before}, na coluna ${name}`
+      : `no fim da coluna ${name}`;
+  };
   const announcements: Announcements = {
     onDragStart: ({ active }) =>
-      `Tarefa ${active.id} pega. Use as setas para os lados para trocar de coluna e espaço para soltar.`,
+      `Tarefa ${active.id} pega. Setas para os lados trocam de coluna; para cima e para baixo, de lugar. Espaço solta.`,
     onDragOver: ({ active, over }) =>
-      over
-        ? `Tarefa ${active.id} sobre a coluna ${columnName.get(String(over.id)) ?? ""}.`
-        : `Tarefa ${active.id} fora das colunas.`,
+      `Tarefa ${active.id} ${describe(over ? String(over.id) : undefined)}.`,
     onDragEnd: ({ active, over }) =>
       over
-        ? `Tarefa ${active.id} solta em ${columnName.get(String(over.id)) ?? ""}.`
+        ? `Tarefa ${active.id} solta ${describe(String(over.id))}.`
         : `Tarefa ${active.id} solta fora das colunas. Nada mudou.`,
     onDragCancel: ({ active }) =>
       `Movimento da tarefa ${active.id} cancelado. Nada mudou.`,
   };
 
+  /** Grava a ordem da coluna, se ela tiver mais de um cartão. */
+  async function saveOrder(codes: string[]): Promise<ActionState> {
+    if (codes.length < 2) return { status: "ok" };
+    const form = new FormData();
+    form.set("project", projectCode);
+    form.set("codes", codes.join(","));
+    return reordenarColuna(IDLE, form);
+  }
+
+  /** Muda o status (com evidência ou motivo, se pedido) e grava a ordem da coluna. */
   function save(
     card: BoardCard,
     column: BoardColumn,
+    before: string | null,
     text?: string,
   ): Promise<ActionState> {
-    const form = new FormData();
-    form.set("code", card.code);
-    form.set("version", String(card.version));
-    form.set("status_id", column.id);
-    if (text)
-      form.set(column.category === "done" ? "evidence" : "reason", text);
+    const codes = columnCodes(
+      placeCard(cards, card.code, column.id, before),
+      column.id,
+    );
     return new Promise((resolve) => {
       startSaving(async () => {
-        applyMove({ code: card.code, statusId: column.id });
-        resolve(await mudarStatus(IDLE, form));
+        applyPlace({ code: card.code, statusId: column.id, before });
+        if (card.statusId !== column.id) {
+          const form = new FormData();
+          form.set("code", card.code);
+          form.set("version", String(card.version));
+          form.set("status_id", column.id);
+          if (text) {
+            form.set(column.category === "done" ? "evidence" : "reason", text);
+          }
+          const moved = await mudarStatus(IDLE, form);
+          if (moved.status === "error") return resolve(moved);
+        }
+        resolve(await saveOrder(codes));
       });
     });
   }
@@ -181,21 +258,25 @@ export function KanbanBoard({
   async function onDragEnd(event: DragEndEvent) {
     release();
     const card = cards.find((c) => c.code === event.active.id);
-    const column = columns.find((c) => c.id === event.over?.id);
-    if (!card || !column || card.statusId === column.id) return;
-    if (needsNote(column)) {
+    const target = readTarget(
+      event.over ? String(event.over.id) : undefined,
+      cards,
+    );
+    const column = columns.find((c) => c.id === target?.statusId);
+    if (!card || !target || !column || target.before === card.code) return;
+    if (card.statusId !== column.id && needsNote(column)) {
       setNoteError(null);
-      setNote({ card, column });
+      setNote({ card, column, before: target.before });
       return;
     }
-    const result = await save(card, column);
+    const result = await save(card, column, target.before);
     if (result.status === "error") setError(result.message);
   }
 
   async function confirmNote(text: string) {
     if (!note) return;
     setNoteError(null);
-    const result = await save(note.card, note.column, text);
+    const result = await save(note.card, note.column, note.before, text);
     if (result.status === "error") setNoteError(result.message);
     else setNote(null);
   }
@@ -204,6 +285,22 @@ export function KanbanBoard({
     if (justDragged.current) return;
     router.push(card.href, { scroll: false });
   }
+
+  const row = (lane: string, laneCards: BoardCard[]) => (
+    <div className="-mx-4 flex scroll-px-4 snap-x gap-3 overflow-x-auto px-4 pb-4 sm:-mx-8 sm:scroll-px-8 sm:px-8">
+      {columns.map((column) => (
+        <Column
+          key={column.id}
+          lane={lane}
+          column={column}
+          cards={laneCards.filter((c) => c.statusId === column.id)}
+          single={lanes === null}
+          disabled={activeLane !== null && activeLane !== lane}
+          onOpen={open}
+        />
+      ))}
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -230,35 +327,54 @@ export function KanbanBoard({
               aria-hidden="true"
               className="size-3.5 animate-spin"
             />
-            Salvando a mudança de status…
+            Salvando a mudança…
           </p>
         ) : null}
       </div>
 
+      {/* Id fixo: o contador interno do dnd-kit difere entre servidor e navegador e
+          quebraria a hidratação (aria-describedby). */}
       <DndContext
+        id="quadro"
         sensors={sensors}
         collisionDetection={collision}
         accessibility={{
           announcements,
           screenReaderInstructions: {
             draggable:
-              "Para mover a tarefa, pressione espaço, use as setas para os lados para trocar de coluna e pressione espaço de novo para soltar. Esc cancela. Enter abre a tarefa.",
+              "Para mover a tarefa, pressione espaço, use as setas (para os lados troca de coluna; para cima e para baixo, de lugar) e pressione espaço de novo para soltar. Esc cancela. Enter abre a tarefa.",
           },
         }}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
         onDragCancel={release}
       >
-        <div className="-mx-4 flex scroll-px-4 snap-x gap-3 overflow-x-auto px-4 pb-4 sm:-mx-8 sm:scroll-px-8 sm:px-8">
-          {columns.map((column) => (
-            <Column
-              key={column.id}
-              column={column}
-              cards={cards.filter((c) => c.statusId === column.id)}
-              onOpen={open}
-            />
-          ))}
-        </div>
+        {lanes && laneBy ? (
+          <div className="flex flex-col gap-4">
+            {lanes.map((lane) => {
+              const laneCards = cards.filter(
+                (c) => laneOf(c, laneBy) === lane.key,
+              );
+              return (
+                <section
+                  key={lane.key}
+                  aria-label={`Raia ${lane.label}`}
+                  className="flex flex-col gap-2"
+                >
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-navy">
+                    {lane.label}
+                    <span className="font-mono text-xs font-normal text-caption">
+                      {laneCards.length}
+                    </span>
+                  </h3>
+                  {row(lane.key, laneCards)}
+                </section>
+              );
+            })}
+          </div>
+        ) : (
+          row("all", cards)
+        )}
         <DragOverlay dropAnimation={null}>
           {active ? <CardFace card={active} lifted /> : null}
         </DragOverlay>
@@ -276,25 +392,36 @@ export function KanbanBoard({
 }
 
 function Column({
+  lane,
   column,
   cards,
+  single,
+  disabled,
   onOpen,
 }: {
+  lane: string;
   column: BoardColumn;
   cards: BoardCard[];
+  /** Quadro sem raias: a coluna mostra o total do status (e o aviso das concluídas). */
+  single: boolean;
+  disabled: boolean;
   onOpen: (card: BoardCard) => void;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: column.id });
-  const hidden = column.total - cards.length;
+  const { setNodeRef, isOver } = useDroppable({
+    id: colId(lane, column.id),
+    disabled,
+  });
+  const total = single ? column.total : cards.length;
+  const hidden = total - cards.length;
+  const headingId = `coluna-${lane.replace(/[^a-z0-9-]/gi, "")}-${column.id}`;
   return (
     <section
-      aria-labelledby={`coluna-${column.id}`}
-      className="flex w-[min(85vw,18rem)] shrink-0 snap-start flex-col rounded-2xl border border-line bg-off-2/50"
+      aria-labelledby={headingId}
+      className={`flex w-[min(85vw,18rem)] shrink-0 snap-start flex-col rounded-2xl border border-line bg-off-2/50 ${
+        disabled ? "opacity-50" : ""
+      }`}
     >
-      <h2
-        id={`coluna-${column.id}`}
-        className="flex items-center gap-2 px-3 pt-3 pb-2"
-      >
+      <h2 id={headingId} className="flex items-center gap-2 px-3 pt-3 pb-2">
         <Pill tone={STATUS_CATEGORY_TONE[column.category]}>
           <span
             aria-hidden="true"
@@ -304,7 +431,7 @@ function Column({
           {column.name}
         </Pill>
         <span className="font-mono text-xs font-normal text-caption">
-          {column.total}
+          {total}
         </span>
       </h2>
       <div
@@ -314,14 +441,19 @@ function Column({
         }`}
       >
         {cards.map((card) => (
-          <DraggableCard key={card.code} card={card} onOpen={onOpen} />
+          <DraggableCard
+            key={card.code}
+            card={card}
+            disabled={disabled}
+            onOpen={onOpen}
+          />
         ))}
         {cards.length === 0 ? (
           <p className="rounded-xl border border-dashed border-line px-3 py-6 text-center text-xs text-caption">
             Solte uma tarefa aqui
           </p>
         ) : null}
-        {column.category === "done" && hidden > 0 ? (
+        {single && column.category === "done" && hidden > 0 ? (
           <p className="px-1 text-xs text-caption">
             Mostrando as {cards.length} mais recentes. As outras {hidden} estão
             na Lista.
@@ -334,13 +466,23 @@ function Column({
 
 function DraggableCard({
   card,
+  disabled,
   onOpen,
 }: {
   card: BoardCard;
+  disabled: boolean;
   onOpen: (card: BoardCard) => void;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: card.code,
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    isDragging,
+  } = useDraggable({ id: card.code });
+  // O cartão também é alvo: soltar outro em cima dele põe o outro antes deste.
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: cardId(card.code),
+    disabled,
   });
   const label = [
     `${card.code}: ${card.title}`,
@@ -356,7 +498,10 @@ function DraggableCard({
     .join(", ");
   return (
     <div
-      ref={setNodeRef}
+      ref={(node) => {
+        setDragRef(node);
+        setDropRef(node);
+      }}
       {...attributes}
       {...listeners}
       data-board-card=""
@@ -372,7 +517,7 @@ function DraggableCard({
       }}
       className={`cursor-grab rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-brand/50 active:cursor-grabbing ${
         isDragging ? "opacity-40" : ""
-      }`}
+      } ${isOver && !isDragging ? "shadow-[0_-3px_0_0_var(--color-brand)]" : ""}`}
     >
       <CardFace card={card} />
     </div>

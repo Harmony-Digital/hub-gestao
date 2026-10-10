@@ -263,7 +263,24 @@ export function ListToolbar({
             </fieldset>
           </details>
         </>
-      ) : null}
+      ) : (
+        <>
+          <label className="sr-only" htmlFor="quadro-raias">
+            Raias
+          </label>
+          <select
+            id="quadro-raias"
+            name="raia"
+            defaultValue={state.raia}
+            onChange={submit}
+            className={SELECT}
+          >
+            <option value="nenhuma">Sem raias</option>
+            <option value="frente">Raias por frente</option>
+            <option value="responsavel">Raias por responsável</option>
+          </select>
+        </>
+      )}
 
       <button type="submit" className="sr-only">
         Aplicar

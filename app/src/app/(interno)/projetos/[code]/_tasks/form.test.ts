@@ -9,6 +9,7 @@ import {
   parseInlineEdit,
   parseMoveForm,
   parseNewTaskForm,
+  parseReorderForm,
   parseTaskFieldsForm,
   parseViewForm,
 } from "./form";
@@ -403,5 +404,25 @@ describe("edição na linha e visões salvas", () => {
     expect(
       parseViewForm(fd({ project: "EXE", type: "mapa", name: "x" })).ok,
     ).toBe(false);
+  });
+});
+
+describe("ordem no quadro", () => {
+  const fd = (values: Record<string, string>) => {
+    const data = new FormData();
+    for (const [k, v] of Object.entries(values)) data.append(k, v);
+    return data;
+  };
+  it("lê os códigos na ordem e recusa formato torto", () => {
+    expect(
+      parseReorderForm(fd({ project: "EXE", codes: "HUB-9,HUB-12" })),
+    ).toEqual({
+      ok: true,
+      value: { project: "EXE", codes: ["HUB-9", "HUB-12"] },
+    });
+    expect(parseReorderForm(fd({ project: "EXE", codes: "" })).ok).toBe(false);
+    expect(parseReorderForm(fd({ project: "EXE", codes: "HUB-9,x" })).ok).toBe(
+      false,
+    );
   });
 });

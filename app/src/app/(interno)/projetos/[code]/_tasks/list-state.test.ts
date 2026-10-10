@@ -63,7 +63,12 @@ describe("estado da lista no endereço", () => {
       agrupar: "responsavel",
       ordem: "prazo",
       colunas: ["prazo"],
+      raia: "nenhuma",
     });
+    expect(readListState({ raia: "frente" }).raia).toBe("frente");
+    expect(listQuery(readListState({ raia: "responsavel" })).toString()).toBe(
+      "raia=responsavel",
+    );
     const blank = readListState({
       frente: "x",
       resp: "user:1",

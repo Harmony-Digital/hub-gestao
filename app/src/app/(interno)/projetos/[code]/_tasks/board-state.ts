@@ -13,7 +13,12 @@ export type BoardCard = {
   version: number;
   priority: TaskDto["priority"];
   workstream: string | null;
+  workstreamId: string | null;
   assignee: { name: string; agent: boolean } | null;
+  /** "user:<id>" ou "agent:<id>" (raias por responsável). */
+  assigneeKey: string | null;
+  /** Posição manual na coluna (quadro); empate fica na ordem de trabalho do servidor. */
+  sortKey: number;
   due: string | null;
   late: boolean;
   parent: string | null;
@@ -40,6 +45,11 @@ export function toBoardCard(
     version: task.version,
     priority: task.priority,
     workstream: task.workstream?.title ?? null,
+    workstreamId: task.workstream?.id ?? null,
+    assigneeKey: task.assignee?.id
+      ? `${task.assignee.type}:${task.assignee.id}`
+      : null,
+    sortKey: task.sort_key,
     assignee: task.assignee
       ? {
           name: task.assignee.name ?? "Sem nome",
@@ -76,19 +86,99 @@ export function needsNote(column: Pick<StatusOption, "category">): boolean {
   return column.category === "done" || column.category === "blocked";
 }
 
-/** Move o cartão para outra coluna, no topo dela, sem mexer nos demais. */
-export function moveCard(
+/** Ordem do quadro: a posição manual primeiro; no empate, a ordem que veio do servidor. */
+export function sortForBoard(cards: BoardCard[]): BoardCard[] {
+  return [...cards].sort((a, b) => a.sortKey - b.sortKey);
+}
+
+/**
+ * Leva o cartão para a coluna `statusId`, antes do cartão `before` (se ele estiver nessa
+ * coluna) ou no fim dela. As posições da coluna de destino são renumeradas na ordem nova.
+ */
+export function placeCard(
   cards: BoardCard[],
   code: string,
   statusId: string,
+  before: string | null,
 ): BoardCard[] {
   const card = cards.find((c) => c.code === code);
-  if (!card || card.statusId === statusId) return cards;
+  if (!card) return cards;
   const moved = { ...card, statusId };
   const rest = cards.filter((c) => c.code !== code);
-  const firstOfColumn = rest.findIndex((c) => c.statusId === statusId);
-  if (firstOfColumn === -1) return [...rest, moved];
-  return [...rest.slice(0, firstOfColumn), moved, ...rest.slice(firstOfColumn)];
+  const column = rest.filter((c) => c.statusId === statusId);
+  const at = before ? column.findIndex((c) => c.code === before) : -1;
+  const ordered =
+    at === -1
+      ? [...column, moved]
+      : [...column.slice(0, at), moved, ...column.slice(at)];
+  const keys = new Map(ordered.map((c, i) => [c.code, (i + 1) * 1024]));
+  return [
+    ...rest
+      .filter((c) => c.statusId !== statusId)
+      .concat(ordered)
+      .map((c) =>
+        keys.has(c.code) ? { ...c, sortKey: keys.get(c.code)! } : c,
+      ),
+  ];
+}
+
+/** Códigos da coluna na ordem em que aparecem (o que vai para o servidor gravar). */
+export function columnCodes(cards: BoardCard[], statusId: string): string[] {
+  return sortForBoard(cards.filter((c) => c.statusId === statusId)).map(
+    (c) => c.code,
+  );
+}
+
+export type LaneBy = "frente" | "responsavel";
+
+/** Raia do cartão: a frente ou o responsável ("none" quando não há). */
+export function laneOf(card: BoardCard, by: LaneBy): string {
+  return (by === "frente" ? card.workstreamId : card.assigneeKey) ?? "none";
+}
+
+export type BoardLane = { key: string; label: string };
+
+/**
+ * Raias que aparecem: só as que têm cartão. Frentes na ordem do projeto; responsáveis com
+ * as pessoas antes dos agentes, por nome. "Sem frente" ou "Ninguém" fica no fim.
+ */
+export function boardLanes(
+  cards: BoardCard[],
+  by: LaneBy,
+  workstreamOrder: string[],
+): BoardLane[] {
+  const found = new Map<
+    string,
+    { label: string; rank: number; agent: boolean }
+  >();
+  let none = false;
+  for (const card of cards) {
+    const key = laneOf(card, by);
+    if (key === "none") none = true;
+    if (key === "none" || found.has(key)) continue;
+    const rank = by === "frente" ? workstreamOrder.indexOf(key) : 0;
+    found.set(key, {
+      label:
+        (by === "frente" ? card.workstream : card.assignee?.name) ?? "Sem nome",
+      rank: rank === -1 ? Number.MAX_SAFE_INTEGER : rank,
+      agent: by === "responsavel" && Boolean(card.assignee?.agent),
+    });
+  }
+  const lanes = [...found.entries()]
+    .sort(
+      ([, a], [, b]) =>
+        a.rank - b.rank ||
+        Number(a.agent) - Number(b.agent) ||
+        a.label.localeCompare(b.label, "pt-BR"),
+    )
+    .map(([key, lane]) => ({ key, label: lane.label }));
+  if (none) {
+    lanes.push({
+      key: "none",
+      label: by === "frente" ? "Sem frente" : "Ninguém",
+    });
+  }
+  return lanes;
 }
 
 type Span = { id: string; left: number; width: number };

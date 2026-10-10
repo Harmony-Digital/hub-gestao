@@ -54,6 +54,7 @@ const VERBS: Record<string, string> = {
   "attachment.added": "anexou um arquivo em",
   "attachment.removed": "tirou um anexo de",
   "time.logged": "lançou tempo em",
+  "tasks.reordered": "mudou a ordem das tarefas no quadro",
   "workstream.created": "criou uma frente",
   "workstream.updated": "atualizou uma frente",
   "workstream.visibility_changed": "mudou o que o cliente vê de uma frente",

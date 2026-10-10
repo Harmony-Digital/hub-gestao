@@ -3,9 +3,13 @@ import type { StatusOption } from "@/modules/tasks/board";
 import type { TaskDto } from "@/modules/tasks/schemas";
 import {
   boardColumns,
+  boardLanes,
   columnBeside,
-  moveCard,
+  columnCodes,
+  laneOf,
   needsNote,
+  placeCard,
+  sortForBoard,
   toBoardCard,
   type BoardCard,
 } from "./board-state";
@@ -56,7 +60,10 @@ function card(code: string, statusId: string): BoardCard {
     version: 1,
     priority: "normal",
     workstream: null,
+    workstreamId: null,
     assignee: null,
+    assigneeKey: null,
+    sortKey: 0,
     due: null,
     late: false,
     parent: null,
@@ -124,21 +131,82 @@ describe("cartões do quadro", () => {
   });
 });
 
-describe("mover cartão", () => {
+describe("mover e ordenar cartões", () => {
   const cards = [card("A", "s1"), card("B", "s1"), card("C", "s2")];
+  const view = (list: BoardCard[]) =>
+    sortForBoard(list).map((c) => `${c.code}:${c.statusId}`);
 
-  it("põe no topo da coluna de destino sem mexer nos outros", () => {
-    expect(
-      moveCard(cards, "B", "s2").map((c) => `${c.code}:${c.statusId}`),
-    ).toEqual(["A:s1", "B:s2", "C:s2"]);
-    expect(
-      moveCard(cards, "C", "s3").map((c) => `${c.code}:${c.statusId}`),
-    ).toEqual(["A:s1", "B:s1", "C:s3"]);
+  it("solta antes de outro cartão ou no fim da coluna, renumerando o destino", () => {
+    const before = placeCard(cards, "B", "s1", "A");
+    expect(columnCodes(before, "s1")).toEqual(["B", "A"]);
+    expect(before.find((c) => c.code === "B")?.sortKey).toBe(1024);
+    expect(columnCodes(placeCard(cards, "A", "s2", null), "s2")).toEqual([
+      "C",
+      "A",
+    ]);
+    expect(columnCodes(placeCard(cards, "A", "s2", "C"), "s2")).toEqual([
+      "A",
+      "C",
+    ]);
+    expect(view(placeCard(cards, "C", "s3", null))).toContain("C:s3");
   });
 
-  it("mesmo status ou cartão desconhecido não mudam nada", () => {
-    expect(moveCard(cards, "A", "s1")).toBe(cards);
-    expect(moveCard(cards, "Z", "s2")).toBe(cards);
+  it("cartão desconhecido não muda nada; empate segue a ordem do servidor", () => {
+    expect(placeCard(cards, "Z", "s2", null)).toBe(cards);
+    expect(
+      sortForBoard([card("X", "s1"), card("Y", "s1")]).map((c) => c.code),
+    ).toEqual(["X", "Y"]);
+  });
+
+  it("raia pela frente ou pelo responsável", () => {
+    const c = {
+      ...card("D", "s1"),
+      workstreamId: "w1",
+      assigneeKey: "agent:k",
+    };
+    expect(laneOf(c, "frente")).toBe("w1");
+    expect(laneOf(c, "responsavel")).toBe("agent:k");
+    expect(laneOf(card("E", "s1"), "frente")).toBe("none");
+  });
+
+  it("mostra só raias com cartão, na ordem certa, e a vazia no fim", () => {
+    const withLane = (code: string, over: Partial<BoardCard>): BoardCard => ({
+      ...card(code, "s1"),
+      ...over,
+    });
+    const cards = [
+      withLane("A", { workstreamId: "w2", workstream: "Tráfego" }),
+      withLane("B", {}),
+      withLane("C", { workstreamId: "w1", workstream: "Site" }),
+      withLane("D", { workstreamId: "w9", workstream: "Antiga" }),
+      withLane("E", {
+        assigneeKey: "agent:k",
+        assignee: { name: "Concierge", agent: true },
+      }),
+      withLane("F", {
+        assigneeKey: "user:u2",
+        assignee: { name: "Bruna", agent: false },
+      }),
+      withLane("G", {
+        assigneeKey: "user:u1",
+        assignee: { name: "Ana", agent: false },
+      }),
+    ];
+    // Frentes na ordem do projeto; a que não está na lista vai depois.
+    expect(boardLanes(cards, "frente", ["w1", "w2", "w3"])).toEqual([
+      { key: "w1", label: "Site" },
+      { key: "w2", label: "Tráfego" },
+      { key: "w9", label: "Antiga" },
+      { key: "none", label: "Sem frente" },
+    ]);
+    // Pessoas por nome, depois agentes, e quem não tem responsável no fim.
+    expect(boardLanes(cards, "responsavel", [])).toEqual([
+      { key: "user:u1", label: "Ana" },
+      { key: "user:u2", label: "Bruna" },
+      { key: "agent:k", label: "Concierge" },
+      { key: "none", label: "Ninguém" },
+    ]);
+    expect(boardLanes([], "frente", ["w1"])).toEqual([]);
   });
 });
 

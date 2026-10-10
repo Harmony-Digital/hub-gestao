@@ -15,6 +15,7 @@ import {
   dependenciesOf,
   removeChecklistItem,
   removeDependency,
+  reorderTasks,
   updateChecklistItem,
 } from "./extras";
 import { createTask } from "./service";
@@ -173,5 +174,51 @@ describe("dependências entre tarefas", () => {
     );
     expect(cycle.status).toBe(422);
     expect(cycle.detail).toMatch(/ciclo/);
+  });
+});
+
+describe("ordem no quadro", () => {
+  it("grava a ordem da coluna, só o que mudou, com um registro no projeto", async () => {
+    const a = await task("Ordem A");
+    const b = await task("Ordem B");
+    expect(
+      await inTx(asOwner(), (t) => reorderTasks(t, "VIT", [b.code, a.code])),
+    ).toBe(2);
+    const keys = await h.raw.query<{ code: string; sort_key: number }>(
+      `select code, sort_key from ${S}.tasks where code = any($1::text[]) order by sort_key`,
+      [[a.code, b.code]],
+    );
+    expect(keys.rows.map((r) => r.code)).toEqual([b.code, a.code]);
+    // Mesma ordem de novo: nada gravado.
+    expect(
+      await inTx(asOwner(), (t) => reorderTasks(t, "VIT", [b.code, a.code])),
+    ).toBe(0);
+    expect(
+      await count(
+        h,
+        `select count(*)::int as n from ${S}.activity_log where action = 'tasks.reordered'`,
+      ),
+    ).toBe(1);
+  });
+
+  it("recusa repetição e tarefa de outro projeto", async () => {
+    const a = await task("Ordem C");
+    expect(
+      (
+        await hubError(
+          inTx(asOwner(), (t) => reorderTasks(t, "VIT", [a.code, a.code])),
+        )
+      ).status,
+    ).toBe(400);
+    const other = await inTx(asOwner(), (t) =>
+      createTask(t, { project: "HUB", title: "De outro projeto" }),
+    );
+    expect(
+      (
+        await hubError(
+          inTx(asOwner(), (t) => reorderTasks(t, "VIT", [a.code, other.code])),
+        )
+      ).status,
+    ).toBe(422);
   });
 });
