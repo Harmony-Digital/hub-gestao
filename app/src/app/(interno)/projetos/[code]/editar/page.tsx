@@ -9,6 +9,7 @@ import { inTx } from "@/modules/context";
 import { projectFormOptions } from "@/modules/projects/admin";
 import type { ProjectDetail } from "@/modules/projects/schemas";
 import { getProject } from "@/modules/projects/service";
+import { ArchiveButton } from "../../../_archive/archive-controls";
 import { ProjectForm } from "../../_admin/project-form";
 import { PROJECT_CODE } from "../_tasks/params";
 
@@ -113,6 +114,29 @@ async function EditProject({
             updatedAt: project.updated_at,
           }}
         />
+        <section
+          aria-labelledby="arquivar-projeto"
+          className="flex max-w-4xl flex-col items-start gap-3 rounded-2xl border border-line bg-card p-4 sm:p-5"
+        >
+          <h2
+            id="arquivar-projeto"
+            className="font-heading text-base font-semibold text-navy"
+          >
+            Arquivar o projeto
+          </h2>
+          <p className="text-sm text-ink-2">
+            O projeto sai das listas, do Hoje e do portal do cliente e para de
+            receber mudanças, inclusive dos agentes. Nada é apagado: a página
+            dele continua aberta para consulta, com o botão Restaurar.
+          </p>
+          <ArchiveButton
+            target={{ entity: "project", ref: project.code }}
+            label="Arquivar o projeto"
+            title={`Arquivar ${project.code}?`}
+            consequence="O projeto vira só consulta e some das listas. Pedidos esperando decisão nas Aprovações impedem o arquivamento: decida-os antes."
+            confirmLabel="Arquivar o projeto"
+          />
+        </section>
       </main>
     </>
   );

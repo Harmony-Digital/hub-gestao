@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { HubError } from "@/lib/errors";
+import { can } from "@/lib/authorize";
 import { pageContext } from "@/lib/ui-context";
 import { inTx } from "@/modules/context";
 import { projectTaskList, type ProjectTaskList } from "@/modules/tasks/board";
@@ -43,7 +44,7 @@ async function BoardView({
   const { code } = await params;
   if (!PROJECT_CODE.test(code)) notFound();
   const query = await searchParams;
-  const { ctx } = await pageContext();
+  const { user, ctx } = await pageContext();
   let data: ProjectTaskList;
   try {
     data = await inTx(ctx, (t) =>
@@ -74,14 +75,18 @@ async function BoardView({
         <ProjectHeader
           project={data.project}
           active="board"
+          canRestore={can(user.actor, "workspace.admin")}
           actions={
-            <NewTaskButton
-              projectCode={code}
-              basePath={basePath}
-              workstream={data.workstream}
-              workstreams={data.workstreams}
-              assignees={data.assignees}
-            />
+            // Projeto arquivado é só consulta: sem Nova tarefa.
+            data.project.status === "archived" ? undefined : (
+              <NewTaskButton
+                projectCode={code}
+                basePath={basePath}
+                workstream={data.workstream}
+                workstreams={data.workstreams}
+                assignees={data.assignees}
+              />
+            )
           }
         />
         <main className="flex w-full min-w-0 flex-col gap-5 px-4 py-6 sm:px-8">

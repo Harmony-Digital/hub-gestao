@@ -28,6 +28,10 @@ import {
   WORKSTREAM_STATUS,
 } from "@/lib/labels";
 import { pageContext } from "@/lib/ui-context";
+import {
+  archivedInProject,
+  type ArchivedInProject,
+} from "@/modules/archive/service";
 import { inTx } from "@/modules/context";
 import { pendingAcceptances } from "@/modules/milestones/admin";
 import { departmentOptions } from "@/modules/projects/admin";
@@ -51,6 +55,8 @@ import {
   type WorkstreamFormOptions,
   type WorkstreamInitial,
 } from "./_plan/workstream-dialog";
+import { RestoreButton } from "../../_archive/archive-controls";
+import { ArchivedSection, archivedWhen } from "../../_archive/archived-section";
 import { NewTaskButton } from "./_tasks/new-task";
 import { openTaskParam, PROJECT_CODE } from "./_tasks/params";
 import { ProjectHeader } from "./_tasks/project-header";
@@ -86,16 +92,21 @@ async function ProjectView({
   let options: Awaited<ReturnType<typeof taskFormOptions>>;
   let departments: Awaited<ReturnType<typeof departmentOptions>>;
   let pending: string[];
+  let archived: ArchivedInProject;
   try {
-    ({ data, options, departments, pending } = await inTx(ctx, async (t) => {
-      const overview = await projectOverview(t, code);
-      return {
-        data: overview,
-        options: await taskFormOptions(t, overview.project.id),
-        departments: await departmentOptions(t),
-        pending: await pendingAcceptances(t, overview.project.id),
-      };
-    }));
+    ({ data, options, departments, pending, archived } = await inTx(
+      ctx,
+      async (t) => {
+        const overview = await projectOverview(t, code);
+        return {
+          data: overview,
+          options: await taskFormOptions(t, overview.project.id),
+          departments: await departmentOptions(t),
+          pending: await pendingAcceptances(t, overview.project.id),
+          archived: await archivedInProject(t, overview.project.id),
+        };
+      },
+    ));
   } catch (err) {
     // Projeto inexistente ou fora do alcance de quem vê: a mesma página de "não achei".
     if (err instanceof HubError && (err.status === 404 || err.status === 403)) {
@@ -106,8 +117,12 @@ async function ProjectView({
   const basePath = `/projetos/${code}`;
   const open = openTaskParam(query.tarefa);
   const hrefFor = (task: string) => taskHref(basePath, {}, task);
-  const canWriteMilestones = can(user.actor, "milestone.write");
-  const canWriteWorkstreams = can(user.actor, "workstream.write");
+  // Projeto arquivado é só consulta: nada de criar, editar ou restaurar o que há dentro.
+  const archivedProject = data.project.status === "archived";
+  const canWriteMilestones =
+    !archivedProject && can(user.actor, "milestone.write");
+  const canWriteWorkstreams =
+    !archivedProject && can(user.actor, "workstream.write");
   const workstreamOptions: WorkstreamFormOptions = {
     milestones: data.milestones.map((m) => ({ code: m.code, title: m.title })),
     departments,
@@ -123,24 +138,27 @@ async function ProjectView({
           project={data.project}
           active="overview"
           showObjective
+          canRestore={can(user.actor, "workspace.admin")}
           actions={
-            <>
-              {can(user.actor, "workspace.admin") ? (
-                <Button asChild variant="outline" size="lg">
-                  <Link href={`/projetos/${code}/editar`}>
-                    <Pencil aria-hidden="true" />
-                    Editar projeto
-                  </Link>
-                </Button>
-              ) : null}
-              <NewTaskButton
-                projectCode={code}
-                basePath={basePath}
-                workstream={null}
-                workstreams={options.workstreams}
-                assignees={options.assignees}
-              />
-            </>
+            archivedProject ? undefined : (
+              <>
+                {can(user.actor, "workspace.admin") ? (
+                  <Button asChild variant="outline" size="lg">
+                    <Link href={`/projetos/${code}/editar`}>
+                      <Pencil aria-hidden="true" />
+                      Editar projeto
+                    </Link>
+                  </Button>
+                ) : null}
+                <NewTaskButton
+                  projectCode={code}
+                  basePath={basePath}
+                  workstream={null}
+                  workstreams={options.workstreams}
+                  assignees={options.assignees}
+                />
+              </>
+            )
           }
         />
 
@@ -159,8 +177,23 @@ async function ProjectView({
               data={data}
               projectCode={code}
               canWrite={canWriteMilestones}
-              canRequest={can(user.actor, "approval.request")}
+              canRequest={
+                !archivedProject && can(user.actor, "approval.request")
+              }
               pending={pending}
+            />
+            <ArchivedItems
+              label="Marcos arquivados"
+              verb="arquivado"
+              entity="milestone"
+              canRestore={canWriteMilestones}
+              items={archived.milestones.map((m) => ({
+                id: m.id,
+                code: m.code,
+                title: m.title,
+                note: null,
+                archived_at: m.archived_at,
+              }))}
             />
           </Layer>
 
@@ -184,6 +217,19 @@ async function ProjectView({
               projectCode={code}
               canWrite={canWriteWorkstreams}
               options={workstreamOptions}
+            />
+            <ArchivedItems
+              label="Frentes arquivadas"
+              verb="arquivada"
+              entity="workstream"
+              canRestore={canWriteWorkstreams}
+              items={archived.workstreams.map((w) => ({
+                id: w.id,
+                code: null,
+                title: w.title,
+                note: w.milestone_code ? `Marco ${w.milestone_code}` : null,
+                archived_at: w.archived_at,
+              }))}
             />
           </Layer>
 
@@ -256,6 +302,64 @@ function Layer({
       </div>
       {children}
     </section>
+  );
+}
+
+/** Arquivados da camada, recolhidos no fim; restaurar devolve o item à lista. */
+function ArchivedItems({
+  label,
+  verb,
+  entity,
+  items,
+  canRestore,
+}: {
+  label: string;
+  verb: string;
+  entity: "milestone" | "workstream";
+  items: {
+    id: string;
+    code: string | null;
+    title: string;
+    note: string | null;
+    archived_at: string;
+  }[];
+  canRestore: boolean;
+}) {
+  return (
+    <ArchivedSection label={label} count={items.length}>
+      {items.map((item) => (
+        <li
+          key={item.id}
+          className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm"
+        >
+          {item.code ? (
+            <span className="w-10 font-mono text-xs font-semibold text-caption">
+              {item.code}
+            </span>
+          ) : null}
+          <span className="min-w-40 flex-1">
+            <span className="block text-ink">{item.title}</span>
+            <span className="block text-xs text-caption">
+              {archivedWhen(
+                verb,
+                formatTimestampDay(item.archived_at),
+                item.note,
+              )}
+            </span>
+          </span>
+          {canRestore ? (
+            <RestoreButton
+              target={{ entity, ref: item.id }}
+              accessibleLabel={
+                item.code
+                  ? `Restaurar ${item.code}`
+                  : `Restaurar a frente ${item.title}`
+              }
+            />
+          ) : null}
+        </li>
+      ))}
+    </ArchivedSection>
   );
 }
 

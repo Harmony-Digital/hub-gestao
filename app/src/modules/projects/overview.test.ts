@@ -109,6 +109,9 @@ describe("visão do projeto em três camadas", () => {
     expect(describeActivity("workstream.visibility_changed", null)).toBe(
       "mudou o que o cliente vê de uma frente",
     );
+    expect(describeActivity("project.archived", null)).toBe(
+      "arquivou o projeto",
+    );
   });
 });
 

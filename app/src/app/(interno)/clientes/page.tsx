@@ -4,9 +4,13 @@ import { Suspense } from "react";
 import { Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
 import { can } from "@/lib/authorize";
+import { formatTimestampDay } from "@/lib/format";
 import { pageContext } from "@/lib/ui-context";
+import { archivedClients } from "@/modules/archive/service";
 import { inTx } from "@/modules/context";
 import { listClients } from "@/modules/projects/admin";
+import { ArchiveButton, RestoreButton } from "../_archive/archive-controls";
+import { ArchivedSection, archivedWhen } from "../_archive/archived-section";
 import { ClientForm } from "./client-forms";
 
 export const metadata: Metadata = { title: "Clientes" };
@@ -37,7 +41,10 @@ export default function ClientesPage() {
 
 async function ClientsView() {
   const { user, ctx } = await pageContext();
-  const clients = await inTx(ctx, (t) => listClients(t));
+  const { clients, archived } = await inTx(ctx, async (t) => ({
+    clients: await listClients(t),
+    archived: await archivedClients(t),
+  }));
   const admin = can(user.actor, "workspace.admin");
   return (
     <>
@@ -108,6 +115,24 @@ async function ClientsView() {
                         Ver os projetos
                       </Link>
                     ) : null}
+                    {admin ? (
+                      <div className="flex flex-col items-start gap-2 border-t border-line pt-3">
+                        {c.project_count > 0 ? (
+                          <p className="text-sm text-caption">
+                            Para arquivar este cliente, arquive antes os
+                            projetos dele.
+                          </p>
+                        ) : (
+                          <ArchiveButton
+                            target={{ entity: "client", ref: c.id }}
+                            label="Arquivar o cliente"
+                            title={`Arquivar ${c.name}?`}
+                            consequence="O cliente sai desta lista e das opções de Novo projeto. Nada é apagado: dá para restaurar em “Clientes arquivados”, no fim desta página."
+                            confirmLabel="Arquivar o cliente"
+                          />
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 </details>
               </li>
@@ -115,6 +140,32 @@ async function ClientsView() {
           </ul>
         )}
       </section>
+
+      <ArchivedSection label="Clientes arquivados" count={archived.length}>
+        {archived.map((c) => (
+          <li
+            key={c.id}
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm"
+          >
+            <span className="min-w-40 flex-1">
+              <span className="block text-ink">{c.name}</span>
+              <span className="block text-xs text-caption">
+                {archivedWhen(
+                  "arquivado",
+                  formatTimestampDay(c.archived_at),
+                  c.segment,
+                )}
+              </span>
+            </span>
+            {admin ? (
+              <RestoreButton
+                target={{ entity: "client", ref: c.id }}
+                accessibleLabel={`Restaurar ${c.name}`}
+              />
+            ) : null}
+          </li>
+        ))}
+      </ArchivedSection>
     </>
   );
 }

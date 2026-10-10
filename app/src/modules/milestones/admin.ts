@@ -74,9 +74,6 @@ export async function createMilestone(
   input: CreateMilestoneInput,
 ): Promise<MilestoneDto> {
   const project = await resolveProject(t, projectCode, "milestone.write");
-  if (project.status === "archived") {
-    throw unprocessable(`O projeto ${project.code} está arquivado.`);
-  }
   guardText(input);
   // Próximo código (M1, M2…) e posição no fim da lista, com trava contra pedidos simultâneos.
   await t.tx.query(`select 1 from ${S}.projects where id = $1 for update`, [

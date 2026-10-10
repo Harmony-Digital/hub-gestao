@@ -1,7 +1,15 @@
 "use client";
 
 import { useActionState, useId, useState } from "react";
-import { Eye, LoaderCircle, Pencil, Plus, Send, X } from "lucide-react";
+import {
+  Archive,
+  Eye,
+  LoaderCircle,
+  Pencil,
+  Plus,
+  Send,
+  X,
+} from "lucide-react";
 import { FormDialog } from "@/components/form-dialog";
 import {
   ErrorNote,
@@ -13,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { IDLE, type ActionState } from "@/lib/action-state";
 import { MILESTONE_STATUS } from "@/lib/labels";
+import { ArchiveConfirm } from "../../../_archive/archive-controls";
 import { pedirAceite, salvarMarco } from "./actions";
 import { MILESTONE_STATUSES } from "./form";
 
@@ -97,198 +106,229 @@ function MilestoneForm({
     setRows([...rows, { key, text: "", done: false }]);
     setAdded(key);
   };
+  // Arquivar troca o formulário pela confirmação, na mesma janela; Voltar devolve o
+  // formulário como estava.
+  const [archiving, setArchiving] = useState(false);
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
-      <input type="hidden" name="project" value={projectCode} />
-      {milestone ? (
-        <input type="hidden" name="id" value={milestone.id} />
+    <>
+      {milestone && archiving ? (
+        <ArchiveConfirm
+          target={{ entity: "milestone", ref: milestone.id }}
+          question={`Arquivar o ${milestone.code}?`}
+          consequence="O marco sai da Visão geral e do portal do cliente. Nada é apagado: dá para restaurar em “Marcos arquivados”, no fim da camada estratégica."
+          confirmLabel="Arquivar o marco"
+          onCancel={() => setArchiving(false)}
+          onDone={onDone}
+        />
       ) : null}
-      <fieldset disabled={pending} className="flex min-w-0 flex-col gap-4">
-        <Field
-          id={`${id}-title`}
-          label="Título do marco"
-          hint="Como a equipe chama esta entrega."
-        >
-          <input
+      <form
+        onSubmit={submit}
+        className={archiving ? "hidden" : "flex flex-col gap-4"}
+      >
+        <input type="hidden" name="project" value={projectCode} />
+        {milestone ? (
+          <input type="hidden" name="id" value={milestone.id} />
+        ) : null}
+        <fieldset disabled={pending} className="flex min-w-0 flex-col gap-4">
+          <Field
             id={`${id}-title`}
-            name="title"
-            required
-            maxLength={200}
-            autoFocus
-            defaultValue={milestone?.title ?? ""}
-            placeholder="Ex.: Agente de atendimento no ar"
-            className={inputClass}
-          />
-        </Field>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field id={`${id}-status`} label="Status">
-            <select
-              id={`${id}-status`}
-              name="status"
-              defaultValue={milestone?.status ?? "planned"}
-              className={inputClass}
-            >
-              {MILESTONE_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {MILESTONE_STATUS[s].label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field id={`${id}-due`} label="Data prevista">
+            label="Título do marco"
+            hint="Como a equipe chama esta entrega."
+          >
             <input
-              id={`${id}-due`}
-              type="date"
-              name="due_date"
-              defaultValue={milestone?.due_date ?? ""}
-              onChange={(event) => setDue(event.currentTarget.value)}
+              id={`${id}-title`}
+              name="title"
+              required
+              maxLength={200}
+              autoFocus
+              defaultValue={milestone?.title ?? ""}
+              placeholder="Ex.: Agente de atendimento no ar"
               className={inputClass}
             />
           </Field>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field id={`${id}-status`} label="Status">
+              <select
+                id={`${id}-status`}
+                name="status"
+                defaultValue={milestone?.status ?? "planned"}
+                className={inputClass}
+              >
+                {MILESTONE_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {MILESTONE_STATUS[s].label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field id={`${id}-due`} label="Data prevista">
+              <input
+                id={`${id}-due`}
+                type="date"
+                name="due_date"
+                defaultValue={milestone?.due_date ?? ""}
+                onChange={(event) => setDue(event.currentTarget.value)}
+                className={inputClass}
+              />
+            </Field>
+          </div>
+
+          {milestone && due !== (milestone.due_date ?? "") ? (
+            <Field
+              id={`${id}-reason`}
+              label="Por que a data mudou? (opcional)"
+              hint="Fica no histórico de datas do marco. Só a equipe vê."
+            >
+              <textarea
+                id={`${id}-reason`}
+                name="date_reason"
+                rows={2}
+                maxLength={500}
+                className={textareaClass}
+              />
+            </Field>
+          ) : null}
+
+          <fieldset className="flex min-w-0 flex-col gap-2">
+            <legend className="text-sm font-medium text-navy">
+              Critérios de aceite
+            </legend>
+            <p className="text-xs text-caption">
+              O que precisa estar pronto para o marco ser aceito. Marque o que
+              já foi cumprido.
+            </p>
+            {rows.length > 0 ? (
+              <ul className="flex flex-col gap-2">
+                {rows.map((row, i) => (
+                  <li key={row.key} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      name={`criteria.${row.key}.done`}
+                      defaultChecked={row.done}
+                      aria-label={`Critério ${i + 1} cumprido`}
+                      className="size-4 shrink-0 accent-[var(--color-brand)]"
+                    />
+                    <input
+                      name={`criteria.${row.key}.text`}
+                      defaultValue={row.text}
+                      maxLength={300}
+                      autoFocus={row.key === added}
+                      aria-label={`Critério ${i + 1}`}
+                      placeholder="Ex.: o agente responde em até 1 minuto"
+                      className={inputClass}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Remover o critério ${i + 1}`}
+                      onClick={() =>
+                        setRows(rows.filter((r) => r.key !== row.key))
+                      }
+                    >
+                      <X aria-hidden="true" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="self-start"
+              disabled={rows.length >= 30}
+              onClick={addRow}
+            >
+              <Plus aria-hidden="true" />
+              Adicionar critério
+            </Button>
+          </fieldset>
+
+          <div className="flex flex-col gap-3 rounded-xl bg-off p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold text-navy">
+              <Eye aria-hidden="true" className="size-4" />O que o cliente vê
+            </p>
+            <label className="flex items-start gap-2 text-sm text-ink">
+              <input
+                type="checkbox"
+                name="client_visible"
+                defaultChecked={
+                  milestone ? milestone.visibility === "client" : true
+                }
+                className="mt-0.5 size-4 accent-[var(--color-brand)]"
+              />
+              O cliente vê este marco no portal.
+            </label>
+            <Field
+              id={`${id}-title-client`}
+              label="Título para o cliente"
+              hint="O portal mostra só o que estiver escrito aqui, nunca o título interno."
+            >
+              <input
+                id={`${id}-title-client`}
+                name="title_client"
+                maxLength={200}
+                defaultValue={milestone?.title_client ?? ""}
+                className={inputClass}
+              />
+            </Field>
+            <Field
+              id={`${id}-description-client`}
+              label="Descrição para o cliente (opcional)"
+            >
+              <textarea
+                id={`${id}-description-client`}
+                name="description_client"
+                rows={2}
+                maxLength={2000}
+                defaultValue={milestone?.description_client ?? ""}
+                className={textareaClass}
+              />
+            </Field>
+          </div>
+        </fieldset>
+
+        <div aria-live="polite">
+          {state.status === "error" ? (
+            <ErrorNote message={state.message} />
+          ) : null}
         </div>
 
-        {milestone && due !== (milestone.due_date ?? "") ? (
-          <Field
-            id={`${id}-reason`}
-            label="Por que a data mudou? (opcional)"
-            hint="Fica no histórico de datas do marco. Só a equipe vê."
-          >
-            <textarea
-              id={`${id}-reason`}
-              name="date_reason"
-              rows={2}
-              maxLength={500}
-              className={textareaClass}
-            />
-          </Field>
-        ) : null}
-
-        <fieldset className="flex min-w-0 flex-col gap-2">
-          <legend className="text-sm font-medium text-navy">
-            Critérios de aceite
-          </legend>
-          <p className="text-xs text-caption">
-            O que precisa estar pronto para o marco ser aceito. Marque o que já
-            foi cumprido.
-          </p>
-          {rows.length > 0 ? (
-            <ul className="flex flex-col gap-2">
-              {rows.map((row, i) => (
-                <li key={row.key} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name={`criteria.${row.key}.done`}
-                    defaultChecked={row.done}
-                    aria-label={`Critério ${i + 1} cumprido`}
-                    className="size-4 shrink-0 accent-[var(--color-brand)]"
-                  />
-                  <input
-                    name={`criteria.${row.key}.text`}
-                    defaultValue={row.text}
-                    maxLength={300}
-                    autoFocus={row.key === added}
-                    aria-label={`Critério ${i + 1}`}
-                    placeholder="Ex.: o agente responde em até 1 minuto"
-                    className={inputClass}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Remover o critério ${i + 1}`}
-                    onClick={() =>
-                      setRows(rows.filter((r) => r.key !== row.key))
-                    }
-                  >
-                    <X aria-hidden="true" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
+        <div className="flex flex-wrap justify-end gap-2">
+          {milestone ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="lg"
+              disabled={pending}
+              className="mr-auto text-danger-fg"
+              onClick={() => setArchiving(true)}
+            >
+              <Archive aria-hidden="true" />
+              Arquivar
+            </Button>
           ) : null}
           <Button
             type="button"
             variant="outline"
-            size="sm"
-            className="self-start"
-            disabled={rows.length >= 30}
-            onClick={addRow}
+            size="lg"
+            disabled={pending}
+            onClick={onDone}
           >
-            <Plus aria-hidden="true" />
-            Adicionar critério
+            Cancelar
           </Button>
-        </fieldset>
-
-        <div className="flex flex-col gap-3 rounded-xl bg-off p-4">
-          <p className="flex items-center gap-2 text-sm font-semibold text-navy">
-            <Eye aria-hidden="true" className="size-4" />O que o cliente vê
-          </p>
-          <label className="flex items-start gap-2 text-sm text-ink">
-            <input
-              type="checkbox"
-              name="client_visible"
-              defaultChecked={
-                milestone ? milestone.visibility === "client" : true
-              }
-              className="mt-0.5 size-4 accent-[var(--color-brand)]"
-            />
-            O cliente vê este marco no portal.
-          </label>
-          <Field
-            id={`${id}-title-client`}
-            label="Título para o cliente"
-            hint="O portal mostra só o que estiver escrito aqui, nunca o título interno."
-          >
-            <input
-              id={`${id}-title-client`}
-              name="title_client"
-              maxLength={200}
-              defaultValue={milestone?.title_client ?? ""}
-              className={inputClass}
-            />
-          </Field>
-          <Field
-            id={`${id}-description-client`}
-            label="Descrição para o cliente (opcional)"
-          >
-            <textarea
-              id={`${id}-description-client`}
-              name="description_client"
-              rows={2}
-              maxLength={2000}
-              defaultValue={milestone?.description_client ?? ""}
-              className={textareaClass}
-            />
-          </Field>
+          <Button type="submit" size="lg" disabled={pending}>
+            {pending ? (
+              <LoaderCircle aria-hidden="true" className="animate-spin" />
+            ) : null}
+            {milestone ? "Salvar o marco" : "Criar marco"}
+          </Button>
         </div>
-      </fieldset>
-
-      <div aria-live="polite">
-        {state.status === "error" ? (
-          <ErrorNote message={state.message} />
-        ) : null}
-      </div>
-
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          disabled={pending}
-          onClick={onDone}
-        >
-          Cancelar
-        </Button>
-        <Button type="submit" size="lg" disabled={pending}>
-          {pending ? (
-            <LoaderCircle aria-hidden="true" className="animate-spin" />
-          ) : null}
-          {milestone ? "Salvar o marco" : "Criar marco"}
-        </Button>
-      </div>
-    </form>
+      </form>
+    </>
   );
 }
 

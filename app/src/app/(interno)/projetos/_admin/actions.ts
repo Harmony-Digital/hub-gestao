@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ActionState } from "@/lib/action-state";
 import { toHubError } from "@/lib/errors";
@@ -69,7 +69,9 @@ export async function salvarProjeto(
       ),
     };
   }
-  // Fora do try: o redirecionamento do Next é lançado como exceção.
+  // Projeto novo ou renomeado muda a barra lateral (projetos em destaque): o layout
+  // vem de novo junto com a página. Fora do try: o redirect é lançado como exceção.
+  revalidatePath("/", "layout");
   redirect(`/projetos/${code}`);
 }
 

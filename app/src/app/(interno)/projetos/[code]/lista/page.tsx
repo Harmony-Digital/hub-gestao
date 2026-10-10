@@ -7,6 +7,7 @@ import { Avatar, Pill } from "@/components/shell/pill";
 import { HubError } from "@/lib/errors";
 import { formatDayMonth, initials } from "@/lib/format";
 import { PRIORITY, STATUS_CATEGORY_TONE } from "@/lib/labels";
+import { can } from "@/lib/authorize";
 import { pageContext } from "@/lib/ui-context";
 import { inTx } from "@/modules/context";
 import {
@@ -51,7 +52,7 @@ async function ListView({
   const { code } = await params;
   if (!PROJECT_CODE.test(code)) notFound();
   const query = await searchParams;
-  const { ctx } = await pageContext();
+  const { user, ctx } = await pageContext();
   let data: ProjectTaskList;
   try {
     data = await inTx(ctx, (t) =>
@@ -87,14 +88,18 @@ async function ListView({
         <ProjectHeader
           project={data.project}
           active="list"
+          canRestore={can(user.actor, "workspace.admin")}
           actions={
-            <NewTaskButton
-              projectCode={code}
-              basePath={basePath}
-              workstream={data.workstream}
-              workstreams={data.workstreams}
-              assignees={data.assignees}
-            />
+            // Projeto arquivado é só consulta: sem Nova tarefa.
+            data.project.status === "archived" ? undefined : (
+              <NewTaskButton
+                projectCode={code}
+                basePath={basePath}
+                workstream={data.workstream}
+                workstreams={data.workstreams}
+                assignees={data.assignees}
+              />
+            )
           }
         />
         <main className="flex w-full flex-col gap-5 px-4 py-6 sm:px-8">

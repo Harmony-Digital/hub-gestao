@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useId } from "react";
-import { Eye, LoaderCircle, Pencil, Plus } from "lucide-react";
+import { useActionState, useId, useState } from "react";
+import { Archive, Eye, LoaderCircle, Pencil, Plus } from "lucide-react";
 import { FormDialog } from "@/components/form-dialog";
 import {
   ErrorNote,
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { IDLE, type ActionState } from "@/lib/action-state";
 import { WORKSTREAM_STATUS } from "@/lib/labels";
 import type { AssigneeOption } from "@/modules/tasks/board";
+import { ArchiveConfirm } from "../../../_archive/archive-controls";
 import { salvarFrente } from "./actions";
 import { WORKSTREAM_STATUSES } from "./form";
 
@@ -111,200 +112,230 @@ function WorkstreamForm({
   const missing =
     current !== null &&
     !options.assignees.some((a) => `${a.type}:${a.id}` === current);
+  // Arquivar troca o formulário pela confirmação, na mesma janela.
+  const [archiving, setArchiving] = useState(false);
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
-      <input type="hidden" name="project" value={projectCode} />
-      {workstream ? (
-        <input type="hidden" name="id" value={workstream.id} />
+    <>
+      {workstream && archiving ? (
+        <ArchiveConfirm
+          target={{ entity: "workstream", ref: workstream.id }}
+          question={`Arquivar a frente “${workstream.title}”?`}
+          consequence="A frente sai da Visão geral, dos filtros e do portal do cliente. As tarefas concluídas continuam no histórico. Dá para restaurar em “Frentes arquivadas”, no fim da camada tática."
+          confirmLabel="Arquivar a frente"
+          onCancel={() => setArchiving(false)}
+          onDone={onDone}
+        />
       ) : null}
-      <fieldset disabled={pending} className="flex min-w-0 flex-col gap-4">
-        <Field id={`${id}-title`} label="Título da frente">
-          <input
-            id={`${id}-title`}
-            name="title"
-            required
-            maxLength={200}
-            autoFocus
-            defaultValue={workstream?.title ?? ""}
-            placeholder="Ex.: Integração com a agenda"
-            className={inputClass}
-          />
-        </Field>
+      <form
+        onSubmit={submit}
+        className={archiving ? "hidden" : "flex flex-col gap-4"}
+      >
+        <input type="hidden" name="project" value={projectCode} />
+        {workstream ? (
+          <input type="hidden" name="id" value={workstream.id} />
+        ) : null}
+        <fieldset disabled={pending} className="flex min-w-0 flex-col gap-4">
+          <Field id={`${id}-title`} label="Título da frente">
+            <input
+              id={`${id}-title`}
+              name="title"
+              required
+              maxLength={200}
+              autoFocus
+              defaultValue={workstream?.title ?? ""}
+              placeholder="Ex.: Integração com a agenda"
+              className={inputClass}
+            />
+          </Field>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field id={`${id}-department`} label="Departamento">
-            <select
-              id={`${id}-department`}
-              name="department"
-              defaultValue={workstream?.department ?? ""}
-              className={inputClass}
-            >
-              <option value="">Sem departamento</option>
-              {options.departments.map((d) => (
-                <option key={d.slug} value={d.slug}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field id={`${id}-milestone`} label="Marco">
-            <select
-              id={`${id}-milestone`}
-              name="milestone"
-              defaultValue={workstream?.milestone ?? ""}
-              className={inputClass}
-            >
-              <option value="">Sem marco</option>
-              {options.milestones.map((m) => (
-                <option key={m.code} value={m.code}>
-                  {m.code} · {m.title}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field id={`${id}-status`} label="Status">
-            <select
-              id={`${id}-status`}
-              name="status"
-              defaultValue={workstream?.status ?? "planned"}
-              className={inputClass}
-            >
-              {WORKSTREAM_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {WORKSTREAM_STATUS[s].label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field id={`${id}-assignee`} label="Responsável">
-            <select
-              id={`${id}-assignee`}
-              name="assignee"
-              defaultValue={workstream?.assignee ?? ""}
-              className={inputClass}
-            >
-              <option value="">Ninguém</option>
-              {missing ? (
-                <option value={current}>
-                  {workstream?.assigneeName ?? "Responsável atual"} (atual)
-                </option>
-              ) : null}
-              {people.length > 0 ? (
-                <optgroup label="Pessoas">
-                  {people.map((p) => (
-                    <option key={p.id} value={`user:${p.id}`}>
-                      {p.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null}
-              {agents.length > 0 ? (
-                <optgroup label="Agentes">
-                  {agents.map((a) => (
-                    <option key={a.id} value={`agent:${a.id}`}>
-                      {a.name}
-                      {a.paused ? " (pausado)" : ""}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null}
-            </select>
-          </Field>
-        </div>
-
-        <Field
-          id={`${id}-description`}
-          label="Descrição interna (opcional)"
-          hint="Só a equipe e os agentes veem."
-        >
-          <textarea
-            id={`${id}-description`}
-            name="description_internal"
-            rows={3}
-            maxLength={4000}
-            defaultValue={workstream?.description_internal ?? ""}
-            className={textareaClass}
-          />
-        </Field>
-
-        {options.canShowClient ? (
-          <div className="flex flex-col gap-3 rounded-xl bg-off p-4">
-            <input type="hidden" name="visibility_section" value="1" />
-            <p className="flex items-center gap-2 text-sm font-semibold text-navy">
-              <Eye aria-hidden="true" className="size-4" />O que o cliente vê
-            </p>
-            <label className="flex items-start gap-2 text-sm text-ink">
-              <input
-                type="checkbox"
-                name="client_visible"
-                defaultChecked={workstream?.visibility === "client"}
-                className="mt-0.5 size-4 accent-[var(--color-brand)]"
-              />
-              Mostrar esta frente ao cliente no portal. As tarefas continuam só
-              da equipe.
-            </label>
-            <Field
-              id={`${id}-title-client`}
-              label="Título para o cliente"
-              hint="Obrigatório para mostrar. O portal nunca usa o título interno."
-            >
-              <input
-                id={`${id}-title-client`}
-                name="title_client"
-                maxLength={200}
-                defaultValue={workstream?.title_client ?? ""}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field id={`${id}-department`} label="Departamento">
+              <select
+                id={`${id}-department`}
+                name="department"
+                defaultValue={workstream?.department ?? ""}
                 className={inputClass}
-              />
+              >
+                <option value="">Sem departamento</option>
+                {options.departments.map((d) => (
+                  <option key={d.slug} value={d.slug}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
             </Field>
-            <Field
-              id={`${id}-description-client`}
-              label="Descrição para o cliente (opcional)"
-            >
-              <textarea
-                id={`${id}-description-client`}
-                name="description_client"
-                rows={2}
-                maxLength={2000}
-                defaultValue={workstream?.description_client ?? ""}
-                className={textareaClass}
-              />
+            <Field id={`${id}-milestone`} label="Marco">
+              <select
+                id={`${id}-milestone`}
+                name="milestone"
+                defaultValue={workstream?.milestone ?? ""}
+                className={inputClass}
+              >
+                <option value="">Sem marco</option>
+                {options.milestones.map((m) => (
+                  <option key={m.code} value={m.code}>
+                    {m.code} · {m.title}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field id={`${id}-status`} label="Status">
+              <select
+                id={`${id}-status`}
+                name="status"
+                defaultValue={workstream?.status ?? "planned"}
+                className={inputClass}
+              >
+                {WORKSTREAM_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {WORKSTREAM_STATUS[s].label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field id={`${id}-assignee`} label="Responsável">
+              <select
+                id={`${id}-assignee`}
+                name="assignee"
+                defaultValue={workstream?.assignee ?? ""}
+                className={inputClass}
+              >
+                <option value="">Ninguém</option>
+                {missing ? (
+                  <option value={current}>
+                    {workstream?.assigneeName ?? "Responsável atual"} (atual)
+                  </option>
+                ) : null}
+                {people.length > 0 ? (
+                  <optgroup label="Pessoas">
+                    {people.map((p) => (
+                      <option key={p.id} value={`user:${p.id}`}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+                {agents.length > 0 ? (
+                  <optgroup label="Agentes">
+                    {agents.map((a) => (
+                      <option key={a.id} value={`agent:${a.id}`}>
+                        {a.name}
+                        {a.paused ? " (pausado)" : ""}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+              </select>
             </Field>
           </div>
-        ) : (
-          <p className="rounded-xl bg-off p-4 text-sm text-ink-2">
-            {workstream?.visibility === "client"
-              ? "Esta frente aparece para o cliente."
-              : "Esta frente é só da equipe."}{" "}
-            Mostrar ou esconder do cliente é decisão do dono ou de um
-            administrador.
-          </p>
-        )}
-      </fieldset>
 
-      <div aria-live="polite">
-        {state.status === "error" ? (
-          <ErrorNote message={state.message} />
-        ) : null}
-      </div>
+          <Field
+            id={`${id}-description`}
+            label="Descrição interna (opcional)"
+            hint="Só a equipe e os agentes veem."
+          >
+            <textarea
+              id={`${id}-description`}
+              name="description_internal"
+              rows={3}
+              maxLength={4000}
+              defaultValue={workstream?.description_internal ?? ""}
+              className={textareaClass}
+            />
+          </Field>
 
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          disabled={pending}
-          onClick={onDone}
-        >
-          Cancelar
-        </Button>
-        <Button type="submit" size="lg" disabled={pending}>
-          {pending ? (
-            <LoaderCircle aria-hidden="true" className="animate-spin" />
+          {options.canShowClient ? (
+            <div className="flex flex-col gap-3 rounded-xl bg-off p-4">
+              <input type="hidden" name="visibility_section" value="1" />
+              <p className="flex items-center gap-2 text-sm font-semibold text-navy">
+                <Eye aria-hidden="true" className="size-4" />O que o cliente vê
+              </p>
+              <label className="flex items-start gap-2 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  name="client_visible"
+                  defaultChecked={workstream?.visibility === "client"}
+                  className="mt-0.5 size-4 accent-[var(--color-brand)]"
+                />
+                Mostrar esta frente ao cliente no portal. As tarefas continuam
+                só da equipe.
+              </label>
+              <Field
+                id={`${id}-title-client`}
+                label="Título para o cliente"
+                hint="Obrigatório para mostrar. O portal nunca usa o título interno."
+              >
+                <input
+                  id={`${id}-title-client`}
+                  name="title_client"
+                  maxLength={200}
+                  defaultValue={workstream?.title_client ?? ""}
+                  className={inputClass}
+                />
+              </Field>
+              <Field
+                id={`${id}-description-client`}
+                label="Descrição para o cliente (opcional)"
+              >
+                <textarea
+                  id={`${id}-description-client`}
+                  name="description_client"
+                  rows={2}
+                  maxLength={2000}
+                  defaultValue={workstream?.description_client ?? ""}
+                  className={textareaClass}
+                />
+              </Field>
+            </div>
+          ) : (
+            <p className="rounded-xl bg-off p-4 text-sm text-ink-2">
+              {workstream?.visibility === "client"
+                ? "Esta frente aparece para o cliente."
+                : "Esta frente é só da equipe."}{" "}
+              Mostrar ou esconder do cliente é decisão do dono ou de um
+              administrador.
+            </p>
+          )}
+        </fieldset>
+
+        <div aria-live="polite">
+          {state.status === "error" ? (
+            <ErrorNote message={state.message} />
           ) : null}
-          {workstream ? "Salvar a frente" : "Criar frente"}
-        </Button>
-      </div>
-    </form>
+        </div>
+
+        <div className="flex flex-wrap justify-end gap-2">
+          {workstream ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="lg"
+              disabled={pending}
+              className="mr-auto text-danger-fg"
+              onClick={() => setArchiving(true)}
+            >
+              <Archive aria-hidden="true" />
+              Arquivar
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            disabled={pending}
+            onClick={onDone}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" size="lg" disabled={pending}>
+            {pending ? (
+              <LoaderCircle aria-hidden="true" className="animate-spin" />
+            ) : null}
+            {workstream ? "Salvar a frente" : "Criar frente"}
+          </Button>
+        </div>
+      </form>
+    </>
   );
 }

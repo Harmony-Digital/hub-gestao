@@ -90,8 +90,8 @@ hub-gestao/
 │   ├── src/app/mcp/route.ts           # servidor MCP Streamable HTTP
 │   ├── src/proxy.ts                   # porta das telas (o "middleware" do Next 16)
 │   ├── src/modules/                   # casos de uso por domínio: projects, tasks, milestones, workstreams,
-│   │                                  #   comments, approvals, agents, reports, time, today, search,
-│   │                                  #   health, jobs, mcp, shell
+│   │                                  #   archive, comments, approvals, agents, reports, time, today,
+│   │                                  #   search, health, jobs, mcp, shell
 │   ├── src/lib/                       # authorize, audit, idempotency, auth, db (pg e PGlite), errors,
 │   │                                  #   format, labels, links, ui-context
 │   ├── src/components/                # shell (barra lateral, cabeçalho, selos), forms e form-dialog
@@ -225,6 +225,7 @@ Regras:
 - **Nunca** colocar segredos, tokens, senhas ou dados pessoais em título, descrição, comentário ou evidência.
 - Tarefa concluída sem evidência é reaberta pelo Guardião da Qualidade. Não discutir: anexar evidência.
 - Se o `plan.md` local e o Hub divergirem, o Hub vence; o agente relata a divergência em comentário em vez de "consertar" por conta.
+- **Projeto arquivado** é só consulta: qualquer escrita nele volta 422 com `archived: true`. Não tentar de novo; parar e avisar quem pediu o trabalho. Arquivar e restaurar são decisões de pessoa, pela tela.
 
 ## 12. Ciclo do agente de gestão (Hermes)
 
