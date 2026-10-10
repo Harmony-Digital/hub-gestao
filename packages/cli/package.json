@@ -1,0 +1,20 @@
+{
+  "name": "@harmony/hub-cli",
+  "version": "0.1.0",
+  "description": "CLI do Hub de Gestão da Harmony Digital: plan.md, tarefas e o dia, pela API do Hub.",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "bin": {
+    "hub": "./hub.mjs"
+  },
+  "files": [
+    "hub.mjs"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

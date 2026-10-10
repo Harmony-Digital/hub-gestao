@@ -42,6 +42,9 @@ jobs:
         run: npm run typecheck
       - name: Testes
         run: npm test
+      - name: Testes da CLI hub
+        working-directory: packages/cli
+        run: node --test
       - name: Build de produção
         run: npm run build
 

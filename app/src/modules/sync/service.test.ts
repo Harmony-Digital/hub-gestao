@@ -242,6 +242,14 @@ describe("pull", () => {
     ).toBe(1);
   });
 
+  it("arquivo vazio recebe a exportação completa, com o título", async () => {
+    const result = await sync("pull", "");
+    expect(result.markdown).toMatch(/^# PLAN\.md — /);
+    expect(result.markdown).toContain("## M1 — Agente no WhatsApp");
+    expect(result.summary.inserted_in_file).toBeGreaterThan(0);
+    expect(result.changed).toBe(true);
+  });
+
   it("chave sem o escopo sync:plan recebe 403", async () => {
     const err = await sync("pull", "", {}, h.keys.leitor).catch((e) => e);
     expect(err).toBeInstanceOf(HubError);
