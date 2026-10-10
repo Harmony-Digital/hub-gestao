@@ -104,12 +104,13 @@ hub-gestao/
 ├── deploy/vps/                        # Dockerfile, compose, rota do Traefik, timers, publicação,
 │                                      #   backup e provisionamento (README com o passo a passo)
 ├── scripts/                           # conectar o Claude Code à produção e teste MCP de produção
+├── packages/cli/                      # CLI hub (um arquivo, sem dependências) e os testes dela
 ├── docs/                              # credenciais, conexão dos agentes, contratos da API e do MCP,
-│                                      #   formato do plan.md (plan-md.md)
+│                                      #   formato do plan.md (plan-md.md) e a CLI (cli.md)
 └── .github/workflows/                 # ci.yml ("Qualidade") e deploy-vps.yml ("Publicação na VPS")
 ```
 
-Ainda não existem: portal do cliente (`src/app/portal/`, M6), CLI `hub` (`packages/cli/`, M4) e skills do Kratos versionadas (`agents/hermes/`, M5). Os testes de unidade e integração ficam ao lado do código (`*.test.ts`), não numa pasta `tests/`; os de ponta a ponta ficam em `app/e2e/`.
+Ainda não existem: portal do cliente (`src/app/portal/`, M6) e skills do Kratos versionadas (`agents/hermes/`, M5). Os testes de unidade e integração ficam ao lado do código (`*.test.ts`), não numa pasta `tests/`; os de ponta a ponta ficam em `app/e2e/`.
 
 ### 5.2 Convenções
 
@@ -219,7 +220,7 @@ hub_create_task(...)               # trabalho descoberto: nível operacional, li
 hub plan push                      # fim de sessão: devolve o estado ao Hub e regrava o plan.md
 ```
 
-Até a CLI `hub` existir, o `hub plan pull` e o `hub plan push` se fazem pelo `hub_sync_plan` (MCP) ou pelo `POST /api/v1/sync/plan` (REST), com o conteúdo do `plan.md` (`direction` `pull` ou `push`): grave no repositório o `markdown` devolvido. No push, mande `commit_sha` quando houver commit e, para que desmarcar, renomear e apagar itens tenham efeito, `base_markdown` (o arquivo da última sincronização). A chave precisa de `sync:plan` e, para o push criar e concluir tarefas, de `tasks:write` e `tasks:complete` (frente nova pede `workstreams:write`). Regras do formato e da sincronização em `docs/plan-md.md`. Só para ler o plano, `hub_get_plan` (JSON ou `plan.md`).
+A CLI `hub` (`packages/cli`, instalação e uso em `docs/cli.md`) faz o ciclo acima com a chave em `HUB_API_KEY`. Sem a CLI, o `hub plan pull` e o `hub plan push` se fazem pelo `hub_sync_plan` (MCP) ou pelo `POST /api/v1/sync/plan` (REST), com o conteúdo do `plan.md` (`direction` `pull` ou `push`): grave no repositório o `markdown` devolvido. No push, mande `commit_sha` quando houver commit e, para que desmarcar, renomear e apagar itens tenham efeito, `base_markdown` (o arquivo da última sincronização). A chave precisa de `sync:plan` e, para o push criar e concluir tarefas, de `tasks:write` e `tasks:complete` (frente nova pede `workstreams:write`). Regras do formato e da sincronização em `docs/plan-md.md`. Só para ler o plano, `hub_get_plan` (JSON ou `plan.md`).
 
 Regras:
 - **Nunca** marcar GATE, nunca mudar prazo de marco, nunca criar marco. Isso é `hub_request_approval` (pedido) para o Fábio decidir.

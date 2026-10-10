@@ -3,7 +3,7 @@ import { HubError, toHubError } from "@/lib/errors";
 import { ProjectCode, resolveProject } from "@/modules/common";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
 import { createComment } from "@/modules/comments/service";
-import { getPlan } from "@/modules/projects/service";
+import { getPlan, renderPlanMarkdown } from "@/modules/projects/service";
 import { CreateTaskInput } from "@/modules/tasks/schemas";
 import {
   archiveTask,
@@ -215,9 +215,16 @@ export async function syncPlan(
     current = parsePlanFile(applyItemChanges(file, changes), { prefix });
   }
 
-  // Nos dois sentidos, o arquivo devolvido é o do Hub depois das mudanças.
+  // Nos dois sentidos, o arquivo devolvido é o do Hub depois das mudanças. Arquivo vazio
+  // (projeto que ainda não tem plan.md) recebe a exportação completa, com o título.
   const plan = await getPlan(t, project.code, "sync.plan");
-  const pulled = pullIntoFile(current, plan);
+  const pulled = current.lines.some((l) => l.text.trim())
+    ? pullIntoFile(current, plan)
+    : {
+        markdown: renderPlanMarkdown(plan),
+        updated: 0,
+        inserted: hubTasks(plan).size,
+      };
   summary.updated_in_file = pulled.updated;
   summary.inserted_in_file = pulled.inserted;
   if (input.direction === "pull") collectGateAlerts(current, plan, conflicts);
