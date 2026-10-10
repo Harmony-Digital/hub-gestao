@@ -105,6 +105,10 @@ describe("visão do projeto em três camadas", () => {
     expect(describeActivity("project.updated", null)).toBe(
       "atualizou o projeto",
     );
+    expect(describeActivity("milestone.created", null)).toBe("criou um marco");
+    expect(describeActivity("workstream.visibility_changed", null)).toBe(
+      "mudou o que o cliente vê de uma frente",
+    );
   });
 });
 

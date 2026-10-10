@@ -341,3 +341,69 @@ export async function updateWorkstream(
   });
   return after;
 }
+
+export const WorkstreamVisibilityInput = z.strictObject({
+  visibility: z.enum(["internal", "client"]),
+  title_client: Line(200).nullable(),
+  description_client: z.string().trim().max(2000).nullable(),
+});
+export type WorkstreamVisibilityInput = z.infer<
+  typeof WorkstreamVisibilityInput
+>;
+
+/**
+ * Mostra a frente ao cliente (ou volta a esconder), com o título e a descrição escritos
+ * para ele. Decisão de pessoa (workstream.visibility): agentes pedem pela aprovação
+ * client_visibility, e o dono decide.
+ */
+export async function setWorkstreamVisibility(
+  t: TxCtx,
+  id: string,
+  input: WorkstreamVisibilityInput,
+): Promise<WorkstreamDto> {
+  if (!Uuid.safeParse(id).success) throw badRequest("Frente inválida.");
+  const current = await workstreamById(t, id);
+  await authorizeProjectId(t, current.project_id, "workstream.visibility");
+  if (input.visibility === "client" && !input.title_client) {
+    throw badRequest(
+      "Para mostrar a frente ao cliente, escreva o título que ele vai ver.",
+    );
+  }
+  assertNoSecrets({
+    title_client: input.title_client,
+    description_client: input.description_client,
+  });
+  await t.tx.query(
+    `update ${S}.workstreams
+        set visibility = $2, title_client = $3, description_client = $4
+      where id = $1`,
+    [
+      current.id,
+      input.visibility,
+      input.title_client,
+      input.description_client || null,
+    ],
+  );
+  const before = toWorkstreamDto(current);
+  const after = toWorkstreamDto(await workstreamById(t, current.id));
+  const changes = changedFields(before, after, [
+    "visibility",
+    "title_client",
+    "description_client",
+  ]);
+  if (Object.keys(changes.after).length > 0) {
+    await audit(t, {
+      action: "workstream.visibility_changed",
+      entityType: "workstream",
+      entityId: current.id,
+      projectId: current.project_id,
+      ...changes,
+    });
+    await emitEvent(t, "workstream.updated", {
+      id: after.id,
+      project_code: after.project_code,
+      visibility: after.visibility,
+    });
+  }
+  return after;
+}
