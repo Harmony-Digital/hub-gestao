@@ -9,7 +9,7 @@ import {
   verifyAgentKey,
   type AgentScope,
 } from "@/lib/agent-keys";
-import { authorize } from "@/lib/authorize";
+import { authorize, can } from "@/lib/authorize";
 import { audit } from "@/lib/audit";
 import { applyRuntimeRole, type Actor, type AgentActor } from "@/lib/db/actor";
 import type { Db } from "@/lib/db/types";
@@ -475,4 +475,125 @@ export async function setAgentStatus(
     before: { status: before.status },
     after: { status },
   });
+}
+
+// Console de agentes (interface) ------------------------------------------------------
+
+export type ConsoleKey = {
+  id: string;
+  prefix: string;
+  scopes: string[];
+  /** "all" = chave com workspace:*, válida para todos os projetos. */
+  projects: string[] | "all";
+  expiresAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  state: "ativa" | "vencida" | "revogada";
+};
+
+export type ConsoleAgent = {
+  id: string;
+  name: string;
+  kind: AgentActor["kind"];
+  status: "active" | "paused" | "revoked";
+  roles: string[];
+  createdAt: string;
+  keys: ConsoleKey[];
+};
+
+export type AgentsConsole = {
+  agents: ConsoleAgent[];
+  /** Pode cadastrar agentes (owner e admin). */
+  canManage: boolean;
+  /** Pode ver, criar e revogar chaves (só o owner, decisão D9). */
+  canManageKeys: boolean;
+};
+
+type ConsoleAgentRow = {
+  id: string;
+  name: string;
+  kind: AgentActor["kind"];
+  status: ConsoleAgent["status"];
+  roles: string[];
+  created_at: Date | string;
+};
+
+type ConsoleKeyRow = {
+  id: string;
+  agent_id: string;
+  key_prefix: string;
+  scopes: string[];
+  project_codes: string[] | null;
+  all_projects: boolean;
+  expires_at: Date | string;
+  last_used_at: Date | string | null;
+  revoked_at: Date | string | null;
+  created_at: Date | string;
+};
+
+/**
+ * Lista do console de agentes. Toda a equipe vê os agentes; as chaves (prefixo, escopos,
+ * projetos e validade) só aparecem para quem pode geri-las. O valor da chave nunca sai do
+ * banco, onde só existe o hash.
+ */
+export async function listAgentsConsole(
+  t: TxCtx,
+  now = new Date(),
+): Promise<AgentsConsole> {
+  authorize(t.actor, "agent.read");
+  const canManage = can(t.actor, "agent.manage");
+  const canManageKeys = can(t.actor, "agent.keys");
+
+  const agents = await many<ConsoleAgentRow>(
+    t,
+    `select id, name, kind::text as kind, status::text as status, roles, created_at
+       from ${S}.agents
+      order by created_at, name`,
+  );
+  const keys = canManageKeys
+    ? await many<ConsoleKeyRow>(
+        t,
+        `select k.id, k.agent_id, k.key_prefix, k.scopes, k.expires_at, k.last_used_at,
+                k.revoked_at, k.created_at, k.project_ids is null as all_projects,
+                (select array_agg(p.code order by p.code)
+                   from ${S}.projects p where p.id = any(k.project_ids)) as project_codes
+           from ${S}.agent_api_keys k
+          order by k.created_at desc`,
+      )
+    : [];
+
+  const toKey = (k: ConsoleKeyRow): ConsoleKey => {
+    const expiresAt = iso(k.expires_at);
+    const revokedAt = isoOrNull(k.revoked_at);
+    return {
+      id: k.id,
+      prefix: k.key_prefix,
+      scopes: k.scopes,
+      projects: k.all_projects ? "all" : (k.project_codes ?? []),
+      expiresAt,
+      lastUsedAt: isoOrNull(k.last_used_at),
+      revokedAt,
+      createdAt: iso(k.created_at),
+      state: revokedAt
+        ? "revogada"
+        : new Date(expiresAt) <= now
+          ? "vencida"
+          : "ativa",
+    };
+  };
+
+  return {
+    agents: agents.map((a) => ({
+      id: a.id,
+      name: a.name,
+      kind: a.kind,
+      status: a.status,
+      roles: a.roles,
+      createdAt: iso(a.created_at),
+      keys: keys.filter((k) => k.agent_id === a.id).map(toKey),
+    })),
+    canManage,
+    canManageKeys,
+  };
 }

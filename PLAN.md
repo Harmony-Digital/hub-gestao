@@ -176,7 +176,7 @@
 - [x] Toda rota de UI exige sessão; API e MCP exigem chave; `noindex` global até o portal — evidência: porta das telas (`src/proxy.ts`) com 20 testes, e cada tela confere o acesso de novo perto dos dados (`src/lib/auth/current-user.ts`); no navegador local, `/` e `/projetos` vão para o login, `/api/v1/me` sem chave dá 401 e o GET do `/mcp` dá 405, sem passar pelo login; build de produção sem configuração do login fecha todas as telas (conferido localmente e no CI, run 37988257541); `<meta name="robots" content="noindex, nofollow">` em todas as telas e `X-Robots-Tag: noindex` no Traefik
 
 ### 🔒 GATE M2 (aprovação do Fábio)
-- [ ] Fábio faz login em `https://hub.harmonydigital.com.br`; Claude Code conclui tarefa por MCP contra produção; health com SHA — health com o SHA conferido em 2026-10-10. Falta: o login do Fábio com a senha dele; e a tarefa por MCP em produção, que precisa de uma chave de agente criada pelo próprio Fábio. Para isso, a criação de chave com exibição única (item do M3, “Agentes”) entra antes, em versão mínima e só para o `owner`
+- [ ] Fábio faz login em `https://hub.harmonydigital.com.br`; Claude Code conclui tarefa por MCP contra produção; health com SHA — health com o SHA conferido em 2026-10-10. Falta: o login do Fábio com a senha dele; e a tarefa por MCP em produção, que precisa de uma chave de agente criada pelo próprio Fábio. Para isso, a criação de chave com exibição única (item do M3, “Agentes”) entra antes, em versão mínima e só para o `owner`. Roteiro do teste: o Fábio cria o agente e a chave em `/agentes`, roda `scripts/conectar-claude-code.sh` (a chave vai para as Chaves do macOS, conferida no Hub) e depois `scripts/teste-mcp-producao.sh` (o Claude Code, só com as ferramentas do Hub, cria, inicia e conclui uma tarefa no projeto HUB, com evidência)
 
 ---
 
@@ -207,7 +207,7 @@
 - [ ] Tela de aprovações com filtro por tipo e projeto; decisão com orientação; efeito automático (publicar, promover visibilidade, aceitar marco)
 
 ### Agentes (Console "Sala de Controle")
-- [ ] Cadastro de agentes (tipo, departamento, missão, orçamento, dono); criação de chave com exibição única; escopos e projetos; expiração; revogação; pausa (kill switch)
+- [ ] Cadastro de agentes (tipo, departamento, missão, orçamento, dono); criação de chave com exibição única; escopos e projetos; expiração; revogação; pausa (kill switch) — versão mínima antecipada em 2026-10-10 para o GATE M2 (tela `/agentes`): cadastro com nome e tipo (owner e admin); criação de chave com exibição única, permissões em PT-BR, projetos e validade de 30 a 365 dias; revogação com confirmação. As chaves só aparecem para o owner, e o valor nunca sai do banco. Tudo passa pelo núcleo do M1, com autorização e histórico (`source = ui`). Testes: 13 dos formulários e 5 do console. Faltam departamento, missão, orçamento, pausa e o visual da Sala de Controle
 - [ ] Feed em tempo real de `activity_log` filtrado por agente/projeto; erros de autorização; custo de IA no mês
 
 ### Notificações
