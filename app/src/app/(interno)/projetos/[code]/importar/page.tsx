@@ -7,9 +7,10 @@ import { HubError } from "@/lib/errors";
 import { pageContext } from "@/lib/ui-context";
 import { inTx } from "@/modules/context";
 import type { ProjectDetail } from "@/modules/projects/schemas";
+import { NO_PLANNER, plannerAgent } from "@/modules/planner/service";
 import { getProject } from "@/modules/projects/service";
 import { PROJECT_CODE } from "../_tasks/params";
-import { ImportPlanForm } from "./import-form";
+import { ImportArea } from "./import-area";
 
 export async function generateMetadata({
   params,
@@ -46,8 +47,21 @@ async function ImportPlan({
   if (!PROJECT_CODE.test(code)) notFound();
   const { user, ctx } = await pageContext();
   let project: ProjectDetail;
+  let planner: string | null;
   try {
-    project = await inTx(ctx, (t) => getProject(t, code));
+    [project, planner] = await inTx(ctx, async (t) => {
+      const found = await getProject(t, code);
+      // O Planejador (PL-11): pronto, ou o motivo de não estar ligado.
+      const agent = await plannerAgent(t);
+      return [
+        found,
+        !agent
+          ? NO_PLANNER
+          : agent.configured
+            ? null
+            : `O Planejador (${agent.name}) ainda não tem modelo de IA: escolha em Modelo de IA, na Sala de Controle.`,
+      ] as const;
+    });
   } catch (err) {
     if (err instanceof HubError && (err.status === 404 || err.status === 403)) {
       notFound();
@@ -101,7 +115,11 @@ async function ImportPlan({
                 do Hub.
               </li>
             </ul>
-            <ImportPlanForm projectCode={project.code} planPath={planPath} />
+            <ImportArea
+              projectCode={project.code}
+              planPath={planPath}
+              planner={planner}
+            />
           </>
         )}
       </main>

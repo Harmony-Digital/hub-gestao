@@ -1,5 +1,6 @@
 import { CONCIERGE_INTERPRET } from "./concierge";
 import { CONNECTION_TEST } from "./connection-test";
+import { PLANNER_PROPOSE } from "./planner";
 
 /**
  * Prompts dos agentes internos do Hub (D5), versionados. Cada prompt tem um código
@@ -24,4 +25,5 @@ export const promptTag = (prompt: PromptSpec): string =>
 export const PROMPTS: readonly PromptSpec[] = [
   CONNECTION_TEST,
   CONCIERGE_INTERPRET,
+  PLANNER_PROPOSE,
 ];

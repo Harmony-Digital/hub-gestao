@@ -15,3 +15,7 @@ Histórico dos prompts que o Hub usa nas chamadas de IA (`src/lib/llm`). Regras:
 ## CO-10/interpretar
 
 - v1 · 2026-10-10 · `43400f56ca4f` · Primeira versão do Concierge: converte o pedido (falado ou digitado) numa ação só (criar ou mudar tarefa, comentar, apontar um pedido de aprovação, pergunta respondida com dados do Hub, abrir uma tela), com as regras de datas a partir de hoje e sem inventar projeto, pessoa ou prazo.
+
+## PL-11/propor
+
+- v1 · 2026-10-10 · `b14e3a051c7f` · Primeira versão do Planejador: do documento (PRD, brief, transcrição) para marcos com critérios de aceite, frentes por departamento e tarefas iniciais, com prazos só quando o documento sustenta, textos para o cliente em segunda pessoa e as premissas e dúvidas à parte.

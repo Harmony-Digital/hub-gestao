@@ -21,12 +21,15 @@ const STATUS_LABEL: Record<string, string> = Object.fromEntries(
 export function ImportPlanForm({
   projectCode,
   planPath,
+  initialText = "",
 }: {
   projectCode: string;
   planPath: string;
+  /** Texto inicial do campo (a proposta do Planejador, por exemplo). */
+  initialText?: string;
 }) {
   const id = useId();
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText);
   const [state, action, pending] = useActionState(importarPlano, IMPORT_IDLE);
   const submit = useSubmit(action);
   const previewed =

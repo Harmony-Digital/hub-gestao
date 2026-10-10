@@ -9,9 +9,9 @@ type CallOptions = Parameters<MockLanguageModelV4["doGenerate"]>[0];
  * telas de IA. Nunca é carregado em produção (o ramo que o importa some do build).
  *
  * - Texto livre: responde "ok" (o botão Testar conexão).
- * - Resposta estruturada: devolve o objeto JSON escrito no fim do pedido, completando com
- *   null os campos do esquema que faltarem. Sem JSON no fim, responde fora do formato, e
- *   a tela mostra a recusa.
+ * - Resposta estruturada: devolve o objeto JSON escrito no fim do pedido (pode ter objetos
+ *   e listas dentro), completando com null os campos de primeiro nível que faltarem. Sem
+ *   JSON no fim, responde fora do formato, e a tela mostra a recusa.
  */
 export const fakeModel: ModelFactory = (_provider, _key, model) =>
   new MockLanguageModelV4({
@@ -47,14 +47,8 @@ function objectFrom(options: CallOptions): string {
     user?.content
       .map((part) => (part.type === "text" ? part.text : ""))
       .join("") ?? "";
-  const json = /\{[^{}]*\}\s*$/.exec(text)?.[0];
-  if (!json) return "fora do formato";
-  let value: Record<string, unknown>;
-  try {
-    value = JSON.parse(json) as Record<string, unknown>;
-  } catch {
-    return "fora do formato";
-  }
+  const value = lastJson(text);
+  if (!value) return "fora do formato";
   const format = options.responseFormat;
   const properties =
     format?.type === "json" &&
@@ -68,4 +62,23 @@ function objectFrom(options: CallOptions): string {
     if (!(key in value)) value[key] = null;
   }
   return JSON.stringify(value);
+}
+
+/** O último objeto JSON do texto, se o texto termina nele (com objetos dentro, inclusive). */
+function lastJson(text: string): Record<string, unknown> | null {
+  const trimmed = text.trimEnd();
+  if (!trimmed.endsWith("}")) return null;
+  for (let i = trimmed.lastIndexOf("{"); i >= 0;) {
+    try {
+      const value: unknown = JSON.parse(trimmed.slice(i));
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        return value as Record<string, unknown>;
+      }
+    } catch {
+      // Ainda não é o começo do objeto: tenta a chave anterior.
+    }
+    if (i === 0) break;
+    i = trimmed.lastIndexOf("{", i - 1);
+  }
+  return null;
 }

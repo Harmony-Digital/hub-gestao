@@ -164,6 +164,7 @@ Mesmo contrato do EX-06, com departamento e tipo de evidência próprios:
 - **Saídas**: proposta em formato de árvore editável; ao aprovar, cria marcos, frentes e tarefas e gera o `PLAN.md` inicial do repositório via `hub_sync_plan`.
 - **Red lines**: nunca cria nada sem aprovação; datas são sugestões marcadas como tal; não promete prazos ao cliente.
 - **Fase**: M5.
+- **No Hub (desde o PR #47)**: na tela Importar o plan.md de cada projeto (Editar projeto, só dono e administração, porque marco é decisão de pessoa), o cartão "Propor com o Planejador" recebe o documento (colado ou em arquivo). A IA devolve a árvore (prompt `PL-11/propor`, versionado em `app/src/modules/agents/prompts/`); o Hub escreve a proposta no formato do `plan.md`, numerando os marcos depois dos que o projeto já tem, com os critérios de aceite no GATE de cada marco, o prazo como "Prazo sugerido" e os textos para o cliente como sugestão (texto livre: nada vai para o portal sem aprovação), e as premissas e dúvidas numa seção ignorada pela importação. "Levar para a importação" põe o texto no campo de sempre: a pessoa edita, clica em Ver o que entra (nada é gravado) e só então em Importar. O arquivo devolvido com os códigos é o `PLAN.md` inicial do repositório. **Para ligar** (Fábio, na Sala de Controle): um agente "Agente interno do Hub" com o papel PL-11, a chave de IA e o modelo, os preços e o teto em "Modelo de IA". O "Replanejar a partir de…" (proposta para o GP-01 levar à aprovação) fica para depois do Kratos ligado ao Hub.
 
 ### RC-12 · Redator do Cliente
 

@@ -297,6 +297,21 @@ describe("adaptador de IA", () => {
     });
     // O campo que faltou no JSON vem como null.
     expect(answer.output).toEqual({ kind: "create_task", title: null });
+    // JSON com objetos dentro (a proposta do Planejador), depois de um texto com chaves.
+    const Tree = z.object({
+      items: z.array(z.object({ name: z.string() })),
+      note: z.string().nullable(),
+    });
+    const tree = await generateText({
+      model,
+      prompt:
+        'Documento com {chaves} soltas.\n{"items":[{"name":"a"},{"name":"b"}]}',
+      output: Output.object({ schema: Tree }),
+    });
+    expect(tree.output).toEqual({
+      items: [{ name: "a" }, { name: "b" }],
+      note: null,
+    });
     await expect(
       generateText({
         model,
