@@ -6,6 +6,7 @@ import { sair } from "@/app/login/actions";
 import { initials } from "@/lib/format";
 import { HEALTH, ROLE_LABEL } from "@/lib/labels";
 import { getShell } from "@/lib/ui-context";
+import { MenuToggle } from "./menu-toggle";
 import { NAV_ITEMS, NAV_LINK_CLASS, NAV_LINK_IDLE } from "./nav-items";
 import { ShellActions } from "./shell-actions";
 import { SidebarNav } from "./sidebar-nav";
@@ -18,8 +19,8 @@ import { SidebarNav } from "./sidebar-nav";
 export function Sidebar() {
   return (
     <div className="flex min-h-full flex-col gap-5 bg-navy px-3.5 py-5 text-mist">
-      <div className="flex items-center justify-between gap-2 px-1.5">
-        <Link href="/" aria-label="Hoje no Hub">
+      <div className="hub-centro flex items-center justify-between gap-2 px-1.5">
+        <Link href="/" aria-label="Hoje no Hub" className="hub-so-aberto">
           <Image
             src="/brand/harmony-logo-branco.png"
             alt="Harmony Digital"
@@ -29,9 +30,10 @@ export function Sidebar() {
             className="h-[30px] w-auto"
           />
         </Link>
-        <span className="rounded-full border border-brand/45 px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] text-brand-soft uppercase">
+        <span className="hub-so-aberto ml-auto rounded-full border border-brand/45 px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] text-brand-soft uppercase">
           Hub
         </span>
+        <MenuToggle />
       </div>
 
       <ShellActions />
@@ -64,7 +66,7 @@ function NavPlaceholder() {
           className={`${NAV_LINK_CLASS} ${NAV_LINK_IDLE}`}
         >
           <Icon aria-hidden="true" className="size-[18px] shrink-0" />
-          <span className="flex-1">{label}</span>
+          <span className="hub-rotulo flex-1">{label}</span>
         </Link>
       ))}
     </nav>
@@ -92,7 +94,7 @@ async function NavWithCounts() {
 async function Featured() {
   const { data } = await getShell();
   return (
-    <div className="flex flex-col gap-3">
+    <div className="hub-so-aberto flex flex-col gap-3">
       {data.featured.length > 0 ? (
         <section aria-labelledby="destaque" className="flex flex-col gap-1">
           <h2
@@ -150,13 +152,14 @@ async function UserCard() {
     <div className="flex items-center gap-2 rounded-xl border border-off/10 bg-navy-2 p-2.5">
       <Link
         href="/conta"
-        className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-1 hover:bg-navy-4"
+        className="hub-centro flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-1 hover:bg-navy-4"
         aria-label={`Minha conta: ${user.fullName}`}
+        title={user.fullName}
       >
         <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-brand font-mono text-xs font-semibold text-navy">
           {initials(user.fullName)}
         </span>
-        <span className="flex min-w-0 flex-col">
+        <span className="hub-so-aberto flex min-w-0 flex-col">
           <span className="truncate text-sm font-semibold text-off">
             {user.fullName}
           </span>
@@ -165,7 +168,7 @@ async function UserCard() {
           </span>
         </span>
       </Link>
-      <form action={sair}>
+      <form action={sair} className="hub-so-aberto">
         <button
           type="submit"
           title="Sair"

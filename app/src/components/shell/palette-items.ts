@@ -34,6 +34,11 @@ export type SearchResult = {
 
 export const SCREENS: { href: string; label: string; keywords?: string }[] = [
   { href: "/", label: "Hoje", keywords: "inicio painel decisoes" },
+  {
+    href: "/minhas-tarefas",
+    label: "Minhas tarefas",
+    keywords: "comigo atribuidas prazo",
+  },
   { href: "/projetos", label: "Projetos" },
   { href: "/aprovacoes", label: "Aprovações", keywords: "pedidos decidir" },
   {

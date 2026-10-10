@@ -3,6 +3,7 @@ import {
   CircleCheckBig,
   FolderKanban,
   Inbox,
+  ListTodo,
   Sun,
   type LucideIcon,
 } from "lucide-react";
@@ -12,6 +13,7 @@ export type NavItem = { href: string; label: string; icon: LucideIcon };
 /** Só telas que já existem; cada nova tela entra aqui quando ficar pronta. */
 export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Hoje", icon: Sun },
+  { href: "/minhas-tarefas", label: "Minhas tarefas", icon: ListTodo },
   { href: "/projetos", label: "Projetos", icon: FolderKanban },
   { href: "/aprovacoes", label: "Aprovações", icon: CircleCheckBig },
   { href: "/caixa-de-entrada", label: "Caixa de entrada", icon: Inbox },

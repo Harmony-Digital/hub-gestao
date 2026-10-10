@@ -268,3 +268,31 @@
     margin-right: 0.35rem;
   }
 }
+
+/* Menu lateral recolhido na tela larga (components/shell/menu-toggle.tsx): só os ícones.
+   Os rótulos continuam para leitor de tela; o que é só da barra aberta some. */
+html[data-menu="recolhido"] .hub-lateral {
+  width: 4.5rem;
+}
+html[data-menu="recolhido"] .hub-lateral .hub-rotulo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+html[data-menu="recolhido"] .hub-lateral .hub-so-aberto {
+  display: none;
+}
+html[data-menu="recolhido"] .hub-lateral .hub-centro {
+  justify-content: center;
+  padding-inline: 0;
+}
+html[data-menu="recolhido"] .hub-lateral .hub-contador {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.35rem;
+  padding-inline: 0.3rem;
+  font-size: 9px;
+}

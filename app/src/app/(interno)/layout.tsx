@@ -11,7 +11,7 @@ import { Sidebar } from "@/components/shell/sidebar";
 export default function InternoLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-full flex-1 bg-background">
-      <aside className="hidden w-[232px] shrink-0 lg:block">
+      <aside className="hub-lateral hidden w-[232px] shrink-0 transition-[width] lg:block">
         <div className="sticky top-0 h-screen overflow-y-auto">
           <Sidebar />
         </div>
