@@ -5,7 +5,7 @@ import { cache } from "react";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import type { HubUser } from "@/lib/auth/resolve";
 import { getDb } from "@/lib/db";
-import { toHubError } from "@/lib/errors";
+import { screenMessage, toHubError } from "@/lib/errors";
 import { log } from "@/lib/log";
 import { inTx, type Ctx } from "@/modules/context";
 import { shellData, type ShellData } from "@/modules/shell/service";
@@ -63,5 +63,5 @@ export function actionErrorMessage(
   if (hubError.status >= 500) {
     log.error({ err, request_id: requestId }, where);
   }
-  return hubError.detail;
+  return screenMessage(hubError);
 }

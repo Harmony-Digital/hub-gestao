@@ -26,17 +26,15 @@ import {
 import type { TaskSummary } from "@/modules/projects/schemas";
 import { taskFormOptions } from "@/modules/tasks/board";
 import { NewTaskButton } from "./_tasks/new-task";
+import { openTaskParam, PROJECT_CODE } from "./_tasks/params";
 import { ProjectHeader } from "./_tasks/project-header";
 import { TaskPanel, taskHref } from "./_tasks/task-panel";
-
-const CODE = /^[A-Z0-9]{2,8}$/;
-const TASK = /^[A-Z]{2,6}-[0-9]{1,9}$/;
 
 export async function generateMetadata({
   params,
 }: PageProps<"/projetos/[code]">): Promise<Metadata> {
   const { code } = await params;
-  return { title: CODE.test(code) ? code : "Projeto" };
+  return { title: PROJECT_CODE.test(code) ? code : "Projeto" };
 }
 
 export default function ProjetoPage({
@@ -55,7 +53,7 @@ async function ProjectView({
   searchParams,
 }: PageProps<"/projetos/[code]">) {
   const { code } = await params;
-  if (!CODE.test(code)) notFound();
+  if (!PROJECT_CODE.test(code)) notFound();
   const query = await searchParams;
   const { ctx } = await pageContext();
   let data: ProjectOverview;
@@ -76,8 +74,7 @@ async function ProjectView({
     throw err;
   }
   const basePath = `/projetos/${code}`;
-  const openCode = Array.isArray(query.tarefa) ? query.tarefa[0] : query.tarefa;
-  const open = openCode && TASK.test(openCode) ? openCode : null;
+  const open = openTaskParam(query.tarefa);
   const hrefFor = (task: string) => taskHref(basePath, {}, task);
 
   return (

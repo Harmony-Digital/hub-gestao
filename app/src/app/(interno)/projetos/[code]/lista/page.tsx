@@ -16,20 +16,21 @@ import {
 } from "@/modules/tasks/board";
 import type { TaskDto } from "@/modules/tasks/schemas";
 import { NewTaskButton } from "../_tasks/new-task";
+import {
+  firstParam,
+  openTaskParam,
+  PROJECT_CODE,
+  viewHref,
+} from "../_tasks/params";
 import { ProjectHeader } from "../_tasks/project-header";
 import { TaskPanel, taskHref } from "../_tasks/task-panel";
-
-const CODE = /^[A-Z0-9]{2,8}$/;
-const TASK = /^[A-Z]{2,6}-[0-9]{1,9}$/;
-
-const first = (value: string | string[] | undefined) =>
-  Array.isArray(value) ? value[0] : value;
+import { WorkstreamFilter } from "../_tasks/workstream-filter";
 
 export async function generateMetadata({
   params,
 }: PageProps<"/projetos/[code]/lista">): Promise<Metadata> {
   const { code } = await params;
-  return { title: CODE.test(code) ? `${code} · Lista` : "Lista" };
+  return { title: PROJECT_CODE.test(code) ? `${code} · Lista` : "Lista" };
 }
 
 export default function ListaPage({
@@ -48,13 +49,13 @@ async function ListView({
   searchParams,
 }: PageProps<"/projetos/[code]/lista">) {
   const { code } = await params;
-  if (!CODE.test(code)) notFound();
+  if (!PROJECT_CODE.test(code)) notFound();
   const query = await searchParams;
   const { ctx } = await pageContext();
   let data: ProjectTaskList;
   try {
     data = await inTx(ctx, (t) =>
-      projectTaskList(t, code, { workstream: first(query.frente) }),
+      projectTaskList(t, code, { workstream: firstParam(query.frente) }),
     );
   } catch (err) {
     // Projeto inexistente ou fora do alcance de quem vê: a mesma página de "não achei".
@@ -68,10 +69,7 @@ async function ListView({
   const keep: Record<string, string> = data.workstream
     ? { frente: data.workstream }
     : {};
-  const openCode = first(query.tarefa);
-  const open = openCode && TASK.test(openCode) ? openCode : null;
-  const listHref = (frente: string | null) =>
-    frente ? `${basePath}?${new URLSearchParams({ frente })}` : basePath;
+  const open = openTaskParam(query.tarefa);
   const byStatus = new Map<string, TaskDto[]>();
   for (const task of data.tasks) {
     const group = byStatus.get(task.status.id) ?? [];
@@ -100,31 +98,11 @@ async function ListView({
           }
         />
         <main className="flex w-full flex-col gap-5 px-4 py-6 sm:px-8">
-          {data.workstreams.length > 0 ? (
-            <nav
-              aria-label="Filtrar por frente"
-              className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0"
-            >
-              <FilterChip href={listHref(null)} active={!data.workstream}>
-                Todas as frentes
-              </FilterChip>
-              {data.workstreams.map((w) => (
-                <FilterChip
-                  key={w.id}
-                  href={listHref(w.id)}
-                  active={data.workstream === w.id}
-                >
-                  {w.title}
-                </FilterChip>
-              ))}
-              <FilterChip
-                href={listHref("none")}
-                active={data.workstream === "none"}
-              >
-                Sem frente
-              </FilterChip>
-            </nav>
-          ) : null}
+          <WorkstreamFilter
+            basePath={basePath}
+            workstreams={data.workstreams}
+            active={data.workstream}
+          />
 
           {data.tasks.length === 0 ? (
             <p className="rounded-xl border border-dashed border-line p-5 text-sm text-ink-2">
@@ -160,36 +138,12 @@ async function ListView({
         <TaskPanel
           projectCode={code}
           taskCode={open}
-          closeHref={listHref(data.workstream)}
+          closeHref={viewHref(basePath, data.workstream)}
           basePath={basePath}
           keep={keep}
         />
       ) : null}
     </>
-  );
-}
-
-function FilterChip({
-  href,
-  active,
-  children,
-}: {
-  href: string;
-  active: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      className={`inline-flex min-h-9 shrink-0 items-center rounded-full border px-3.5 text-sm whitespace-nowrap transition-colors ${
-        active
-          ? "border-navy bg-navy text-off"
-          : "border-line bg-paper text-ink-2 hover:border-mist hover:text-navy"
-      }`}
-    >
-      {children}
-    </Link>
   );
 }
 

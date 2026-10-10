@@ -30,7 +30,14 @@ export function TaskPanelFrame({
     function onKey(event: KeyboardEvent) {
       if (event.key !== "Escape" || event.defaultPrevented) return;
       const target = event.target as HTMLElement | null;
-      if (target?.closest("input, textarea, select, dialog[open]")) return;
+      // Num cartão do quadro, Esc cancela o arrastar: não fecha o painel.
+      if (
+        target?.closest(
+          "input, textarea, select, dialog[open], [data-board-card]",
+        )
+      ) {
+        return;
+      }
       if (document.querySelector("dialog[open]")) return;
       router.push(closeHref, { scroll: false });
     }

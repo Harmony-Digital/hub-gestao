@@ -233,3 +233,39 @@ export function problemBody(
     ...err.extra,
   };
 }
+
+/** Nomes dos campos em PT-BR, para mensagens nas telas (a API fala com agentes). */
+const FIELD_LABELS: Record<string, string> = {
+  title: "título",
+  description_md: "descrição",
+  body_md: "comentário",
+  reason: "motivo",
+  evidence: "evidência",
+  external_ref: "referência externa",
+  name: "nome",
+};
+
+/**
+ * Mensagem de erro para uma pessoa na tela: troca o nome técnico do campo pelo nome em
+ * PT-BR e, em erro de validação, mostra o primeiro problema em vez de "veja errors".
+ */
+export function screenMessage(error: HubError): string {
+  const field =
+    typeof error.extra.field === "string" ? error.extra.field : null;
+  if (field && FIELD_LABELS[field]) {
+    return error.detail.replace(
+      `O campo ${field} `,
+      `O campo ${FIELD_LABELS[field]} `,
+    );
+  }
+  const issues = error.extra.errors;
+  if (Array.isArray(issues) && issues.length > 0) {
+    const first = issues[0] as { field?: unknown; message?: unknown };
+    const message =
+      typeof first.message === "string" ? first.message : error.detail;
+    const name = typeof first.field === "string" ? first.field : null;
+    const label = name ? (FIELD_LABELS[name] ?? null) : null;
+    return label ? `Confira o campo ${label}: ${message}` : message;
+  }
+  return error.detail;
+}
