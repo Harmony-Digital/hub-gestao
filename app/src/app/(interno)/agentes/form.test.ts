@@ -106,6 +106,41 @@ describe("detalhes do agente", () => {
     }
   });
 
+  it("papéis do catálogo: só os marcados e válidos; sem o campo, ficam como estão", () => {
+    const novo = parseNewAgentForm(
+      form([
+        ["name", "Concierge"],
+        ["kind", "internal"],
+        ["roles_presentes", "1"],
+        ["roles", "CO-10"],
+        ["roles", "CO-10"],
+        ["roles", "xx-1"],
+      ]),
+    );
+    expect(novo).toEqual({
+      ok: true,
+      value: { name: "Concierge", kind: "internal", roles: ["CO-10"] },
+    });
+    const base: [string, string][] = [
+      ["id", AGENT_ID],
+      ["name", "Concierge"],
+    ];
+    const edit = (entries: [string, string][]) => {
+      const parsed = parseAgentEditForm(form([...base, ...entries]));
+      return parsed.ok ? parsed.value.input.roles : "erro";
+    };
+    expect(edit([["roles_presentes", "1"]])).toEqual([]);
+    expect(
+      edit([
+        ["roles_presentes", "1"],
+        ["roles", "PL-11"],
+        ["roles", "CO-10"],
+      ]),
+    ).toEqual(["PL-11", "CO-10"]);
+    // Página aberta antes do campo existir: não apaga os papéis.
+    expect(edit([["roles", "CO-10"]])).toBeUndefined();
+  });
+
   it("edição traz tudo, com vazio virando nulo", () => {
     expect(
       parseAgentEditForm(

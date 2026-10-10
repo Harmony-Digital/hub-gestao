@@ -44,6 +44,24 @@ const OPEN: {
       ),
   },
   {
+    name: "Concierge (prévia)",
+    path: "/projetos/EXE",
+    open: async (page) => {
+      const dialog = await openDialog(
+        page,
+        page.getByRole("button", { name: /^Buscar/ }).first(),
+        "Buscar no Hub",
+      );
+      await dialog
+        .getByRole("combobox")
+        .fill(
+          '{"kind":"create_task","title":"Prévia da revisão de acessibilidade"}',
+        );
+      await dialog.getByRole("option", { name: /^Pedir ao Concierge/ }).click();
+      await expect(dialog.getByText("Criar uma tarefa")).toBeVisible();
+    },
+  },
+  {
     name: "Modelo de IA",
     path: "/agentes",
     open: (page) =>

@@ -11,3 +11,7 @@ Histórico dos prompts que o Hub usa nas chamadas de IA (`src/lib/llm`). Regras:
 ## HUB/testar-conexao
 
 - v1 · 2026-10-10 · `68173af2cf95` · Chamada mínima do botão Testar conexão, na Sala de Controle.
+
+## CO-10/interpretar
+
+- v1 · 2026-10-10 · `43400f56ca4f` · Primeira versão do Concierge: converte o pedido (falado ou digitado) numa ação só (criar ou mudar tarefa, comentar, apontar um pedido de aprovação, pergunta respondida com dados do Hub, abrir uma tela), com as regras de datas a partir de hoje e sem inventar projeto, pessoa ou prazo.

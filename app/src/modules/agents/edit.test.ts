@@ -96,6 +96,34 @@ describe("cadastro completo do agente", () => {
     ).toEqual(["department", "mission"]);
   });
 
+  it("troca os papéis do catálogo (a lista inteira), com o histórico", async () => {
+    const before = await h.raw.query<{ roles: string[] }>(
+      `select roles from proj_hub_gestao.agents where id = $1`,
+      [h.agents.kratos],
+    );
+    const original = before.rows[0].roles;
+    expect(
+      await inTx(asOwner(), (t) =>
+        updateAgent(t, h.agents.kratos, { roles: ["CO-10", ...original] }),
+      ),
+    ).toEqual(["roles"]);
+    // Mesma lista em outra ordem: nada muda.
+    expect(
+      await inTx(asOwner(), (t) =>
+        updateAgent(t, h.agents.kratos, { roles: [...original, "CO-10"] }),
+      ),
+    ).toEqual([]);
+    const log = await history(h.agents.kratos);
+    expect(log.at(-1)?.after).toEqual({
+      roles: ["CO-10", ...original].sort(),
+    });
+    expect(
+      await inTx(asOwner(), (t) =>
+        updateAgent(t, h.agents.kratos, { roles: original }),
+      ),
+    ).toEqual(["roles"]);
+  });
+
   it("recusa departamento, responsável e nome inválidos", async () => {
     const update = (input: Parameters<typeof updateAgent>[2]) =>
       hubError(

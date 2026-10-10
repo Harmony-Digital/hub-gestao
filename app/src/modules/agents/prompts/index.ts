@@ -1,3 +1,4 @@
+import { CONCIERGE_INTERPRET } from "./concierge";
 import { CONNECTION_TEST } from "./connection-test";
 
 /**
@@ -20,4 +21,7 @@ export const promptTag = (prompt: PromptSpec): string =>
   `${prompt.id}@${prompt.version}`;
 
 /** Todos os prompts em uso, para o teste do histórico. */
-export const PROMPTS: readonly PromptSpec[] = [CONNECTION_TEST];
+export const PROMPTS: readonly PromptSpec[] = [
+  CONNECTION_TEST,
+  CONCIERGE_INTERPRET,
+];

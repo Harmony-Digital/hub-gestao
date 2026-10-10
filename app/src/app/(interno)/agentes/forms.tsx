@@ -24,6 +24,7 @@ import {
   SCOPE_LABELS,
   type AgentKind,
 } from "./form";
+import { RolesField } from "./roles-field";
 
 const inputClass =
   "h-10 w-full rounded-lg border border-input bg-paper px-3 text-[15px] text-ink outline-none transition-colors focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/30 disabled:opacity-60";
@@ -125,6 +126,14 @@ export function NovoAgenteForm({
             className={textareaClass}
           />
         </label>
+        <details className="rounded-lg border border-line p-3 sm:col-span-2">
+          <summary className="cursor-pointer text-sm font-medium text-navy">
+            Papéis do catálogo (opcional)
+          </summary>
+          <div className="pt-3">
+            <RolesField />
+          </div>
+        </details>
       </fieldset>
       <div>
         <Button type="submit" size="lg" disabled={pending}>

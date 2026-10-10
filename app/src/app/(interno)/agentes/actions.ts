@@ -41,7 +41,10 @@ export async function criarAgente(
     refresh();
     return {
       status: "ok",
-      message: `Agente "${agent.name}" cadastrado. Agora crie a chave dele.`,
+      message:
+        input.kind === "internal"
+          ? `Agente "${agent.name}" cadastrado. Agente interno não usa chave: escolha o modelo de IA dele.`
+          : `Agente "${agent.name}" cadastrado. Agora crie a chave dele.`,
     };
   } catch (err) {
     return { status: "error", message: messageOf(err, ctx.requestId) };

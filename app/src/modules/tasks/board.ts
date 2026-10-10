@@ -388,6 +388,15 @@ export function describeTaskEvent(
       return { text: "reabriu a tarefa", detail: text(a.reason) };
     case "comment.created":
       return { text: "comentou", detail: null };
+    case "concierge.confirmed":
+      // O pedido foi feito ao Concierge (CO-10) e confirmado na prévia.
+      return {
+        text:
+          a.voice === true
+            ? "confirmou o pedido feito por voz ao Concierge"
+            : "confirmou o pedido feito ao Concierge",
+        detail: null,
+      };
     case "checklist.added":
       return { text: "pôs no checklist", detail: text(a.text) };
     case "checklist.checked":

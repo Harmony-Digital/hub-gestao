@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  looksLikeRequest,
   normalize,
   paletteItems,
   step,
@@ -95,6 +96,35 @@ describe("janela ⌘K", () => {
       }).map((i) => i.label);
     expect(label(false)).toEqual(["Usar o tema escuro"]);
     expect(label(true)).toEqual(["Usar o tema claro"]);
+  });
+
+  it("oferece o Concierge: primeiro numa frase, por último numa busca curta", () => {
+    const items = (query: string, concierge: "ready" | "off" | null) =>
+      paletteItems({
+        query,
+        results: RESULTS,
+        canCreateProject: false,
+        concierge,
+      });
+    const frase = items("cria uma tarefa de revisar o contrato", "ready");
+    expect(frase[0]).toMatchObject({
+      id: "concierge",
+      group: "Concierge",
+      label: "Pedir ao Concierge: “cria uma tarefa de revisar o contrato”",
+      hint: "prévia antes de executar",
+      action: "concierge",
+    });
+    const busca = items("mapa", "off");
+    expect(busca.at(-1)).toMatchObject({
+      id: "concierge",
+      hint: "sem IA configurada",
+    });
+    expect(busca[0].group).not.toBe("Concierge");
+    // Curto demais, ou antes de saber se o Concierge existe: não aparece.
+    expect(items("ma", "ready").some((i) => i.id === "concierge")).toBe(false);
+    expect(items("mapa", null).some((i) => i.id === "concierge")).toBe(false);
+    expect(looksLikeRequest("abre o quadro")).toBe(true);
+    expect(looksLikeRequest("HUB-12")).toBe(false);
   });
 
   it("setas dão a volta nas pontas", () => {

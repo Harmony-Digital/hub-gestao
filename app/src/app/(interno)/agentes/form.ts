@@ -104,6 +104,19 @@ function texts(form: FormData, name: string): string[] {
 }
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const ROLE = /^[A-Z]{2}-[0-9]{2}$/;
+
+/**
+ * Papéis do catálogo (AGENTES.md) marcados no formulário. Sem o marcador do campo
+ * (página aberta antes de o campo existir), undefined: os papéis ficam como estão.
+ */
+function roles(form: FormData): string[] | undefined {
+  if (text(form, "roles_presentes") !== "1") return undefined;
+  return [...new Set(texts(form, "roles").filter((r) => ROLE.test(r)))].slice(
+    0,
+    20,
+  );
+}
 const BUDGET = /^\d{1,5}(?:[.,]\d{1,2})?$/;
 
 function agentName(form: FormData): Parsed<string> {
@@ -168,6 +181,7 @@ export function parseNewAgentForm(form: FormData): Parsed<{
   department?: string;
   mission?: string;
   budget_usd_month?: number;
+  roles?: string[];
 }> {
   const name = agentName(form);
   if (!name.ok) return name;
@@ -178,6 +192,7 @@ export function parseNewAgentForm(form: FormData): Parsed<{
   const details = agentDetails(form);
   if (!details.ok) return details;
   const { department, mission, budget_usd_month } = details.value;
+  const chosen = roles(form);
   return {
     ok: true,
     value: {
@@ -186,6 +201,7 @@ export function parseNewAgentForm(form: FormData): Parsed<{
       ...(department ? { department } : {}),
       ...(mission ? { mission } : {}),
       ...(budget_usd_month ? { budget_usd_month } : {}),
+      ...(chosen?.length ? { roles: chosen } : {}),
     },
   };
 }
@@ -198,6 +214,7 @@ export function parseAgentEditForm(form: FormData): Parsed<{
     mission: string | null;
     budget_usd_month: number;
     owner: string | null;
+    roles?: string[];
   };
 }> {
   const id = text(form, "id");
@@ -212,11 +229,17 @@ export function parseAgentEditForm(form: FormData): Parsed<{
   if (owner && !UUID.test(owner)) {
     return { ok: false, message: "Responsável inválido. Recarregue a página." };
   }
+  const chosen = roles(form);
   return {
     ok: true,
     value: {
       id,
-      input: { name: name.value, ...details.value, owner: owner || null },
+      input: {
+        name: name.value,
+        ...details.value,
+        owner: owner || null,
+        ...(chosen ? { roles: chosen } : {}),
+      },
     },
   };
 }

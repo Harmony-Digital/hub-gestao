@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { IDLE, type ActionState } from "@/lib/action-state";
 import { mudarStatusAgente, salvarAgente } from "./actions";
+import { RolesField } from "./roles-field";
 
 /** O agente como o formulário de edição precisa. */
 export type AgentInitial = {
@@ -23,6 +24,7 @@ export type AgentInitial = {
   budgetUsdMonth: number;
   owner: string | null;
   ownerName: string | null;
+  roles: string[];
 };
 
 export type AgentFormOptions = {
@@ -162,6 +164,7 @@ function AgentForm({
             className={textareaClass}
           />
         </Field>
+        <RolesField roles={agent.roles} />
       </fieldset>
 
       <div aria-live="polite">

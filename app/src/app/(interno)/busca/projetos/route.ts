@@ -2,6 +2,7 @@ import { can } from "@/lib/authorize";
 import { toHubError } from "@/lib/errors";
 import { log } from "@/lib/log";
 import { actionContext } from "@/lib/ui-context";
+import { conciergeReady } from "@/modules/concierge/service";
 import { inTx } from "@/modules/context";
 import { listProjects } from "@/modules/projects/service";
 
@@ -9,19 +10,25 @@ const HEADERS = { "Cache-Control": "private, no-store" };
 
 /**
  * Projetos ativos de quem está logado, para a criação rápida de tarefa (de qualquer tela),
- * e se a pessoa pode cadastrar projeto (atalho "Novo projeto" da janela ⌘K).
+ * se a pessoa pode cadastrar projeto (atalho "Novo projeto" da janela ⌘K) e se o
+ * Concierge está pronto (agente CO-10 com modelo de IA) ou sem IA configurada.
  */
 export async function GET() {
   const ctx = await actionContext();
   try {
-    const projects = await inTx(ctx, async (t) =>
-      (await listProjects(t)).items.map((p) => ({
+    const { projects, concierge } = await inTx(ctx, async (t) => ({
+      projects: (await listProjects(t)).items.map((p) => ({
         code: p.code,
         name: p.name,
       })),
-    );
+      concierge: (await conciergeReady(t)) ? "ready" : "off",
+    }));
     return Response.json(
-      { projects, canCreateProject: can(ctx.actor, "workspace.admin") },
+      {
+        projects,
+        canCreateProject: can(ctx.actor, "workspace.admin"),
+        concierge,
+      },
       { headers: HEADERS },
     );
   } catch (err) {

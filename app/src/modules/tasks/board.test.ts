@@ -317,6 +317,13 @@ describe("histórico em PT-BR", () => {
     expect(describeTaskEvent("task.updated", { due_date: null }).text).toBe(
       "tirou o prazo",
     );
+    expect(
+      describeTaskEvent("concierge.confirmed", { voice: true, edited: false })
+        .text,
+    ).toBe("confirmou o pedido feito por voz ao Concierge");
+    expect(
+      describeTaskEvent("concierge.confirmed", { voice: false }).text,
+    ).toBe("confirmou o pedido feito ao Concierge");
     expect(describeTaskEvent("task.updated", {}).text).toBe(
       "atualizou a tarefa",
     );

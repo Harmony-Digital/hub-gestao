@@ -1,6 +1,8 @@
 import "server-only";
 import type { PGlite } from "@electric-sql/pglite";
+import { encryptSecret } from "@/lib/crypto";
 import type { AgentActor, UserActor } from "@/lib/db/actor";
+import { encryptionKeyOrNull } from "@/lib/env";
 import { requestApproval } from "@/modules/approvals/service";
 import { createComment } from "@/modules/comments/service";
 import { inTx } from "@/modules/context";
@@ -29,6 +31,7 @@ export async function ensureDevSample(db: Db, raw: PGlite): Promise<void> {
   if (exists.rows.length > 0) {
     // Bancos locais criados antes dos pedidos de exemplo ganham só os pedidos.
     await ensureSampleApprovals(db, raw);
+    await ensureSampleConcierge(raw);
     return;
   }
 
@@ -250,6 +253,7 @@ export async function ensureDevSample(db: Db, raw: PGlite): Promise<void> {
     ),
   );
   await ensureSampleApprovals(db, raw);
+  await ensureSampleConcierge(raw);
 }
 
 /**
@@ -332,5 +336,56 @@ async function ensureSampleApprovals(db: Db, raw: PGlite): Promise<void> {
         ],
       },
     }),
+  );
+}
+
+/**
+ * Concierge de exemplo (papel CO-10), para ver a barra ⌘K com o Concierge no computador.
+ * Com o modelo simulado ligado (HUB_DEV_FAKE_LLM=on) e a cifra local, ele já vem com
+ * modelo, chave de mentira, preço e teto; sem isso, fica sem IA (a tela mostra o motivo).
+ */
+async function ensureSampleConcierge(raw: PGlite): Promise<void> {
+  const ws = (
+    await raw.query<{ id: string }>(
+      `select id from ${S}.workspaces where slug = 'harmony'`,
+    )
+  ).rows[0]?.id;
+  if (!ws) return;
+  const agent = (
+    await raw.query<{ id: string; configured: boolean }>(
+      `insert into ${S}.agents (workspace_id, name, kind, roles, mission)
+       values ($1, 'Concierge (exemplo)', 'internal', array['CO-10'],
+               'Concierge de exemplo, só no banco local: entende pedidos da barra ⌘K.')
+       on conflict (workspace_id, name) do update set name = excluded.name
+       returning id, llm_model is not null as configured`,
+      [ws],
+    )
+  ).rows[0];
+  const key = encryptionKeyOrNull();
+  if (
+    !agent ||
+    agent.configured ||
+    process.env.HUB_DEV_FAKE_LLM !== "on" ||
+    !key
+  ) {
+    return;
+  }
+  // Chave de mentira: o modelo simulado não chama provedor nenhum.
+  const fake = "sk-modelo-simulado-somente-local-0000";
+  const credential = (
+    await raw.query<{ id: string }>(
+      `insert into ${S}.llm_credentials (workspace_id, provider, label, key_ciphertext, key_last4)
+       values ($1, 'openai', 'Modelo simulado (só neste computador)', $2, $3)
+       returning id`,
+      [ws, encryptSecret(fake, key), fake.slice(-4)],
+    )
+  ).rows[0];
+  await raw.query(
+    `update ${S}.agents
+        set llm_provider = 'openai', llm_model = 'modelo-simulado',
+            llm_credential_id = $2, budget_usd_month = 1,
+            config = config || '{"llm_price_in": 1, "llm_price_out": 2}'::jsonb
+      where id = $1`,
+    [agent.id, credential.id],
   );
 }

@@ -52,6 +52,9 @@ export default defineConfig({
       HUB_DEV_LOGIN_SECRET: randomBytes(32).toString("hex"),
       HUB_DEV_SAMPLE: "on",
       HUB_API_KEY_PEPPER: randomBytes(32).toString("hex"),
+      // Concierge com o modelo simulado (nenhum provedor é chamado no CI).
+      HUB_DEV_FAKE_LLM: "on",
+      HUB_ENCRYPTION_KEY: randomBytes(32).toString("base64"),
     },
   },
 });
