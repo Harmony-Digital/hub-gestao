@@ -211,7 +211,7 @@ hub_get_today / hub_list_tasks     # fila: minhas tarefas, ordem de prioridade, 
 hub_start_task(code)               # UMA tarefa em andamento por agente (salvo lote autorizado)
 … trabalho real …
 hub_comment(code, texto)           # progresso relevante, decisões técnicas, dúvidas (interno)
-hub_block_task(code, motivo)       # bloqueio: dizer o que falta e de quem depende
+hub_block_task(code, motivo, waiting_on?)  # bloqueio: dizer o que falta e de quem depende; waiting_on indica quem destrava (pessoa ou agente), que recebe aviso
 hub_complete_task(code, evidence)  # evidência obrigatória: SHA, URL, arquivo, teste
 hub_create_task(...)               # trabalho descoberto: nível operacional, ligado à frente/pai
 hub plan push                      # fim de sessão: devolve o estado ao Hub e regrava o plan.md

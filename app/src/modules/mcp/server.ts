@@ -47,6 +47,7 @@ import {
 } from "@/modules/reports/service";
 import { search, SearchDto } from "@/modules/search/service";
 import {
+  BlockTaskInput,
   CreateTaskInput,
   TaskDto,
   TaskFilter,
@@ -401,7 +402,7 @@ export function buildMcpServer(
           "Marca a tarefa como bloqueada, dizendo o que falta e de quem depende.",
         inputSchema: z.strictObject({
           code: TaskCode,
-          reason: Text(2000),
+          ...BlockTaskInput.shape,
           ...writeFields,
         }),
         outputSchema: TaskDto,
@@ -409,7 +410,10 @@ export function buildMcpServer(
       },
       async (args) =>
         write("hub_block_task", args, (t) =>
-          blockTask(t, args.code, { reason: args.reason }),
+          blockTask(t, args.code, {
+            reason: args.reason,
+            waiting_on: args.waiting_on,
+          }),
         ),
     );
 

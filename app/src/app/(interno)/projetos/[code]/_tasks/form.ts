@@ -122,6 +122,7 @@ export function parseMoveForm(form: FormData): Parsed<{
   status_id: string;
   evidence?: string;
   reason?: string;
+  waiting_on?: { type: "user" | "agent"; id: string };
 }> {
   const ref = taskRef(form);
   if (!ref.ok) return ref;
@@ -132,6 +133,9 @@ export function parseMoveForm(form: FormData): Parsed<{
   if (evidence.length > 2000 || reason.length > 2000) {
     return { ok: false, message: "Use até 2 mil caracteres." };
   }
+  // Quem destrava (só vale ao bloquear; o núcleo confere se é do workspace).
+  const waiting = parseAssignee(text(form, "waiting_on"));
+  if (!waiting.ok) return waiting;
   return {
     ok: true,
     value: {
@@ -139,6 +143,7 @@ export function parseMoveForm(form: FormData): Parsed<{
       status_id: statusId,
       ...(evidence ? { evidence } : {}),
       ...(reason ? { reason } : {}),
+      ...(reason && waiting.value ? { waiting_on: waiting.value } : {}),
     },
   };
 }

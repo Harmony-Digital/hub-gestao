@@ -8,6 +8,7 @@ import {
   CircleDashed,
   CirclePause,
   Clock3,
+  Hand,
   ListChecks,
   TriangleAlert,
 } from "lucide-react";
@@ -66,6 +67,9 @@ function plural(n: number, one: string, many: string) {
 async function TodayView() {
   const { user, ctx } = await pageContext();
   const data = await inTx(ctx, (t) => cockpit(t));
+  // "Esperando você" sai da lista geral de bloqueios, para não aparecer duas vezes.
+  const waitingCodes = new Set(data.waiting_on_me.map((t) => t.code));
+  const otherBlocked = data.blocked.filter((t) => !waitingCodes.has(t.code));
   const now = new Date();
   const today = todayKey(now);
   const firstName = user.fullName.trim().split(/\s+/)[0];
@@ -161,42 +165,30 @@ async function TodayView() {
           </div>
 
           <aside className="flex min-w-0 flex-col gap-6">
+            {data.waiting_on_me.length > 0 ? (
+              <Section
+                id="esperando-voce"
+                title="Esperando você"
+                icon={<Hand aria-hidden="true" className="size-4" />}
+                count={data.waiting_on_me.length}
+                note="Tarefas bloqueadas em que você é quem destrava."
+              >
+                <BlockedList tasks={data.waiting_on_me} />
+              </Section>
+            ) : null}
             <Section
               id="bloqueios"
-              title="Bloqueios"
+              title={
+                data.waiting_on_me.length > 0 ? "Outros bloqueios" : "Bloqueios"
+              }
               icon={<Ban aria-hidden="true" className="size-4" />}
-              count={data.blocked.length}
+              count={otherBlocked.length}
               note="O que está parado e do que depende."
             >
-              {data.blocked.length === 0 ? (
+              {otherBlocked.length === 0 ? (
                 <Empty>Nada bloqueado nos seus projetos.</Empty>
               ) : (
-                <ul className="flex flex-col gap-2">
-                  {data.blocked.map((t) => (
-                    <li key={t.code}>
-                      <Link
-                        href={taskHref(t)}
-                        prefetch={false}
-                        className="block rounded-xl border border-danger/30 bg-danger-soft/40 p-3 text-sm hover:border-danger/60"
-                      >
-                        <span className="font-mono text-xs font-semibold text-danger-fg">
-                          {t.code}
-                        </span>{" "}
-                        <span className="font-mono text-xs text-caption">
-                          {t.project_code}
-                        </span>
-                        <span className="mt-0.5 block font-medium text-navy">
-                          {t.title}
-                        </span>
-                        {t.blocked_reason ? (
-                          <span className="mt-1 block text-ink-2">
-                            {t.blocked_reason}
-                          </span>
-                        ) : null}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+                <BlockedList tasks={otherBlocked} />
               )}
             </Section>
 
@@ -370,6 +362,41 @@ function Section({
       </div>
       {children}
     </section>
+  );
+}
+
+/** Cartões de tarefa bloqueada: código, projeto, título, motivo e quem destrava. */
+function BlockedList({ tasks }: { tasks: TaskSummary[] }) {
+  return (
+    <ul className="flex flex-col gap-2">
+      {tasks.map((t) => (
+        <li key={t.code}>
+          <Link
+            href={taskHref(t)}
+            prefetch={false}
+            className="block rounded-xl border border-danger/30 bg-danger-soft/40 p-3 text-sm hover:border-danger/60"
+          >
+            <span className="font-mono text-xs font-semibold text-danger-fg">
+              {t.code}
+            </span>{" "}
+            <span className="font-mono text-xs text-caption">
+              {t.project_code}
+            </span>
+            <span className="mt-0.5 block font-medium text-navy">
+              {t.title}
+            </span>
+            {t.blocked_reason ? (
+              <span className="mt-1 block text-ink-2">{t.blocked_reason}</span>
+            ) : null}
+            {t.blocked_on?.name ? (
+              <span className="mt-1 block text-xs text-caption">
+                Esperando: {t.blocked_on.name}
+              </span>
+            ) : null}
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 

@@ -83,6 +83,7 @@ describe("grupos pela data", () => {
     assignee: null,
     due_date: due,
     blocked_reason: null,
+    blocked_on: null,
     parent_code: null,
   });
 

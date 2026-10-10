@@ -13,6 +13,9 @@ export const TodayDto = z.object({
   blocked: z
     .array(TaskSummary)
     .describe("Tarefas bloqueadas nos meus projetos."),
+  waiting_on_me: z
+    .array(TaskSummary)
+    .describe("Bloqueadas esperando por mim (eu sou quem destrava)."),
   due_soon: z
     .array(TaskSummary)
     .describe("Abertas que vencem nos próximos 3 dias."),
@@ -25,6 +28,7 @@ export const TodayDto = z.object({
     my_open: z.number().int(),
     in_progress: z.number().int(),
     blocked: z.number().int(),
+    waiting_on_me: z.number().int(),
     due_soon: z.number().int(),
     pending_approvals: z.number().int(),
   }),
@@ -46,6 +50,7 @@ export async function today(t: TxCtx): Promise<TodayDto> {
 
   let myTasks: SummaryRow[] = [];
   let blocked: SummaryRow[] = [];
+  let waitingOnMe: SummaryRow[] = [];
   let dueSoon: SummaryRow[] = [];
   if (canReadTasks && t.actor.id) {
     const mineParams: unknown[] = [t.actor.type, t.actor.id];
@@ -57,6 +62,16 @@ export async function today(t: TxCtx): Promise<TodayDto> {
           and ${projectScopeSql(t.actor, "t.project_id", mineParams)}
         ${ORDER} limit 50`,
       mineParams,
+    );
+    const waitingParams: unknown[] = [t.actor.type, t.actor.id];
+    waitingOnMe = await many<SummaryRow>(
+      t,
+      `${TASK_SUMMARY_SELECT}
+        where t.archived_at is null and t.status_category = 'blocked'
+          and t.blocked_on_type::text = $1 and t.blocked_on_id = $2
+          and ${projectScopeSql(t.actor, "t.project_id", waitingParams)}
+        ${ORDER} limit 50`,
+      waitingParams,
     );
   }
   if (canReadTasks) {
@@ -94,6 +109,7 @@ export async function today(t: TxCtx): Promise<TodayDto> {
   return {
     my_tasks: myTasks.map(toTaskSummary),
     blocked: blocked.map(toTaskSummary),
+    waiting_on_me: waitingOnMe.map(toTaskSummary),
     due_soon: dueSoon.map(toTaskSummary),
     pending_approvals: approvals,
     counts: {
@@ -101,6 +117,7 @@ export async function today(t: TxCtx): Promise<TodayDto> {
       in_progress: myTasks.filter((r) => r.status_category === "in_progress")
         .length,
       blocked: blocked.length,
+      waiting_on_me: waitingOnMe.length,
       due_soon: dueSoon.length,
       pending_approvals: approvals.length,
     },

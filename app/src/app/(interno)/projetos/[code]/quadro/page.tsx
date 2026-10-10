@@ -156,6 +156,7 @@ async function BoardView({
             cards={cards}
             lanes={lanes.length ? lanes : null}
             laneBy={lanes.length ? laneBy : null}
+            assignees={data.assignees}
           />
         </main>
       </div>
