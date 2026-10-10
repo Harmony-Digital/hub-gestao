@@ -1,7 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useMemo, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { LoaderCircle, Search } from "lucide-react";
 import {
   paletteItems,
@@ -10,6 +16,7 @@ import {
   type SearchResult,
 } from "./palette-items";
 import { QuickCreateDialog } from "./quick-create";
+import { darkNow, setTheme, subscribeTheme } from "./theme";
 
 export const OPEN_SEARCH_EVENT = "hub:abrir-busca";
 export const OPEN_QUICK_CREATE_EVENT = "hub:nova-tarefa";
@@ -39,6 +46,7 @@ export function CommandPalette() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [canCreateProject, setCanCreateProject] = useState(false);
   const [creating, setCreating] = useState(false);
+  const dark = useSyncExternalStore(subscribeTheme, darkNow, () => false);
   const listId = useId();
 
   // Atalho ⌘K / Ctrl+K e os botões do menu (eventos).
@@ -119,8 +127,8 @@ export function CommandPalette() {
   const searchError = current && "error" in current ? current.error : null;
   const searching = term.length >= 2 && current === null;
   const items = useMemo(
-    () => paletteItems({ query: term, results, canCreateProject }),
-    [term, results, canCreateProject],
+    () => paletteItems({ query: term, results, canCreateProject, dark }),
+    [term, results, canCreateProject, dark],
   );
   const activeIndex = Math.max(
     0,
@@ -139,6 +147,7 @@ export function CommandPalette() {
   function choose(item: PaletteItem) {
     dialog?.close();
     if (item.action === "nova-tarefa") setCreating(true);
+    else if (item.action === "tema") setTheme(dark ? "claro" : "escuro");
     else if (item.href) router.push(item.href);
   }
 

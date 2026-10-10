@@ -85,6 +85,18 @@ describe("janela ⌘K", () => {
     ]);
   });
 
+  it("oferece o outro tema", () => {
+    const label = (dark: boolean) =>
+      paletteItems({
+        query: "tema",
+        results: null,
+        canCreateProject: false,
+        dark,
+      }).map((i) => i.label);
+    expect(label(false)).toEqual(["Usar o tema escuro"]);
+    expect(label(true)).toEqual(["Usar o tema claro"]);
+  });
+
   it("setas dão a volta nas pontas", () => {
     expect(step(-1, 3, 1)).toBe(0);
     expect(step(-1, 3, -1)).toBe(2);
