@@ -8111,6 +8111,12 @@
                 "minimum": -9007199254740991,
                 "maximum": 9007199254740991
               },
+              "linked": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Itens sem código ligados a uma tarefa que já existia (mesmo título, mesma frente)."
+              },
               "completed": {
                 "type": "integer",
                 "minimum": -9007199254740991,
@@ -8149,6 +8155,7 @@
             },
             "required": [
               "created",
+              "linked",
               "completed",
               "reopened",
               "renamed",

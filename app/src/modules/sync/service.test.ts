@@ -145,6 +145,37 @@ describe("push", () => {
     ).toBe(1);
   });
 
+  it("o mesmo arquivo sem os códigos (a Action não regrava) liga em vez de duplicar", async () => {
+    const file =
+      "## M1 — Agente no WhatsApp\n### Fluxo de atendimento\n- [ ] Item da Action\n  - [ ] Subitem da Action\n";
+    const first = await sync("push", file, { commit_sha: "aaaaaaa1" });
+    expect(first.summary).toMatchObject({ created: 2, linked: 0 });
+    // O repositório continua com o arquivo sem códigos; o autor marca o item.
+    const second = await sync(
+      "push",
+      file.replace("- [ ] Item", "- [x] Item"),
+      {
+        commit_sha: "bbbbbbb2",
+        base_markdown: file,
+      },
+    );
+    expect(second.summary).toMatchObject({
+      created: 0,
+      linked: 2,
+      completed: 1,
+    });
+    expect(codesIn(second.markdown)).toEqual(codesIn(first.markdown));
+    expect(
+      await count(
+        h,
+        `select count(*)::int as n from ${S}.tasks where title in ('Item da Action', 'Subitem da Action')`,
+      ),
+    ).toBe(2);
+    // Item novo com o mesmo título de uma tarefa já citada no arquivo vira outra tarefa.
+    const twice = await sync("push", `${first.markdown}- [ ] Item da Action\n`);
+    expect(twice.summary).toMatchObject({ created: 1, linked: 0 });
+  });
+
   it("com o commit, conclui o item marcado sem evidência escrita", async () => {
     const result = await sync(
       "push",

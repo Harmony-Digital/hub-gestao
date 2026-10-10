@@ -1,0 +1,22 @@
+name: Plano no Hub
+
+# O PLAN.md deste repositório no projeto HUB do próprio Hub (dogfooding, M4): a cada push
+# na main que mexe no plano, roda o hub plan push pelo workflow reutilizável.
+# Desligado até o Fábio criar a chave de sincronização do projeto HUB, guardá-la no
+# segredo HUB_SYNC_KEY e ligar a variável HUB_SYNC_ENABLED = true (passo a passo em
+# docs/cli.md). Antes disso, os marcos do PLAN.md precisam existir no Hub (importação).
+on:
+  push:
+    branches: [main]
+    paths: [PLAN.md]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  plano:
+    if: vars.HUB_SYNC_ENABLED == 'true'
+    uses: ./.github/workflows/hub-sync.yml
+    secrets:
+      HUB_API_KEY: ${{ secrets.HUB_SYNC_KEY }}

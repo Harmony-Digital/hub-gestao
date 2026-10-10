@@ -182,11 +182,12 @@ describe("onde a porta não roda", () => {
     "/_next/image",
     "/favicon.ico",
     "/brand/harmony-logo-branco.png",
+    "/cli/hub.mjs",
   ])("fica fora: %s (API e MCP exigem chave de agente)", (path) => {
     expect(matcher.test(path)).toBe(false);
   });
 
-  it.each(["/", "/login", "/auth/confirmar", "/projetos/HUB"])(
+  it.each(["/", "/login", "/auth/confirmar", "/projetos/HUB", "/clientes"])(
     "passa pela porta: %s",
     (path) => {
       expect(matcher.test(path)).toBe(true);
