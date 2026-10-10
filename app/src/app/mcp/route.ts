@@ -3,7 +3,9 @@ import { serverEnv } from "@/lib/env";
 import { badRequest, methodNotAllowed, toHubError } from "@/lib/errors";
 import {
   authenticateRequest,
+  denialWhoFor,
   logFailure,
+  noteDenial,
   problemResponse,
   readJsonBody,
   requestIdOf,
@@ -32,7 +34,16 @@ export async function POST(req: Request): Promise<Response> {
     if (actor.type === "agent" && claimKeyTouch(actor.keyId)) {
       await inTx(ctx, (t) => touchKey(t, actor.keyId));
     }
-    const server = buildMcpServer(ctx, serverEnv().appVersion);
+    // Ferramenta pedida (uma mensagem por pedido): nome para o registro de recusas.
+    const call = body as { method?: unknown; params?: { name?: unknown } };
+    const tool =
+      call?.method === "tools/call" && typeof call.params?.name === "string"
+        ? call.params.name.slice(0, 80)
+        : "MCP";
+    const who = denialWhoFor(actor);
+    const server = buildMcpServer(ctx, serverEnv().appVersion, (err) =>
+      noteDenial(who, "mcp", tool, err),
+    );
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
@@ -47,6 +58,7 @@ export async function POST(req: Request): Promise<Response> {
   } catch (raw) {
     const err = toHubError(raw);
     logFailure(err, raw, requestId, path);
+    await noteDenial(null, "mcp", "conexão ao MCP", raw);
     return problemResponse(err, path, requestId);
   }
 }

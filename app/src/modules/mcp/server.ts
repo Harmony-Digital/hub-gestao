@@ -127,7 +127,12 @@ const writeFields = {
 
 type WriteArgs = { papel?: string; idempotency_key: string };
 
-export function buildMcpServer(base: Ctx, version: string): McpServer {
+export function buildMcpServer(
+  base: Ctx,
+  version: string,
+  /** Chamado com o erro de uma ferramenta (registro de recusas na Sala de Controle). */
+  onFailure?: (err: unknown) => Promise<void>,
+): McpServer {
   const server = new McpServer(
     { name: "hub-gestao", title: "Hub de Gestão · Harmony Digital", version },
     { instructions: MCP_INSTRUCTIONS },
@@ -145,6 +150,7 @@ export function buildMcpServer(base: Ctx, version: string): McpServer {
     try {
       return success(await inTx(base, fn));
     } catch (err) {
+      await onFailure?.(err);
       return failure(err);
     }
   };
@@ -168,6 +174,7 @@ export function buildMcpServer(base: Ctx, version: string): McpServer {
       );
       return success(response.body);
     } catch (err) {
+      await onFailure?.(err);
       return failure(err);
     }
   };

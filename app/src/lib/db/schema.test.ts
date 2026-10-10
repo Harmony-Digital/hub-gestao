@@ -112,11 +112,12 @@ describe("migrations", () => {
       "hub_gestao_0009_review_hardening.sql",
       "hub_gestao_0010_auth_login.sql",
       "hub_gestao_0011_attachment_contents.sql",
+      "hub_gestao_0012_agent_denials.sql",
     ]);
     const tables = await raw.query<{ n: number }>(
       `select count(*)::int as n from pg_tables where schemaname = '${S}'`,
     );
-    expect(tables.rows[0].n).toBe(40);
+    expect(tables.rows[0].n).toBe(41);
   });
 
   it("liga RLS em todas as tabelas do schema", async () => {

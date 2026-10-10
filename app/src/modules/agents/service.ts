@@ -31,6 +31,7 @@ import {
   Uuid,
 } from "@/modules/common";
 import { json, many, maybeOne, S, type TxCtx } from "@/modules/context";
+import { withDenialWho } from "./denials";
 
 // Autenticação ------------------------------------------------------------------------
 
@@ -79,19 +80,35 @@ export async function authenticateAgent(
   if (!row || !verifyAgentKey(parsed.key, row.key_hash, pepper)) {
     throw unauthorized(INVALID_KEY);
   }
+  // Chave conhecida: a recusa vai para a Sala de Controle (denials.ts).
+  const who = {
+    workspaceId: row.workspace_id,
+    agentId: row.agent_id,
+    keyPrefix: parsed.prefix,
+  };
   if (row.revoked_at)
-    throw unauthorized(
-      "Esta chave foi revogada. Peça uma chave nova ao Fábio.",
+    throw withDenialWho(
+      unauthorized("Esta chave foi revogada. Peça uma chave nova ao Fábio."),
+      who,
     );
   if (new Date(row.expires_at).getTime() <= now.getTime()) {
-    throw unauthorized("Esta chave venceu. Peça uma chave nova ao Fábio.");
+    throw withDenialWho(
+      unauthorized("Esta chave venceu. Peça uma chave nova ao Fábio."),
+      who,
+    );
   }
   if (row.agent_status === "revoked") {
-    throw unauthorized("Este agente foi desativado no Hub.");
+    throw withDenialWho(
+      unauthorized("Este agente foi desativado no Hub."),
+      who,
+    );
   }
   if (row.agent_status === "paused") {
-    throw locked(
-      "O Fábio pausou este agente. Nenhuma ação é aceita até ele reativar.",
+    throw withDenialWho(
+      locked(
+        "O Fábio pausou este agente. Nenhuma ação é aceita até ele reativar.",
+      ),
+      who,
     );
   }
   const scopes = row.scopes.filter((s) => isAgentScope(s));
@@ -102,6 +119,7 @@ export async function authenticateAgent(
     workspaceId: row.workspace_id,
     name: row.agent_name,
     keyId: row.key_id,
+    keyPrefix: parsed.prefix,
     kind: row.agent_kind,
     scopes,
     // Lista de projetos guardada vale sempre; sem lista, workspace:* dá todos e o resto, nenhum.
