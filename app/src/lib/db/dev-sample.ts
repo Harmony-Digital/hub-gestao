@@ -1,6 +1,7 @@
 import "server-only";
 import type { PGlite } from "@electric-sql/pglite";
 import type { AgentActor, UserActor } from "@/lib/db/actor";
+import { requestApproval } from "@/modules/approvals/service";
 import { createComment } from "@/modules/comments/service";
 import { inTx } from "@/modules/context";
 import {
@@ -25,7 +26,11 @@ export async function ensureDevSample(db: Db, raw: PGlite): Promise<void> {
   const exists = await raw.query(
     `select 1 from ${S}.projects where code = 'EXE'`,
   );
-  if (exists.rows.length > 0) return;
+  if (exists.rows.length > 0) {
+    // Bancos locais criados antes dos pedidos de exemplo ganham só os pedidos.
+    await ensureSampleApprovals(db, raw);
+    return;
+  }
 
   const base = (
     await raw.query<{ ws: string; owner: string }>(
@@ -243,5 +248,89 @@ export async function ensureDevSample(db: Db, raw: PGlite): Promise<void> {
           "O fluxo de agendamento já cobre consulta e retorno. Falta o caso de reagendar.",
       },
     ),
+  );
+  await ensureSampleApprovals(db, raw);
+}
+
+/**
+ * Pedidos de decisão de exemplo, feitos pelo "Kratos (exemplo)" como Gestor de Projetos,
+ * para ver a tela Hoje e as Aprovações com conteúdo. Só uma vez por banco local.
+ */
+async function ensureSampleApprovals(db: Db, raw: PGlite): Promise<void> {
+  const already = await raw.query(
+    `select 1 from ${S}.approvals a join ${S}.projects p on p.id = a.project_id
+      where p.code = 'EXE' limit 1`,
+  );
+  if (already.rows.length > 0) return;
+  const row = (
+    await raw.query<{ ws: string; agent: string; front: string | null }>(
+      `select w.id as ws, ag.id as agent,
+              (select ws.id from ${S}.workstreams ws join ${S}.projects p on p.id = ws.project_id
+                where p.code = 'EXE' and ws.visibility = 'internal'
+                  and ws.title = 'Mensagens e respostas padrão' limit 1) as front
+         from ${S}.workspaces w
+         join ${S}.agents ag on ag.workspace_id = w.id and ag.name = 'Kratos (exemplo)'
+        where w.slug = 'harmony'`,
+    )
+  ).rows[0];
+  if (!row) return;
+  const kratos: AgentActor = {
+    type: "agent",
+    id: row.agent,
+    scope: "internal",
+    keyId: "00000000-0000-4000-8000-000000000000",
+    kind: "hermes",
+    scopes: ["workspace:*"],
+    projectIds: null,
+    roles: ["GP-01", "VP-05"],
+    workspaceId: row.ws,
+    name: "Kratos (exemplo)",
+    actingRole: "GP-01",
+  };
+  const ctx = {
+    db,
+    actor: kratos,
+    source: "mcp" as const,
+    requestId: "dados-de-exemplo",
+  };
+  if (row.front) {
+    await inTx(ctx, (t) =>
+      requestApproval(t, {
+        type: "client_visibility",
+        project: "EXE",
+        workstream_id: row.front!,
+        title: "Mostrar ao cliente a frente de mensagens padrão",
+        summary:
+          "A clínica pediu para acompanhar os textos que o agente vai usar. A frente está pronta para aparecer no portal, com título escrito para ela.",
+        payload: {
+          title_client: "Mensagens do atendimento",
+          description_client:
+            "Os textos que o atendente virtual usa para responder e agendar.",
+        },
+      }),
+    );
+  }
+  await inTx(ctx, (t) =>
+    requestApproval(t, {
+      type: "replan",
+      project: "EXE",
+      title: "Mover o lançamento (M4) em uma semana",
+      summary:
+        "A integração com a agenda está bloqueada à espera da credencial da clínica. Sem ela, o treinamento da equipe não começa na data prevista.",
+    }),
+  );
+  await inTx(ctx, (t) =>
+    requestApproval(t, {
+      type: "milestone_proposal",
+      project: "EXE",
+      title: "Criar o marco M5: relatórios mensais para a clínica",
+      payload: {
+        title: "Relatórios mensais de atendimento",
+        acceptance_criteria: [
+          "Volume de conversas por semana",
+          "Agendamentos feitos pelo agente",
+        ],
+      },
+    }),
   );
 }

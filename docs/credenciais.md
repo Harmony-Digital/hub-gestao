@@ -30,7 +30,8 @@ Nenhum valor secreto entra em chat, commit, log, comentário de tarefa ou docume
 | `HUB_DEV_AGENT_KEY` | Chave do "Agente local de teste", registrada no banco local ao subir o servidor | só `.env.local` | gerada localmente; nunca existe em produção |
 | `HUB_DEV_LOGIN` | `on` liga o login de teste ("Entrar como dono, sem senha") no `/login`, só fora da produção | só `.env.local` | opcional; o CI confere que a produção recusa |
 | `HUB_DEV_LOGIN_SECRET` | Segredo de 32 caracteres ou mais que assina o cookie do login de teste | só `.env.local` | gerado localmente |
-| `HUB_DEV_SAMPLE` | `on` cria no banco local o cliente "Clínica Exemplo" e o projeto de exemplo `EXE` | só `.env.local` | opcional |
+| `HUB_DEV_SAMPLE` | `on` cria no banco local o cliente "Clínica Exemplo" e o projeto de exemplo `EXE`, com pedidos de aprovação de exemplo | só `.env.local` | opcional |
+| `HUB_DEV_POLL_MS` | Liga a observação de arquivos por consulta periódica no `next dev` (milissegundos, ex.: 1000), para quando o macOS esgota os observadores | ambiente do `next dev` local (a configuração do preview já passa) | opcional; nunca em produção |
 
 ## Segredos do GitHub Actions (M2)
 

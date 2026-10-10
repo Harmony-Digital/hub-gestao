@@ -42,7 +42,7 @@ import {
   type BoardColumn,
 } from "./board-state";
 import { IDLE, type ActionState } from "./form";
-import { ErrorNote, textareaClass } from "./task-forms";
+import { ErrorNote, textareaClass } from "@/components/forms";
 
 /** Pedido de texto ao soltar em Concluída (evidência) ou Bloqueada (motivo). */
 type NoteRequest = { card: BoardCard; column: BoardColumn };

@@ -46,13 +46,14 @@ As instruções canônicas do projeto estão em `../AGENTS.md` e valem integralm
   - parser puro e testado do `FormData` (`form.ts`) e caso de uso dentro de `inTx`;
   - `refresh()` no sucesso; erro para a tela por `actionErrorMessage()`, que usa `screenMessage()` (nome do campo em PT-BR);
   - versão velha da tarefa (412) atualiza a tela e avisa.
-- Formulário com texto digitado usa `useSubmit` (`onSubmit` + `startTransition`), porque o `<form action>` do React 19 apaga os campos mesmo quando a ação devolve erro.
+- Formulário com texto digitado usa `useSubmit` (`onSubmit` + `startTransition`), porque o `<form action>` do React 19 apaga os campos mesmo quando a ação devolve erro. `useSubmit`, `ErrorNote` e as classes dos campos ficam em `src/components/forms.tsx`; o tipo `ActionState` e o `IDLE`, em `src/lib/action-state.ts`.
+- Pedidos de aprovação: `src/app/(interno)/_approvals/` (cartões de decisão, textos de cada tipo e a ação `decidirPedido`), usados pela tela Hoje e pela de Aprovações.
 - Texto livre com links (descrição, comentário, evidência): `Linkified`, que só transforma http e https em link.
 - O jsonb do Postgres não guarda a ordem das chaves: texto montado a partir de `before` e `after` do histórico usa ordem fixa (ver `describeTaskEvent`).
 
 ## Conferência local
 
-- `npm run dev` (porta 3000) ou, no preview do app Claude, a configuração `hub-gestao` (porta 3100, com `WATCHPACK_POLLING=true`, porque o observador de arquivos do macOS esgota com EMFILE).
+- `npm run dev` (porta 3000) ou, no preview do app Claude, a configuração `hub-gestao` (porta 3100, com `WATCHPACK_POLLING=true` e `HUB_DEV_POLL_MS=1000`). Se o `next dev` cair com EMFILE ou "unable to start FSEvent stream", o macOS esgotou os observadores de arquivos: `HUB_DEV_POLL_MS` liga a observação por consulta periódica, só quando a variável existe.
 - Banco local PGlite em `.data/pglite`, com as migrations e o seed. Com `HUB_DEV_LOGIN=on`, `HUB_DEV_LOGIN_SECRET` (32 caracteres ou mais) e `HUB_DEV_SAMPLE=on` no `.env.local`, o `/login` mostra "Entrar como dono, sem senha (só neste computador)" e o banco local ganha o projeto de exemplo `EXE`.
 - Conferir as telas no computador (1440 px) e no celular (375 px), com o console do navegador e o log do servidor limpos.
 - Testes de banco com `openTestHub()` (`src/test/hub.ts`): PGlite com migrations, seed, projeto VIT, agentes e chaves criados pelo caminho real.

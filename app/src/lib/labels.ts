@@ -94,3 +94,51 @@ export const TASK_SOURCE: Record<string, string> = {
   plan_md: "pelo plan.md",
   github: "pelo GitHub",
 };
+
+/** Tipos de pedido de aprovação, como aparecem nas telas. */
+export const APPROVAL_TYPE: Record<
+  | "status_report"
+  | "milestone_acceptance"
+  | "milestone_proposal"
+  | "replan"
+  | "scope_change"
+  | "client_visibility"
+  | "external_message"
+  | "agent_key"
+  | "import_review"
+  | "custom",
+  Labeled
+> = {
+  status_report: { label: "Relatório para o cliente", tone: "info" },
+  milestone_acceptance: { label: "Aceite de marco", tone: "ok" },
+  milestone_proposal: { label: "Proposta de marco", tone: "neutral" },
+  replan: { label: "Replanejamento", tone: "warn" },
+  scope_change: { label: "Mudança de escopo", tone: "warn" },
+  client_visibility: { label: "Mostrar ao cliente", tone: "info" },
+  external_message: { label: "Mensagem externa", tone: "review" },
+  agent_key: { label: "Chave de agente", tone: "neutral" },
+  import_review: { label: "Importação de projeto", tone: "review" },
+  custom: { label: "Pedido", tone: "neutral" },
+};
+
+/** Papéis do catálogo de agentes (AGENTES.md), pelo código gravado em cada escrita. */
+export const AGENT_ROLE: Record<string, string> = {
+  "KR-00": "Kratos",
+  "GP-01": "Gestor de Projetos",
+  "CT-02": "Coordenador Tático",
+  "RL-03": "Relator de Status",
+  "QA-04": "Guardião da Qualidade",
+  "VP-05": "Vigia de Prazos e Riscos",
+  "EX-06": "Executor de Desenvolvimento",
+  "EX-07": "Executor de Design",
+  "EX-08": "Executor de Marketing e Conteúdo",
+  "EX-09": "Executor de Dados",
+  "CO-10": "Concierge do Hub",
+  "PL-11": "Planejador",
+  "RC-12": "Redator do Cliente",
+  "OB-13": "Onboarding de Cliente",
+  "AC-14": "Auditor de Acesso e Segurança",
+  "TO-15": "Controlador de Tempo e Orçamento",
+  "GH-16": "GitHub Sync",
+  "N8-17": "n8n Bridge",
+};

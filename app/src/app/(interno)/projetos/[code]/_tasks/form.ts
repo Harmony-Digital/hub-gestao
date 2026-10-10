@@ -5,14 +5,11 @@
  * (src/modules/tasks/service.ts).
  */
 
-export type ActionState =
-  | { status: "idle" }
-  | { status: "ok"; message?: string }
-  | { status: "error"; message: string };
+import type { ActionState } from "@/lib/action-state";
+
+export { IDLE, type ActionState } from "@/lib/action-state";
 
 export type CreateTaskState = ActionState | { status: "created"; code: string };
-
-export const IDLE: ActionState = { status: "idle" };
 
 export const PRIORITIES = ["urgent", "high", "normal", "low"] as const;
 export type Priority = (typeof PRIORITIES)[number];
