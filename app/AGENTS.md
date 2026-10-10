@@ -28,6 +28,7 @@ As instruções canônicas do projeto estão em `../AGENTS.md` e valem integralm
 - Código só de desenvolvimento (PGlite, login de teste) fica atrás de `process.env.NODE_ENV !== "production"` escrito direto, para o build de produção remover o ramo inteiro.
 - Rota nova: os tipos `PageProps<"/rota">` vêm do `next typegen` (o `npm run typecheck` já roda; para um `tsc` avulso, rode `npx next typegen` antes).
 - `refresh()` de `next/cache` atualiza a tela depois de uma ação de formulário.
+- Ação que termina em `redirect()` só traz a página nova, não o layout: se a barra lateral também mudou (projetos em destaque), chamar `revalidatePath("/", "layout")` antes do `redirect()`.
 - Lista longa de links de tarefa usa `prefetch={false}`.
 
 ## Telas: organização e padrões
@@ -41,6 +42,7 @@ As instruções canônicas do projeto estão em `../AGENTS.md` e valem integralm
   - `workstream-filter.tsx` e `params.ts`: filtro por frente e leitura do endereço;
   - `actions.ts` e `form.ts`: ações de formulário e leitura do `FormData`.
 - Marcos e frentes da Visão geral: pasta privada `_plan/` (`milestone-dialog.tsx`, `workstream-dialog.tsx`, `actions.ts` e `form.ts`).
+- Arquivar e restaurar (marco, frente, projeto e cliente): pasta privada `src/app/(interno)/_archive/` (`ArchiveConfirm`, `ArchiveButton`, `RestoreButton`, `ArchivedSection` e a ação `arquivar`), com o núcleo em `src/modules/archive/service.ts`. Projeto arquivado é só leitura pela regra central de `resolveProject` e `authorizeProjectId` (`src/modules/common.ts`): as telas escondem os botões de criar e editar, e o núcleo recusa a escrita de qualquer forma.
 - Dados das telas vêm de funções de leitura em `src/modules` (ex.: `modules/tasks/board.ts`, `modules/projects/overview.ts`). Mudanças passam sempre pelos casos de uso, com autorização, auditoria e `source = ui`.
 - Ação de formulário:
   - `actionContext()` fica fora do `try`: sem sessão, o redirecionamento para o login não pode ser engolido como erro comum;
@@ -59,4 +61,4 @@ As instruções canônicas do projeto estão em `../AGENTS.md` e valem integralm
 - `npm run dev` (porta 3000) ou, no preview do app Claude, a configuração `hub-gestao` (porta 3100, com `WATCHPACK_POLLING=true` e `HUB_DEV_POLL_MS=1000`). Se o `next dev` cair com EMFILE ou "unable to start FSEvent stream", o macOS esgotou os observadores de arquivos: `HUB_DEV_POLL_MS` liga a observação por consulta periódica, só quando a variável existe.
 - Banco local PGlite em `.data/pglite`, com as migrations e o seed. Com `HUB_DEV_LOGIN=on`, `HUB_DEV_LOGIN_SECRET` (32 caracteres ou mais) e `HUB_DEV_SAMPLE=on` no `.env.local`, o `/login` mostra "Entrar como dono, sem senha (só neste computador)" e o banco local ganha o projeto de exemplo `EXE`.
 - Conferir as telas no computador (1440 px) e no celular (375 px), com o console do navegador e o log do servidor limpos.
-- Testes de banco com `openTestHub()` (`src/test/hub.ts`): PGlite com migrations, seed, projeto VIT, agentes e chaves criados pelo caminho real.
+- Testes de banco com `openTestHub()` (`src/test/hub.ts`): PGlite com migrations, seed, projeto VIT, agentes e chaves criados pelo caminho real. Não usar `h.raw` dentro de um `inTx`: o PGlite atende um pedido por vez, e o teste trava até estourar o tempo.

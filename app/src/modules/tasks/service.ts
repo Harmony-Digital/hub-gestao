@@ -343,11 +343,6 @@ export async function createTask(
   input: CreateTaskInput,
 ): Promise<TaskDto> {
   const project = await resolveProject(t, input.project, "task.write");
-  if (project.status === "archived") {
-    throw unprocessable(
-      `O projeto ${project.code} está arquivado e não recebe tarefas.`,
-    );
-  }
   assertNoSecrets({
     title: input.title,
     description_md: input.description_md,

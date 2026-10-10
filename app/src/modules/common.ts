@@ -135,6 +135,32 @@ export type ProjectRef = {
   workspace_id: string;
 };
 
+/** Ações que só leem: valem também em projeto arquivado. */
+const READ_ONLY: ReadonlySet<Action> = new Set<Action>([
+  "project.read",
+  "milestone.read",
+  "workstream.read",
+  "task.read",
+  "comment.read",
+  "approval.read",
+  "report.read",
+  "agent.read",
+  "search",
+]);
+
+/** Projeto arquivado é só leitura, para pessoas e agentes; restaurar devolve as escritas. */
+function assertNotArchived(
+  project: { code: string; status: string },
+  action: Action,
+): void {
+  if (project.status === "archived" && !READ_ONLY.has(action)) {
+    throw unprocessable(
+      `O projeto ${project.code} está arquivado. Restaure o projeto para mexer nele.`,
+      { archived: true },
+    );
+  }
+}
+
 /** Acha o projeto pelo código e confere a permissão do ator para a ação. */
 export async function resolveProject(
   t: TxCtx,
@@ -162,6 +188,7 @@ export async function resolveProject(
     projectId: row.id,
     projectRole: row.member_role,
   });
+  assertNotArchived(row, action);
   return row;
 }
 
@@ -206,15 +233,18 @@ export async function authorizeProjectId(
   projectId: string,
   action: Action,
 ): Promise<void> {
-  const role =
-    t.actor.type === "user"
-      ? ((
-          await maybeOne<{ role: ProjectRole }>(
-            t,
-            `select role from ${S}.project_members where project_id = $1 and profile_id = $2`,
-            [projectId, t.actor.id],
-          )
-        )?.role ?? null)
-      : null;
-  authorize(t.actor, action, { projectId, projectRole: role });
+  const row = await maybeOne<{
+    code: string;
+    status: string;
+    role: ProjectRole | null;
+  }>(
+    t,
+    `select p.code, p.status, pm.role
+       from ${S}.projects p
+       left join ${S}.project_members pm on pm.project_id = p.id and pm.profile_id = $2
+      where p.id = $1`,
+    [projectId, t.actor.type === "user" ? t.actor.id : null],
+  );
+  authorize(t.actor, action, { projectId, projectRole: row?.role ?? null });
+  if (row) assertNotArchived(row, action);
 }

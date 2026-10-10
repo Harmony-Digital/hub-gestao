@@ -4,16 +4,18 @@ import { Suspense } from "react";
 import { Building2, Plus } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
 import { Pill, Progress } from "@/components/shell/pill";
-import { formatDayMonth } from "@/lib/format";
+import { formatDayMonth, formatTimestampDay } from "@/lib/format";
 import { HEALTH, PHASES, PROJECT_STATUS } from "@/lib/labels";
 import { Button } from "@/components/ui/button";
 import { can } from "@/lib/authorize";
 import { pageContext } from "@/lib/ui-context";
+import { archivedProjects } from "@/modules/archive/service";
 import { inTx } from "@/modules/context";
 import {
   listProjectsBoard,
   type ProjectBoardRow,
 } from "@/modules/projects/overview";
+import { ArchivedSection, archivedWhen } from "../_archive/archived-section";
 
 export const metadata: Metadata = { title: "Projetos" };
 
@@ -80,7 +82,10 @@ async function ProjectsBoard({
     : "todos";
 
   const { ctx } = await pageContext();
-  const rows = await inTx(ctx, (t) => listProjectsBoard(t));
+  const { rows, archived } = await inTx(ctx, async (t) => ({
+    rows: await listProjectsBoard(t),
+    archived: await archivedProjects(t),
+  }));
   const count = (key: FilterKey) =>
     key === "todos" ? rows.length : rows.filter((r) => r.health === key).length;
   const visible =
@@ -149,6 +154,30 @@ async function ProjectsBoard({
           </ul>
         </>
       )}
+
+      <ArchivedSection label="Projetos arquivados" count={archived.length}>
+        {archived.map((p) => (
+          <li key={p.code}>
+            <Link
+              href={`/projetos/${p.code}`}
+              prefetch={false}
+              className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 text-sm hover:bg-off"
+            >
+              <span className="w-14 font-mono text-xs font-semibold text-caption">
+                {p.code}
+              </span>
+              <span className="min-w-40 flex-1 text-ink">{p.name}</span>
+              <span className="text-xs text-caption">
+                {archivedWhen(
+                  "arquivado",
+                  formatTimestampDay(p.archived_at),
+                  p.client_name,
+                )}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ArchivedSection>
     </>
   );
 }

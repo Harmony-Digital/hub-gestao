@@ -459,11 +459,10 @@ export async function updateProject(
       `O projeto ${ref.code} mudou desde a sua leitura. Leia de novo e refaça a alteração.`,
     );
   }
-  if (ref.status === "in_review" || ref.status === "archived") {
+  // Projeto arquivado já parou em resolveProject (só leitura até ser restaurado).
+  if (ref.status === "in_review") {
     throw unprocessable(
-      ref.status === "in_review"
-        ? "Projeto em revisão: o status muda pela decisão da importação, nas Aprovações."
-        : "Projeto arquivado não é editado.",
+      "Projeto em revisão: o status muda pela decisão da importação, nas Aprovações.",
     );
   }
   const departmentIds = await checkReferences(t, input);

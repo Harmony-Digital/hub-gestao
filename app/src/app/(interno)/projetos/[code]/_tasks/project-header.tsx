@@ -1,11 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { LayoutDashboard, List, SquareKanban } from "lucide-react";
+import { Archive, LayoutDashboard, List, SquareKanban } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
 import { Avatar, Pill, Progress } from "@/components/shell/pill";
 import { initials } from "@/lib/format";
 import { HEALTH, PHASES, PROJECT_STATUS } from "@/lib/labels";
 import type { ProjectDetail } from "@/modules/projects/schemas";
+import { RestoreButton } from "../../../_archive/archive-controls";
 
 export type ProjectTab = "overview" | "list" | "board";
 
@@ -21,12 +22,15 @@ export function ProjectHeader({
   active,
   actions,
   showObjective = false,
+  canRestore = false,
 }: {
   project: ProjectDetail;
   active: ProjectTab;
   actions?: ReactNode;
   /** O objetivo aparece na visão geral; nas outras abas o espaço é das tarefas. */
   showObjective?: boolean;
+  /** Quem administra vê Restaurar no aviso de projeto arquivado. */
+  canRestore?: boolean;
 }) {
   const health = HEALTH[p.health];
   const reasons = Array.isArray(p.health_reason.reasons)
@@ -51,6 +55,27 @@ export function ProjectHeader({
       }
       actions={actions}
     >
+      {p.status === "archived" ? (
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-3 rounded-xl border border-warn/40 bg-warn-soft/60 px-4 py-3 text-sm text-ink"
+        >
+          <Archive
+            aria-hidden="true"
+            className="size-4 shrink-0 text-warn-fg"
+          />
+          <span className="min-w-56 flex-1">
+            Projeto arquivado: fica só para consulta e não recebe mudanças, nem
+            dos agentes.
+          </span>
+          {canRestore ? (
+            <RestoreButton
+              target={{ entity: "project", ref: p.code }}
+              label="Restaurar o projeto"
+            />
+          ) : null}
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
         <span className="flex items-center gap-2">
           <Pill tone={health.tone}>{health.label}</Pill>
