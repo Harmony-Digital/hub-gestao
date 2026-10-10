@@ -108,12 +108,21 @@ async function TodayView() {
                     {n}
                   </span>
                 </h2>
-                {data.canDecide ? (
-                  <p className="text-sm text-ink-2">
-                    Nada vai para o cliente, nenhum prazo muda e nenhum marco é
-                    aceito sem o seu sim.
-                  </p>
-                ) : null}
+                <p className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm text-ink-2">
+                  {data.canDecide ? (
+                    <span>
+                      Nada vai para o cliente, nenhum prazo muda e nenhum marco
+                      é aceito sem o seu sim.
+                    </span>
+                  ) : null}
+                  <Link
+                    href="/aprovacoes"
+                    className="inline-flex items-center gap-1 font-semibold text-brand-strong hover:text-navy"
+                  >
+                    Abrir todas as aprovações
+                    <ArrowUpRight aria-hidden="true" className="size-4" />
+                  </Link>
+                </p>
               </div>
               <DecisionList
                 items={decisions}

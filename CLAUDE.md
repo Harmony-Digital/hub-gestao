@@ -7,11 +7,11 @@ Projeto: **Hub de Gestão da Harmony Digital**. Sistema de gestão de projetos, 
 - **No ar** em https://hub.harmonydigital.com.br, atrás de login (D11). Cada merge na `main` passa pelo CI "Qualidade" e é publicado sozinho na VPS ("Publicação na VPS").
 - **M0, M1 e M2 concluídos e aprovados pelo Fábio** (GATE M2 em 2026-10-10: "Vamos em frente."). **M3 (interface interna) em construção.**
 - **Já funciona:**
-  - telas: Hoje (decisões com Aprovar, Ajustar e Recusar, bloqueios, riscos e o que os agentes fizeram); barra lateral; Projetos com filtro de saúde; em cada projeto, as abas Visão geral (três camadas), Lista e Quadro (Kanban de arrastar); painel lateral da tarefa (`?tarefa=HUB-n`); Nova tarefa;
+  - telas: Hoje (decisões com Aprovar, Ajustar e Recusar, bloqueios, riscos e o que os agentes fizeram); Aprovações (pendentes, histórico e filtros); barra lateral; Projetos com filtro de saúde; em cada projeto, as abas Visão geral (três camadas), Lista e Quadro (Kanban de arrastar); painel lateral da tarefa (`?tarefa=HUB-n`); Nova tarefa;
   - `/agentes`: cadastro de agentes e chaves com exibição única;
   - `/conta`: a própria pessoa define a senha;
   - agentes operam por MCP e REST em produção: o Claude Code concluiu a HUB-1 em 2026-10-10.
-- **Próximo:** tela Aprovações (filtros e histórico); depois o restante do M3.
+- **Próximo:** cadastro de clientes, projetos, marcos e frentes pela tela (para usar um projeto real, GATE M3); depois o restante do M3.
 - **Aberto com o Fábio:** destino da cópia do backup fora da VPS (D8); se quiser, o texto do e-mail do link de acesso (hoje sai com o modelo do IA Posicionamento).
 - Detalhe de cada item, com evidência, em `PLAN.md` (seção "Onde estamos" e checklist). Este resumo não substitui o plano.
 
