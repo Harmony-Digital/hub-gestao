@@ -5,6 +5,13 @@ import { toHubError } from "@/lib/errors";
 import { actionContext, actionErrorMessage } from "@/lib/ui-context";
 import { createComment } from "@/modules/comments/service";
 import { inTx } from "@/modules/context";
+import {
+  addChecklistItem,
+  addDependency,
+  removeChecklistItem,
+  removeDependency,
+  updateChecklistItem,
+} from "@/modules/tasks/extras";
 import { CreateTaskInput, UpdateTaskInput } from "@/modules/tasks/schemas";
 import {
   createTask,
@@ -14,7 +21,9 @@ import {
 } from "@/modules/tasks/service";
 import {
   changedTaskFields,
+  parseChecklistForm,
   parseCommentForm,
+  parseDependencyForm,
   parseMoveForm,
   parseNewTaskForm,
   parseTaskFieldsForm,
@@ -109,6 +118,53 @@ export async function criarTarefa(
     );
     refresh();
     return { status: "created", code: task.code };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+/** Checklist da tarefa: adicionar, marcar ou desmarcar, renomear e remover. */
+export async function checklistTarefa(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseChecklistForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  const v = parsed.value;
+  try {
+    await inTx(ctx, async (t) => {
+      if (v.op === "add") await addChecklistItem(t, v.code, v.text);
+      else if (v.op === "toggle") {
+        await updateChecklistItem(t, v.id, { done: v.done });
+      } else if (v.op === "rename") {
+        await updateChecklistItem(t, v.id, { text: v.text });
+      } else await removeChecklistItem(t, v.id);
+    });
+    refresh();
+    return { status: "ok" };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+/** Dependência: a tarefa passa a depender de outra (ou deixa de depender). */
+export async function dependenciaTarefa(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseDependencyForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  const { op, code, other } = parsed.value;
+  try {
+    await inTx(ctx, (t) =>
+      op === "add"
+        ? addDependency(t, code, other)
+        : removeDependency(t, code, other),
+    );
+    refresh();
+    return { status: "ok" };
   } catch (err) {
     return failure(err, ctx.requestId);
   }

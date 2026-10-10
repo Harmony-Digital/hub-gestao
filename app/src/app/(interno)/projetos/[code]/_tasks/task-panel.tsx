@@ -11,6 +11,7 @@ import { inTx } from "@/modules/context";
 import { taskDetail, type TaskDetail } from "@/modules/tasks/board";
 import { assigneeValue } from "./form";
 import { TaskPanelFrame } from "./panel-frame";
+import { ChecklistEditor, DependenciesEditor } from "./task-extras";
 import {
   CommentForm,
   DescriptionField,
@@ -162,6 +163,16 @@ async function PanelContent({
         </DescriptionField>
       </Section>
 
+      <Section
+        title={
+          data.checklist.length > 0
+            ? `Checklist (${data.checklist.filter((i) => i.done).length}/${data.checklist.length})`
+            : "Checklist"
+        }
+      >
+        <ChecklistEditor code={task.code} items={data.checklist} />
+      </Section>
+
       {data.subtasks.length > 0 ? (
         <Section title={`Subtarefas (${data.subtasks.length})`}>
           <ul className="flex flex-col divide-y divide-line rounded-xl border border-line">
@@ -187,6 +198,20 @@ async function PanelContent({
           </ul>
         </Section>
       ) : null}
+
+      <Section title="Dependências">
+        <DependenciesEditor
+          code={task.code}
+          blockedBy={data.dependencies.blocked_by.map((d) => ({
+            ...d,
+            href: hrefFor(d.code),
+          }))}
+          blocks={data.dependencies.blocks.map((d) => ({
+            ...d,
+            href: hrefFor(d.code),
+          }))}
+        />
+      </Section>
 
       <Section title={`Comentários (${data.comments.length})`}>
         {data.comments.length > 0 ? (

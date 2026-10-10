@@ -3,7 +3,9 @@ import {
   assigneeValue,
   changedTaskFields,
   parseAssignee,
+  parseChecklistForm,
   parseCommentForm,
+  parseDependencyForm,
   parseMoveForm,
   parseNewTaskForm,
   parseTaskFieldsForm,
@@ -221,5 +223,61 @@ describe("nova tarefa", () => {
     );
     const semTitulo = parseNewTaskForm(form({ project: "EXE", title: " " }));
     expect(semTitulo).toEqual({ ok: false, message: "Dê um título à tarefa." });
+  });
+});
+
+describe("checklist e dependências", () => {
+  const ID = "4dc6721e-2ac8-463d-84cb-3b25ab170bbd";
+  const fd = (values: Record<string, string>) => {
+    const data = new FormData();
+    for (const [k, v] of Object.entries(values)) data.append(k, v);
+    return data;
+  };
+
+  it("lê as quatro operações do checklist", () => {
+    expect(
+      parseChecklistForm(fd({ op: "add", code: "HUB-3", text: " Saudação " })),
+    ).toEqual({
+      ok: true,
+      value: { op: "add", code: "HUB-3", text: "Saudação" },
+    });
+    expect(
+      parseChecklistForm(fd({ op: "toggle", id: ID, done: "true" })),
+    ).toEqual({ ok: true, value: { op: "toggle", id: ID, done: true } });
+    expect(
+      parseChecklistForm(fd({ op: "rename", id: ID, text: "Despedida" })),
+    ).toEqual({ ok: true, value: { op: "rename", id: ID, text: "Despedida" } });
+    expect(parseChecklistForm(fd({ op: "remove", id: ID }))).toEqual({
+      ok: true,
+      value: { op: "remove", id: ID },
+    });
+  });
+
+  it("recusa item vazio, id torto e operação desconhecida", () => {
+    expect(
+      parseChecklistForm(fd({ op: "add", code: "HUB-3", text: "  " })).ok,
+    ).toBe(false);
+    expect(
+      parseChecklistForm(fd({ op: "toggle", id: "x", done: "true" })).ok,
+    ).toBe(false);
+    expect(
+      parseChecklistForm(fd({ op: "toggle", id: ID, done: "sim" })).ok,
+    ).toBe(false);
+    expect(parseChecklistForm(fd({ op: "apagar", id: ID })).ok).toBe(false);
+  });
+
+  it("dependência pelo código, em maiúsculas, nunca a própria tarefa", () => {
+    expect(
+      parseDependencyForm(fd({ op: "add", code: "HUB-3", other: " hub-7 " })),
+    ).toEqual({
+      ok: true,
+      value: { op: "add", code: "HUB-3", other: "HUB-7" },
+    });
+    expect(
+      parseDependencyForm(fd({ op: "add", code: "HUB-3", other: "HUB-3" })).ok,
+    ).toBe(false);
+    expect(
+      parseDependencyForm(fd({ op: "add", code: "HUB-3", other: "sete" })).ok,
+    ).toBe(false);
   });
 });

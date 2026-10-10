@@ -11,6 +11,12 @@ import {
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
 import type { ProjectDetail } from "@/modules/projects/schemas";
 import { getProject } from "@/modules/projects/service";
+import {
+  checklistOf,
+  dependenciesOf,
+  type ChecklistItemDto,
+  type TaskDependencies,
+} from "./extras";
 import type { TaskDto } from "./schemas";
 import { getTask, TASK_SELECT, toTaskDto, type TaskRow } from "./service";
 
@@ -194,6 +200,8 @@ export type TaskDetail = TaskFormOptions & {
   task: TaskDto;
   today: string;
   subtasks: TaskDto[];
+  checklist: ChecklistItemDto[];
+  dependencies: TaskDependencies;
   comments: CommentDto[];
   history: TaskEvent[];
 };
@@ -240,6 +248,8 @@ export async function taskDetail(t: TxCtx, code: string): Promise<TaskDetail> {
     task,
     today: await today(t),
     subtasks: subtasks.map(toTaskDto),
+    checklist: await checklistOf(t, task.id),
+    dependencies: await dependenciesOf(t, task.id),
     comments,
     history: history.map((h) => ({
       at: iso(h.created_at),
@@ -332,6 +342,26 @@ export function describeTaskEvent(
       return { text: "reabriu a tarefa", detail: text(a.reason) };
     case "comment.created":
       return { text: "comentou", detail: null };
+    case "checklist.added":
+      return { text: "pôs no checklist", detail: text(a.text) };
+    case "checklist.checked":
+      return { text: "marcou no checklist", detail: text(a.text) };
+    case "checklist.unchecked":
+      return { text: "desmarcou no checklist", detail: text(a.text) };
+    case "checklist.renamed":
+      return { text: "renomeou um item do checklist", detail: text(a.text) };
+    case "checklist.removed":
+      return { text: "tirou do checklist", detail: text(a.text) };
+    case "dependency.added":
+      return {
+        text: `passou a depender de ${text(a.blocked_by) ?? "outra tarefa"}`,
+        detail: null,
+      };
+    case "dependency.removed":
+      return {
+        text: `deixou de depender de ${text(a.blocked_by) ?? "outra tarefa"}`,
+        detail: null,
+      };
     case "task.updated": {
       // Ordem fixa: o banco (jsonb) não guarda a ordem em que os campos mudaram. O motivo
       // do bloqueio, apagado ao sair do bloqueio, já está dito na mudança de status.

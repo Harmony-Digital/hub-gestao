@@ -44,6 +44,13 @@ const VERBS: Record<string, string> = {
   "task.reopened": "reabriu",
   "task.updated": "atualizou",
   "comment.created": "comentou em",
+  "checklist.added": "mexeu no checklist de",
+  "checklist.checked": "marcou um item do checklist de",
+  "checklist.unchecked": "desmarcou um item do checklist de",
+  "checklist.renamed": "mexeu no checklist de",
+  "checklist.removed": "mexeu no checklist de",
+  "dependency.added": "mudou as dependências de",
+  "dependency.removed": "mudou as dependências de",
   "time.logged": "lançou tempo em",
   "workstream.created": "criou uma frente",
   "workstream.updated": "atualizou uma frente",
@@ -65,7 +72,17 @@ const VERBS: Record<string, string> = {
 };
 
 /** Ações cujo objeto é uma tarefa (o código vai depois do verbo). */
-const ABOUT_TASK = new Set(["comment.created", "time.logged"]);
+const ABOUT_TASK = new Set([
+  "comment.created",
+  "time.logged",
+  "checklist.added",
+  "checklist.checked",
+  "checklist.unchecked",
+  "checklist.renamed",
+  "checklist.removed",
+  "dependency.added",
+  "dependency.removed",
+]);
 
 export function describeActivity(action: string, taskCode: string | null) {
   const verb = VERBS[action] ?? action;
