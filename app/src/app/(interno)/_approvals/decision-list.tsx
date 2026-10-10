@@ -105,6 +105,9 @@ function DecisionCard({
     >
       <div className="flex flex-wrap items-center gap-2 text-xs text-caption">
         <Pill tone={item.tone}>{item.typeLabel}</Pill>
+        {item.stalledDays ? (
+          <Pill tone="warn">Parado há {item.stalledDays} dias úteis</Pill>
+        ) : null}
         {item.projectCode ? (
           <Link
             href={`/projetos/${item.projectCode}`}

@@ -181,7 +181,7 @@ Contatos e conteúdos de clientes ficam no schema do Hub com RLS por `workspace_
 
 - Merge na `main` → CI **"Qualidade"**: formato, lint, tipos, testes e build, os testes de ponta a ponta (Playwright, no `next dev` com banco local novo), mais a imagem de produção testada com as restrições da VPS (inclusive a recusa do login de teste) → **"Publicação na VPS"** (só com a variável `HUB_DEPLOY_ENABLED=true`): imagem sem segredos enviada por SSH restrito (usuário `hubdeploy`, só o comando `load <sha>`) → troca do contêiner → saúde em `/api/health` com o SHA → volta à versão anterior se falhar. Mesmo padrão do Certato, com nomes `hub-*`.
 - Contêiner `hub-app`: usuário 1001, sistema de arquivos somente leitura, sem capabilities, limites de 1,5 CPU e 2 GB, redes `hub_proxy` (Traefik) e `supabase_default` (banco). Rota do Traefik em `/etc/easypanel/traefik/config/hub.yaml`, com Let's Encrypt e cabeçalhos de segurança.
-- Jobs determinísticos: timer `hub-cron` a cada 5 minutos chama o relógio de dentro do contêiner (`app/scripts/cron-tick.mjs`). Raciocínio de agentes fica no Hermes.
+- Jobs determinísticos: timer `hub-cron` a cada 5 minutos chama o relógio de dentro do contêiner (`app/scripts/cron-tick.mjs`), que roda `health-rollup` (15 min), `approval-aging` e `evidence-check` (1 h), `webhook-dispatch` (1 min) e `idempotency-cleanup` (1 h). Raciocínio de agentes fica no Hermes.
 - Backup (D8): timer `hub-backup` diário às 06:00 UTC, `pg_dump` do schema com 14 dias de retenção em `/opt/hub-gestao/backups`. A cópia fora da VPS espera o destino escolhido pelo Fábio.
 - Encerrar entrega: CI e publicação verdes, `/api/health` com o SHA publicado, smoke test real (tela atrás de login, tarefa via MCP, ver no quadro).
 
