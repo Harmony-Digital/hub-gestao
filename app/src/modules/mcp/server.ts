@@ -47,6 +47,11 @@ import {
 } from "@/modules/reports/service";
 import { search, SearchDto } from "@/modules/search/service";
 import {
+  syncPlan,
+  SyncPlanInput,
+  SyncPlanResult,
+} from "@/modules/sync/service";
+import {
   BlockTaskInput,
   CreateTaskInput,
   TaskDto,
@@ -613,32 +618,17 @@ export function buildMcpServer(
       {
         title: "Sincronizar plan.md",
         description:
-          'Exporta o plano do projeto no formato plan.md (direction "export"). A importação (direction "import") chega no M4.',
-        inputSchema: z.strictObject({
-          project: ProjectCode,
-          direction: z.enum(["export", "import"]),
-        }),
-        outputSchema: z.object({
-          project_code: z.string(),
-          plan_path: z.string().nullable(),
-          markdown: z.string(),
-        }),
-        annotations: readOnly,
+          'Sincroniza o plan.md do projeto com o Hub, que vence os conflitos. "pull": o Hub vai para o arquivo (caixas e as tarefas que faltam). "push": item sem código vira tarefa e ganha o código; caixa marcada conclui com a evidência escrita no item ("— evidência: ...") ou com o commit_sha; com base_markdown (o arquivo da última sincronização), desmarcar reabre, renomear renomeia e tirar o item arquiva. GATE marcado no arquivo é ignorado e alertado; marco novo não é criado. Grave no repositório o markdown devolvido. Para só ler o plano, use hub_get_plan.',
+        inputSchema: SyncPlanInput.extend(writeFields),
+        outputSchema: SyncPlanResult,
+        annotations: mutating,
       },
-      async ({ project, direction }) =>
-        read(async (t) => {
-          if (direction === "import") {
-            throw badRequest(
-              "A importação do plan.md chega no M4 (hub plan push). Use as ações de tarefa por enquanto.",
-            );
-          }
-          const plan = await getPlan(t, project, "sync.plan");
-          return {
-            project_code: plan.project.code,
-            plan_path: plan.project.plan_path,
-            markdown: renderPlanMarkdown(plan),
-          };
-        }),
+      async (args) => {
+        const { papel: _p, idempotency_key: _k, ...input } = args;
+        void _p;
+        void _k;
+        return write("hub_sync_plan", args, (t) => syncPlan(t, input));
+      },
     );
   }
 

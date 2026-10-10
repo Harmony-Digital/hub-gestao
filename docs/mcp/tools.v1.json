@@ -174,9 +174,10 @@
   {
     "name": "hub_sync_plan",
     "title": "Sincronizar plan.md",
-    "description": "Exporta o plano do projeto no formato plan.md (direction \"export\"). A importação (direction \"import\") chega no M4.",
+    "description": "Sincroniza o plan.md do projeto com o Hub, que vence os conflitos. \"pull\": o Hub vai para o arquivo (caixas e as tarefas que faltam). \"push\": item sem código vira tarefa e ganha o código; caixa marcada conclui com a evidência escrita no item (\"— evidência: ...\") ou com o commit_sha; com base_markdown (o arquivo da última sincronização), desmarcar reabre, renomear renomeia e tirar o item arquiva. GATE marcado no arquivo é ignorado e alertado; marco novo não é criado. Grave no repositório o markdown devolvido. Para só ler o plano, use hub_get_plan.",
     "annotations": {
-      "readOnlyHint": true,
+      "readOnlyHint": false,
+      "destructiveHint": false,
       "openWorldHint": false
     }
   },

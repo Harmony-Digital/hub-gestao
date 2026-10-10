@@ -889,6 +889,37 @@ export async function reopenTask(
 }
 
 /**
+ * Arquiva a tarefa e as subtarefas dela: saem das listas, do quadro e do plano, sem ser
+ * apagadas, e o histórico continua. A sincronização usa quando o item sai do plan.md.
+ */
+export async function archiveTask(
+  t: TxCtx,
+  code: string,
+  input: { reason?: string } = {},
+): Promise<{ code: string; archived: string[] }> {
+  const row = await lockTask(t, code, "task.write");
+  assertNoSecrets({ reason: input.reason });
+  const archived = (
+    await many<{ code: string }>(
+      t,
+      `update ${S}.tasks set archived_at = now()
+        where (id = $1 or parent_task_id = $1) and archived_at is null
+        returning code`,
+      [row.id],
+    )
+  ).map((r) => r.code);
+  await recomputeRollup(t, row.project_id);
+  await audit(t, {
+    action: "task.archived",
+    entityType: "task",
+    entityId: row.id,
+    projectId: row.project_id,
+    after: { codes: archived, reason: input.reason ?? null },
+  });
+  return { code: row.code, archived };
+}
+
+/**
  * Muda o status pela tela (lista e quadro), escolhendo o caminho de cada destino:
  * concluir exige evidência, bloquear exige o motivo e tarefa concluída é reaberta antes.
  * Cada passo grava a própria atividade. Para pessoas: agentes usam as ações próprias

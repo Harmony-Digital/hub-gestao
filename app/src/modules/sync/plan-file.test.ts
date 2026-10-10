@@ -46,7 +46,8 @@ function sectionsWithBoxes(text: string): number[] {
       close();
       section =
         line.startsWith("## ") && !/^## Sem marco\s*$/.test(line) ? n : null;
-      has = false;
+      // Título com o código do marco é marco mesmo sem itens.
+      has = /^## (✅\s*)?M\d+\s*[—–-]/u.test(line);
       ignored = false;
     } else if (/^\s*<!--\s*hub:\s*ignorar\s*-->\s*$/.test(line)) {
       ignored = true;
@@ -146,6 +147,22 @@ describe("estrutura", () => {
       ["HUB-5", "task", 0, null, null, false],
     ]);
     expect(parsed.items[2].parent).toBe(1);
+  });
+
+  it("título com o código do marco é marco mesmo sem itens", () => {
+    const parsed = parsePlanFile(
+      "## M1 — Vazio\n### Frente sem itens\n\n## Regras\nTexto.\n",
+    );
+    expect(parsed.milestones).toMatchObject([
+      { code: "M1", title: "Vazio", end: 2 },
+    ]);
+    expect(parsed.workstreams).toMatchObject([
+      { title: "Frente sem itens", milestone: 0, end: 2 },
+    ]);
+    expect(parsed.sections.map((x) => [x.title, x.line, x.end])).toEqual([
+      ["M1 — Vazio", 0, 2],
+      ["Regras", 3, 4],
+    ]);
   });
 
   it("trata a seção com <!-- hub: ignorar --> como texto livre", () => {

@@ -418,13 +418,61 @@ describe("governança pela API", () => {
     });
     expect(today.status).toBe(200);
     expect(today.body).toHaveProperty("counts");
-    const push = await call(syncPushRoute, {
+    const invalid = await call(syncPushRoute, {
       method: "POST",
       path: "/sync/plan",
       key: h.keys.kratos,
       idempotencyKey: ikey(),
       body: {},
     });
-    expect(push.status).toBe(501);
+    expect(invalid.status).toBe(400);
+
+    // Push de verdade, e a repetição com a mesma chave devolve a mesma resposta.
+    const key = ikey();
+    const body = {
+      project: "VIT",
+      direction: "push",
+      markdown:
+        "## M1 — Agente no WhatsApp\n### Fluxo de atendimento\n- [ ] Tarefa vinda do plan.md pela API\n",
+      via: "teste",
+    };
+    const push = await call(syncPushRoute, {
+      method: "POST",
+      path: "/sync/plan",
+      key: h.keys.kratos,
+      idempotencyKey: key,
+      body,
+    });
+    expect(push.status).toBe(200);
+    expect(push.body).toMatchObject({
+      project_code: "VIT",
+      direction: "push",
+      changed: true,
+      summary: { created: 1 },
+    });
+    expect(String(push.body?.markdown)).toMatch(
+      /- \[ \] Tarefa vinda do plan\.md pela API \(HUB-\d+\)/,
+    );
+    const replay = await call(syncPushRoute, {
+      method: "POST",
+      path: "/sync/plan",
+      key: h.keys.kratos,
+      idempotencyKey: key,
+      body,
+    });
+    expect(replay.headers.get("idempotent-replayed")).toBe("true");
+    expect(replay.body).toEqual(push.body);
+    expect(
+      await count(
+        h,
+        `select count(*)::int as n from ${S}.tasks where title = 'Tarefa vinda do plan.md pela API'`,
+      ),
+    ).toBe(1);
+    expect(
+      await count(
+        h,
+        `select count(*)::int as n from ${S}.plan_sync_runs where source = 'teste'`,
+      ),
+    ).toBe(1);
   });
 });

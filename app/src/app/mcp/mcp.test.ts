@@ -350,7 +350,7 @@ describe("correções da revisão de segurança", () => {
     expect(result.content[0].text).toMatch(/uma linha só/);
   });
 
-  it("exportar o plan.md exige só sync:plan", async () => {
+  it("pull do plan.md exige só sync:plan; criar tarefa no push pede o escopo de tarefas", async () => {
     const key = await inTx(ctxFor(h, h.owner_actor, "ui"), (t) =>
       createAgentKey(
         t,
@@ -363,11 +363,33 @@ describe("correções da revisão de segurança", () => {
       ),
     );
     const sync = await connect(key.key);
-    const result = await callTool(sync, "hub_sync_plan", {
+    const pulled = await callTool(sync, "hub_sync_plan", {
+      idempotency_key: ikey(),
       project: "VIT",
-      direction: "export",
+      direction: "pull",
+      markdown: "# Plano\n\n## M1 — Agente no WhatsApp\n",
     });
-    expect(result.isError).toBeFalsy();
-    expect(result.structuredContent!.markdown).toMatch(/## M1/);
+    expect(pulled.isError).toBeFalsy();
+    expect(pulled.structuredContent!.markdown).toMatch(/## M1/);
+
+    const pushed = await callTool(sync, "hub_sync_plan", {
+      idempotency_key: ikey(),
+      project: "VIT",
+      direction: "push",
+      markdown:
+        "## M1 — Agente no WhatsApp\n### Fluxo de atendimento\n- [ ] Sem escopo de tarefa\n",
+    });
+    expect(pushed.isError).toBeFalsy();
+    const result = pushed.structuredContent as {
+      summary: { created: number };
+      conflicts: { kind: string; detail: string }[];
+    };
+    expect(result.summary.created).toBe(0);
+    expect(result.conflicts).toEqual([
+      expect.objectContaining({
+        kind: "refused",
+        detail: expect.stringMatching(/tasks:write/),
+      }),
+    ]);
   });
 });
