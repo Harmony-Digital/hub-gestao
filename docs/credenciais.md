@@ -12,7 +12,7 @@ Nenhum valor secreto entra em chat, commit, log, comentário de tarefa ou docume
 | `APP_VERSION` | SHA publicado, exibido em `/api/health` | preenchida pelo pipeline | GitHub Actions |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase compartilhado, usado pelo login da equipe (`https://supabase.harmonydigital.com.br`) | `.env.local` e build (entra na imagem, como toda `NEXT_PUBLIC_`) | fixo no workflow de publicação |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Chave pública (publishable) do Supabase, usada só pelo login; não é segredo, mas não vai para o repositório | `.env.local` e segredo do build `HUB_NEXT_PUBLIC_SUPABASE_ANON_KEY` | lida no MCP do Supabase; o Fábio cadastra o segredo |
-| `SUPABASE_SERVICE_ROLE_KEY` | Acesso total do servidor ao banco | só `.env.local` e `.env.production` | Fábio |
+| `SUPABASE_SERVICE_ROLE_KEY` | Não é usada pelo servidor do Hub: o banco é acessado pelo `DATABASE_URL`, com o papel próprio e sem passe livre na RLS. Fica no modelo só como referência | — | — |
 | `HUB_API_KEY_PEPPER` | Tempero do hash das chaves de agente | só no servidor | gerado uma vez |
 | `HUB_ENCRYPTION_KEY` | Cifra das chaves de IA guardadas no banco (AES-256-GCM) | só no servidor | gerado uma vez; se perder, as chaves de IA precisam ser recadastradas |
 | `CRON_SECRET` | Protege as rotas internas do agendador | servidor e timer da VPS | gerado |
@@ -28,6 +28,9 @@ Nenhum valor secreto entra em chat, commit, log, comentário de tarefa ou docume
 | `LOG_LEVEL` | Nível do log estruturado (padrão `info`) | servidor | opcional |
 | `HUB_DATA_DIR` | Pasta do banco local de desenvolvimento (padrão `.data/pglite`, fora do git) | só `.env.local` | opcional |
 | `HUB_DEV_AGENT_KEY` | Chave do "Agente local de teste", registrada no banco local ao subir o servidor | só `.env.local` | gerada localmente; nunca existe em produção |
+| `HUB_DEV_LOGIN` | `on` liga o login de teste ("Entrar como dono, sem senha") no `/login`, só fora da produção | só `.env.local` | opcional; o CI confere que a produção recusa |
+| `HUB_DEV_LOGIN_SECRET` | Segredo de 32 caracteres ou mais que assina o cookie do login de teste | só `.env.local` | gerado localmente |
+| `HUB_DEV_SAMPLE` | `on` cria no banco local o cliente "Clínica Exemplo" e o projeto de exemplo `EXE` | só `.env.local` | opcional |
 
 ## Segredos do GitHub Actions (M2)
 
