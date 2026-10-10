@@ -27,6 +27,7 @@ describe("fila de jobs", () => {
     const first = await tick(h.db, h.ws, { encryptionKey: key });
     expect(first.enqueued.sort()).toEqual(
       [
+        "agent-spend",
         "approval-aging",
         "evidence-check",
         "health-rollup",
