@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/shell/page-header";
-import { getCurrentUser } from "@/lib/auth/current-user";
+import { pageContext } from "@/lib/ui-context";
 import { ROLE_LABEL } from "@/lib/labels";
 import { SenhaForm } from "./senha-form";
 
@@ -25,7 +25,7 @@ export default function ContaPage() {
 }
 
 async function ContaView() {
-  const user = await getCurrentUser();
+  const { user } = await pageContext();
   return (
     <div className="flex flex-col gap-6">
       <dl className="grid gap-2 rounded-xl border border-line bg-card p-4 text-sm sm:grid-cols-[max-content_1fr] sm:gap-x-6">

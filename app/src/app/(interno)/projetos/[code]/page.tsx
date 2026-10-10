@@ -317,9 +317,11 @@ function Workstreams({ data }: { data: ProjectOverview }) {
                   {w.milestone ? (
                     <span className="block text-xs text-caption">
                       Marco {w.milestone.code}
-                      {w.blocked_count > 0
-                        ? ` · ${w.blocked_count} bloqueada(s)`
-                        : ""}
+                      {w.blocked_count === 1
+                        ? " · 1 bloqueada"
+                        : w.blocked_count > 1
+                          ? ` · ${w.blocked_count} bloqueadas`
+                          : ""}
                     </span>
                   ) : null}
                 </td>

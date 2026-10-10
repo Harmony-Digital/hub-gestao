@@ -96,7 +96,10 @@ describe("visão do projeto em três camadas", () => {
 
   it("verbos da atividade", () => {
     expect(describeActivity("task.completed", "HUB-1")).toBe("concluiu HUB-1");
-    expect(describeActivity("comment.created", "HUB-1")).toBe("comentou em");
+    expect(describeActivity("comment.created", "HUB-1")).toBe(
+      "comentou em HUB-1",
+    );
+    expect(describeActivity("comment.created", null)).toBe("comentou em");
     expect(describeActivity("acao.nova", null)).toBe("acao.nova");
   });
 });

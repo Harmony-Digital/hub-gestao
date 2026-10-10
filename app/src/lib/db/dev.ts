@@ -59,6 +59,8 @@ export async function openDevDatabase(options: {
   dataDir: string;
   devAgentKey: string | null;
   pepper: string | null;
+  /** Projeto de exemplo para ver as telas cheias (HUB_DEV_SAMPLE=on). */
+  sample?: boolean;
 }): Promise<Db> {
   const dataDir = path.resolve(process.cwd(), options.dataDir);
   await mkdir(dataDir, { recursive: true });
@@ -66,6 +68,10 @@ export async function openDevDatabase(options: {
   await applySeed(raw);
   if (options.devAgentKey && options.pepper) {
     await ensureDevAgentKey(raw, options.devAgentKey, options.pepper);
+  }
+  if (options.sample) {
+    const { ensureDevSample } = await import("./dev-sample");
+    await ensureDevSample(db, raw);
   }
   return db;
 }

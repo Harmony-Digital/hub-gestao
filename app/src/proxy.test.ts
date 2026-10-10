@@ -130,6 +130,37 @@ describe("porta das telas (proxy)", () => {
     expect(res.headers.get("location")).toBe("http://localhost:3100/login");
   });
 
+  it("login de teste local abre as telas fora da produção, e só com o cookie certo", async () => {
+    vi.stubEnv("HUB_DEV_LOGIN", "on");
+    vi.stubEnv(
+      "HUB_DEV_LOGIN_SECRET",
+      "segredo-local-de-teste-com-mais-de-32-caracteres",
+    );
+    const { devLoginCookieValue } = await import("@/lib/auth/dev-login");
+    const value = devLoginCookieValue();
+    const ok = await proxy(visit("/projetos", `hub_dev_login=${value}`));
+    expect(ok.headers.get("location")).toBeNull();
+    expect(gotrue.calls).toBe(0);
+    const falso = await proxy(visit("/projetos", "hub_dev_login=falso"));
+    expect(falso.status).toBe(307);
+  });
+
+  it("em produção o cookie do login de teste não abre nada", async () => {
+    vi.stubEnv("HUB_DEV_LOGIN", "on");
+    vi.stubEnv(
+      "HUB_DEV_LOGIN_SECRET",
+      "segredo-local-de-teste-com-mais-de-32-caracteres",
+    );
+    const { devLoginCookieValue } = await import("@/lib/auth/dev-login");
+    const value = devLoginCookieValue();
+    vi.stubEnv("NODE_ENV", "production");
+    const res = await proxy(visit("/projetos", `hub_dev_login=${value}`));
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe(
+      "http://localhost:3100/login?next=%2Fprojetos",
+    );
+  });
+
   it("sem configuração do login, toda tela fica fechada (fail-closed)", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
     const res = await proxy(visit("/", SESSION));

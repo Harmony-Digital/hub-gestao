@@ -1,10 +1,8 @@
-import { randomUUID } from "node:crypto";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Bot } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
-import { getCurrentUser } from "@/lib/auth/current-user";
-import { getDb } from "@/lib/db";
+import { pageContext } from "@/lib/ui-context";
 import {
   listAgentsConsole,
   type ConsoleAgent,
@@ -53,22 +51,14 @@ export default function AgentesPage() {
 }
 
 async function AgentsConsoleView() {
-  const user = await getCurrentUser();
-  const { data, projects } = await inTx(
-    {
-      db: await getDb(),
-      actor: user.actor,
-      source: "ui",
-      requestId: randomUUID(),
-    },
-    async (t) => ({
-      data: await listAgentsConsole(t),
-      projects: (await listProjects(t)).items.map((p) => ({
-        code: p.code,
-        name: p.name,
-      })),
-    }),
-  );
+  const { ctx } = await pageContext();
+  const { data, projects } = await inTx(ctx, async (t) => ({
+    data: await listAgentsConsole(t),
+    projects: (await listProjects(t)).items.map((p) => ({
+      code: p.code,
+      name: p.name,
+    })),
+  }));
   const date = new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
     timeZone: "America/Sao_Paulo",

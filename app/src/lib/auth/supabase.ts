@@ -52,6 +52,16 @@ export function toVerifiedAuthUser(
 
 /** Confere a sessão do pedido no GoTrue. Sessão ausente, vencida ou revogada: null. */
 export async function verifiedAuthUser(): Promise<VerifiedAuthUser | null> {
+  // Login de teste local (src/lib/auth/dev-login.ts). O teste de NODE_ENV fica aqui,
+  // escrito direto, para o build de produção remover este ramo inteiro.
+  if (process.env.NODE_ENV !== "production") {
+    const { DEV_IDENTITY, DEV_LOGIN_COOKIE, isValidDevLogin } =
+      await import("./dev-login");
+    const store = await cookies();
+    if (isValidDevLogin(store.get(DEV_LOGIN_COOKIE)?.value)) {
+      return DEV_IDENTITY;
+    }
+  }
   const supabase = await supabaseForRequest();
   if (!supabase) return null;
   const { data, error } = await supabase.auth.getUser();

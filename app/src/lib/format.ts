@@ -48,7 +48,11 @@ export function formatTimestampDay(timestamp: string): string {
 
 /** Iniciais para avatares: "Fábio Almeida" → "FA"; "Kratos" → "K". */
 export function initials(name: string | null | undefined): string {
-  const words = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  // Só palavras que começam com letra: "Codex (exemplo)" → "C", não "C(".
+  const words = (name ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => /^\p{L}/u.test(w));
   if (words.length === 0) return "?";
   const first = words[0][0] ?? "";
   const last = words.length > 1 ? (words[words.length - 1][0] ?? "") : "";
