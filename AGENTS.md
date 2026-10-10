@@ -90,10 +90,12 @@ hub-gestao/
 │   ├── src/app/mcp/route.ts           # servidor MCP Streamable HTTP
 │   ├── src/proxy.ts                   # porta das telas (o "middleware" do Next 16)
 │   ├── src/modules/                   # casos de uso por domínio: projects, tasks, milestones, workstreams,
-│   │                                  #   archive, comments, approvals, agents, reports, time, today,
-│   │                                  #   search, health, jobs, mcp, shell
+│   │                                  #   archive, comments, approvals, agents (com os prompts versionados
+│   │                                  #   em agents/prompts), llm (chaves e modelo de IA), concierge (CO-10),
+│   │                                  #   sync (plan.md), github, reports, time, today, search, health,
+│   │                                  #   jobs, mcp, shell
 │   ├── src/lib/                       # authorize, audit, idempotency, auth, db (pg e PGlite), errors,
-│   │                                  #   format, labels, links, ui-context
+│   │                                  #   format, labels, links, ui-context e llm (adaptador de IA)
 │   ├── src/components/                # shell (barra lateral, cabeçalho, selos), forms e form-dialog
 │   │                                  #   (peças de formulário e janela) e ui (shadcn)
 │   ├── src/test/hub.ts                # ambiente de teste: PGlite com migrations, seed, projeto VIT,
@@ -116,7 +118,7 @@ Ainda não existem: portal do cliente (`src/app/portal/`, M6) e skills do Kratos
 
 - **TypeScript estrito**, sem `any` implícito. `zod` em todas as fronteiras (API, MCP, formulários, env).
 - **Server-only** para segredos e acesso ao banco (`import 'server-only'`). O navegador não fala com o banco: telas (server components) e ações de formulário (server actions) passam pelos casos de uso de `src/modules`, com `authorize()`, auditoria e `source = ui`. A chave pública do Supabase só serve ao login (Supabase Auth). O schema não é exposto no PostgREST.
-- **IA multi-provedor (D5)**: nenhum código chama SDK de provedor diretamente. Tudo passa por `src/lib/llm` (AI SDK v7 com Anthropic, OpenAI e xAI), que lê provedor, modelo e credencial da configuração do agente a cada chamada. Trocar de provedor é configuração, nunca deploy. Chega no M5: hoje o Hub não chama IA.
+- **IA multi-provedor (D5)**: nenhum código chama SDK de provedor diretamente. Tudo passa por `src/lib/llm` (AI SDK v7 com Anthropic, OpenAI e xAI), que lê provedor, modelo e credencial da configuração do agente a cada chamada. Trocar de provedor é configuração, nunca deploy. Em uso desde o M5 pelo Testar conexão (Sala de Controle) e pelo Concierge (CO-10, janela ⌘K); sem chave, modelo, preço ou orçamento, falha fechada e o Hub segue sem as funções de IA. Os prompts ficam versionados em `app/src/modules/agents/prompts/`, com histórico.
 - **Autorização central**: `authorize(actor, action, resource)` em `src/lib/authorize.ts`. Rotas de API e ferramentas MCP passam por ela antes de tocar o banco. RLS é a segunda linha de defesa, nunca a única nem a inexistente.
 - **Erros** no formato `application/problem+json` (RFC 9457). **Paginação** por cursor. **Idempotência** por cabeçalho `Idempotency-Key` em todo POST/PUT de agente.
 - **Logs** estruturados (`pino`), sem PII, sem segredos, com `request_id` e `actor`.

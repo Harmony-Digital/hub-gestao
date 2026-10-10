@@ -177,6 +177,7 @@ async function AgentsConsoleView({
                           budgetUsdMonth: agent.budgetUsdMonth,
                           owner: agent.owner?.id ?? null,
                           ownerName: agent.owner?.name ?? null,
+                          roles: agent.roles,
                         }}
                         options={{
                           departments: data.departments,

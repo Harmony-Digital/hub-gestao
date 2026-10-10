@@ -515,6 +515,8 @@ export const UpdateAgentInput = z.strictObject({
   budget_usd_month: z.number().min(0).max(10_000).optional(),
   /** Pessoa da equipe responsável pelo agente; null deixa sem ninguém. */
   owner: Uuid.nullable().optional(),
+  /** Papéis do catálogo (AGENTES.md), como CO-10; a lista inteira substitui a anterior. */
+  roles: z.array(RoleCode).max(20).optional(),
 });
 export type UpdateAgentInput = z.infer<typeof UpdateAgentInput>;
 
@@ -525,12 +527,14 @@ type AgentEditRow = {
   budget: number;
   owner: string | null;
   status: string;
+  roles: string[];
 };
 
 /**
  * Edita o cadastro de um agente (dono e administração): nome, departamento, missão,
- * orçamento de IA do mês e a pessoa responsável. Só o que mudou é gravado, com o antes e
- * o depois num registro `agent.updated`. Devolve os campos que mudaram.
+ * orçamento de IA do mês, a pessoa responsável e os papéis do catálogo. Só o que mudou é
+ * gravado, com o antes e o depois num registro `agent.updated`. Devolve os campos que
+ * mudaram.
  */
 export async function updateAgent(
   t: TxCtx,
@@ -544,7 +548,7 @@ export async function updateAgent(
     t,
     `select a.name, d.slug as department, a.mission,
             a.budget_usd_month::float8 as budget, a.owner_profile_id as owner,
-            a.status::text as status
+            a.status::text as status, a.roles
        from ${S}.agents a
        left join ${S}.departments d on d.id = a.department_id
       where a.id = $1
@@ -565,6 +569,10 @@ export async function updateAgent(
     mission: mission === undefined ? row.mission : mission,
     budget_usd_month: input.budget_usd_month ?? Number(row.budget),
     owner: input.owner === undefined ? row.owner : input.owner,
+    roles:
+      input.roles === undefined
+        ? [...row.roles].sort()
+        : [...new Set(input.roles)].sort(),
   };
   const current = {
     name: row.name,
@@ -572,9 +580,14 @@ export async function updateAgent(
     mission: row.mission,
     budget_usd_month: Number(row.budget),
     owner: row.owner,
+    roles: [...row.roles].sort(),
   };
+  const same = (a: unknown, b: unknown) =>
+    Array.isArray(a) && Array.isArray(b)
+      ? a.join(",") === b.join(",")
+      : a === b;
   const changed = (Object.keys(next) as (keyof typeof next)[]).filter(
-    (k) => next[k] !== current[k],
+    (k) => !same(next[k], current[k]),
   );
   if (changed.length === 0) return [];
 
@@ -620,7 +633,7 @@ export async function updateAgent(
     `update ${S}.agents
         set name = $2,
             department_id = case when $3::boolean then $4::uuid else department_id end,
-            mission = $5, budget_usd_month = $6, owner_profile_id = $7
+            mission = $5, budget_usd_month = $6, owner_profile_id = $7, roles = $8::text[]
       where id = $1`,
     [
       agentId,
@@ -630,6 +643,7 @@ export async function updateAgent(
       next.mission,
       next.budget_usd_month,
       next.owner,
+      next.roles,
     ],
   );
   const pick = (from: typeof next) =>

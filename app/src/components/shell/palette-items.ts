@@ -3,11 +3,18 @@
  * Puro (sem React nem servidor), para valer na tela e nos testes.
  */
 
-export type PaletteAction = "nova-tarefa" | "tema";
+export type PaletteAction = "nova-tarefa" | "tema" | "concierge";
 
 export type PaletteItem = {
   id: string;
-  group: "Ações" | "Telas" | "Projetos" | "Tarefas" | "Marcos" | "Frentes";
+  group:
+    | "Concierge"
+    | "Ações"
+    | "Telas"
+    | "Projetos"
+    | "Tarefas"
+    | "Marcos"
+    | "Frentes";
   label: string;
   /** Texto curto ao lado (código, projeto, situação). */
   hint?: string;
@@ -74,20 +81,47 @@ function matches(query: string, ...texts: (string | undefined)[]): boolean {
   return texts.some((t) => t !== undefined && normalize(t).includes(query));
 }
 
+/** Frase de três palavras ou mais: parece um pedido, não uma busca. */
+export function looksLikeRequest(query: string): boolean {
+  return query.trim().split(/\s+/).filter(Boolean).length >= 3;
+}
+
+/** Texto mínimo para oferecer o Concierge. */
+export const CONCIERGE_MIN = 3;
+
 export function paletteItems({
   query,
   results,
   canCreateProject,
   dark = false,
+  concierge = null,
 }: {
   query: string;
   results: SearchResult | null;
   canCreateProject: boolean;
   /** O tema escuro está valendo (a ação oferece o outro). */
   dark?: boolean;
+  /** Concierge: pronto, sem IA configurada ou (null) ainda não sabido. */
+  concierge?: "ready" | "off" | null;
 }): PaletteItem[] {
   const q = normalize(query);
   const items: PaletteItem[] = [];
+  const text = query.trim();
+  const ask: PaletteItem | null =
+    concierge && text.length >= CONCIERGE_MIN
+      ? {
+          id: "concierge",
+          group: "Concierge",
+          label: `Pedir ao Concierge: “${text}”`,
+          hint:
+            concierge === "ready"
+              ? "prévia antes de executar"
+              : "sem IA configurada",
+          action: "concierge",
+        }
+      : null;
+  // Frase com cara de pedido: o Concierge vem primeiro (Enter pede); senão, por último.
+  if (ask && looksLikeRequest(text)) items.push(ask);
 
   const actions: PaletteItem[] = [
     {
@@ -160,6 +194,7 @@ export function paletteItems({
       })),
     );
   }
+  if (ask && !looksLikeRequest(text)) items.push(ask);
   return items;
 }
 

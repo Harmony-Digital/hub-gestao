@@ -2,14 +2,24 @@
 
 import { useRouter } from "next/navigation";
 import {
+  useCallback,
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
-import { LoaderCircle, Search } from "lucide-react";
+import { LoaderCircle, Mic, MicOff, Search } from "lucide-react";
+import { interpretarPedido } from "@/app/(interno)/_concierge/actions";
 import {
+  ConciergePanel,
+  type ConciergeRequest,
+} from "@/app/(interno)/_concierge/concierge-panel";
+import type { InterpretState } from "@/app/(interno)/_concierge/state";
+import { recognitionCtor, useDictation } from "./dictation";
+import {
+  CONCIERGE_MIN,
   paletteItems,
   step,
   type PaletteItem,
@@ -31,10 +41,17 @@ export function openQuickCreate() {
 
 type Found = { q: string; data: SearchResult } | { q: string; error: string };
 
+type Asked = { request: ConciergeRequest; result: InterpretState | null };
+
+/** A busca do Hub aceita de 2 a 100 caracteres; pedido mais longo vai só ao Concierge. */
+const SEARCH_MAX = 100;
+const noop = () => () => {};
+
 /**
  * Janela ⌘K (ou Ctrl+K): vai para qualquer tela, acha tarefa, projeto, marco ou frente
  * pela busca do Hub (só no alcance de quem está logado) e cria tarefa de qualquer lugar.
- * Setas escolhem, Enter abre, Esc fecha.
+ * Setas escolhem, Enter abre, Esc fecha. Uma frase vira pedido ao Concierge (CO-10),
+ * digitado ou ditado pelo microfone: ele mostra a prévia, e nada é feito sem confirmar.
  */
 export function CommandPalette() {
   const router = useRouter();
@@ -45,9 +62,52 @@ export function CommandPalette() {
   const [found, setFound] = useState<Found | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [canCreateProject, setCanCreateProject] = useState(false);
+  const [conciergeState, setConciergeState] = useState<"ready" | "off" | null>(
+    null,
+  );
+  const [asked, setAsked] = useState<Asked | null>(null);
   const [creating, setCreating] = useState(false);
   const dark = useSyncExternalStore(subscribeTheme, darkNow, () => false);
+  const canDictate = useSyncExternalStore(
+    noop,
+    () => recognitionCtor() !== null,
+    () => false,
+  );
   const listId = useId();
+
+  /** Manda o pedido ao Concierge; a resposta velha (de outro pedido) é descartada. */
+  const ask = useCallback((text: string, voice: boolean, started: number) => {
+    const request: ConciergeRequest = {
+      id: Date.now(),
+      text: text.trim(),
+      voice,
+      started,
+    };
+    setAsked({ request, result: null });
+    interpretarPedido({ text: request.text, path: window.location.pathname })
+      .catch((): InterpretState => ({
+        ok: false,
+        message: "Falha ao falar com o servidor. Tente de novo.",
+      }))
+      .then((result) =>
+        setAsked((current) =>
+          current?.request.id === request.id ? { request, result } : current,
+        ),
+      );
+  }, []);
+
+  // Início do ditado: o tempo do pedido por voz conta desde o clique no microfone.
+  const dictationStart = useRef(0);
+  const dictation = useDictation({
+    onText: useCallback((text: string) => {
+      setQuery(text);
+      setActiveId(null);
+    }, []),
+    onFinal: useCallback(
+      (text: string) => ask(text, true, dictationStart.current || Date.now()),
+      [ask],
+    ),
+  });
 
   // Atalho ⌘K / Ctrl+K e os botões do menu (eventos).
   useEffect(() => {
@@ -55,6 +115,7 @@ export function CommandPalette() {
     const show = () => {
       setQuery("");
       setActiveId(null);
+      setAsked(null);
       setOpen(true);
       if (!dialog.open) dialog.showModal();
     };
@@ -85,8 +146,16 @@ export function CommandPalette() {
     const controller = new AbortController();
     fetch("/busca/projetos", { cache: "no-store", signal: controller.signal })
       .then((res) => (res.ok ? res.json() : null))
-      .then((body: { canCreateProject?: boolean } | null) =>
-        setCanCreateProject(Boolean(body?.canCreateProject)),
+      .then(
+        (
+          body: {
+            canCreateProject?: boolean;
+            concierge?: "ready" | "off";
+          } | null,
+        ) => {
+          setCanCreateProject(Boolean(body?.canCreateProject));
+          setConciergeState(body?.concierge ?? null);
+        },
       )
       .catch(() => undefined);
     return () => controller.abort();
@@ -94,8 +163,9 @@ export function CommandPalette() {
 
   // Busca com uma pausa curta depois da digitação; a resposta velha é descartada.
   const term = query.trim();
+  const searchable = !asked && term.length >= 2 && term.length <= SEARCH_MAX;
   useEffect(() => {
-    if (!open || term.length < 2) return;
+    if (!open || !searchable) return;
     const controller = new AbortController();
     const timer = setTimeout(() => {
       fetch(`/busca?q=${encodeURIComponent(term)}`, {
@@ -120,15 +190,22 @@ export function CommandPalette() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [open, term]);
+  }, [open, term, searchable]);
 
   const current = found && found.q === term ? found : null;
   const results = current && "data" in current ? current.data : null;
   const searchError = current && "error" in current ? current.error : null;
-  const searching = term.length >= 2 && current === null;
+  const searching = searchable && current === null;
   const items = useMemo(
-    () => paletteItems({ query: term, results, canCreateProject, dark }),
-    [term, results, canCreateProject, dark],
+    () =>
+      paletteItems({
+        query: term,
+        results,
+        canCreateProject,
+        dark,
+        concierge: conciergeState,
+      }),
+    [term, results, canCreateProject, dark, conciergeState],
   );
   const activeIndex = Math.max(
     0,
@@ -145,6 +222,10 @@ export function CommandPalette() {
   }, [active, listId]);
 
   function choose(item: PaletteItem) {
+    if (item.action === "concierge") {
+      ask(term, false, Date.now());
+      return;
+    }
     dialog?.close();
     if (item.action === "nova-tarefa") setCreating(true);
     else if (item.action === "tema") setTheme(dark ? "claro" : "escuro");
@@ -172,20 +253,38 @@ export function CommandPalette() {
               <Search aria-hidden="true" className="size-4 text-caption" />
               <input
                 autoFocus
-                role="combobox"
-                aria-expanded="true"
-                aria-controls={listId}
-                aria-autocomplete="list"
-                aria-activedescendant={active ? optionId(active) : undefined}
-                aria-label="Buscar tarefa, projeto ou tela"
-                placeholder="Buscar tarefa, projeto ou tela"
+                // Na prévia do Concierge não há lista: o campo vira texto simples.
+                role={asked ? undefined : "combobox"}
+                aria-expanded={asked ? undefined : "true"}
+                aria-controls={asked ? undefined : listId}
+                aria-autocomplete={asked ? undefined : "list"}
+                aria-activedescendant={
+                  !asked && active ? optionId(active) : undefined
+                }
+                aria-label={
+                  asked ? "Pedido ao Concierge" : "Buscar ou pedir ao Concierge"
+                }
+                placeholder={
+                  dictation.listening
+                    ? "Ouvindo…"
+                    : asked
+                      ? "Pedido ao Concierge"
+                      : "Buscar ou pedir ao Concierge"
+                }
                 value={query}
-                maxLength={100}
+                maxLength={500}
                 onChange={(event) => {
                   setQuery(event.target.value);
                   setActiveId(null);
                 }}
                 onKeyDown={(event) => {
+                  if (asked) {
+                    if (event.key === "Enter" && term.length >= CONCIERGE_MIN) {
+                      event.preventDefault();
+                      ask(term, false, Date.now());
+                    }
+                    return;
+                  }
                   if (event.key === "ArrowDown" || event.key === "ArrowUp") {
                     event.preventDefault();
                     const next = step(
@@ -207,82 +306,135 @@ export function CommandPalette() {
                   className="size-4 animate-spin text-caption"
                 />
               ) : null}
+              {canDictate && conciergeState ? (
+                <button
+                  type="button"
+                  aria-label="Ditar o pedido ao Concierge"
+                  aria-pressed={dictation.listening}
+                  title={
+                    dictation.listening ? "Parar o ditado" : "Ditar o pedido"
+                  }
+                  onClick={() => {
+                    if (dictation.listening) {
+                      dictation.stop();
+                    } else {
+                      dictationStart.current = Date.now();
+                      dictation.start();
+                    }
+                  }}
+                  className={`inline-flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                    dictation.listening
+                      ? "bg-brand text-navy"
+                      : "text-ink-2 hover:bg-off"
+                  }`}
+                >
+                  {dictation.listening ? (
+                    <MicOff aria-hidden="true" className="size-4" />
+                  ) : (
+                    <Mic aria-hidden="true" className="size-4" />
+                  )}
+                </button>
+              ) : null}
               <kbd className="hidden rounded border border-line px-1.5 font-mono text-[11px] text-caption sm:inline">
                 Esc
               </kbd>
             </div>
-            <div
-              id={listId}
-              role="listbox"
-              aria-label="Resultados"
-              className="max-h-[min(60vh,28rem)] overflow-y-auto p-2"
-            >
-              {groups.map((group) => (
-                <div
-                  key={group.name}
-                  role="group"
-                  aria-label={group.name}
-                  className="flex flex-col"
-                >
-                  <div
-                    role="presentation"
-                    className="px-2 pt-2 pb-1 font-mono text-[10px] tracking-[0.12em] text-caption uppercase"
-                  >
-                    {group.name}
-                  </div>
-                  {group.items.map((item) => {
-                    const selected = item.id === active?.id;
-                    return (
-                      <div
-                        key={item.id}
-                        id={optionId(item)}
-                        role="option"
-                        aria-selected={selected}
-                        onMouseDown={(event) => event.preventDefault()}
-                        onMouseMove={() => setActiveId(item.id)}
-                        onClick={() => choose(item)}
-                        className={`flex min-h-10 cursor-pointer items-center gap-3 rounded-lg px-3 text-sm ${
-                          selected ? "bg-brand-soft/20 text-navy" : "text-ink"
-                        }`}
-                      >
-                        <span className="min-w-0 flex-1 truncate">
-                          {item.label}
-                        </span>
-                        {item.hint ? (
-                          // Na opção escolhida, o cinza fica mais forte para manter o
-                          // contraste sobre o laranja (tema escuro).
-                          <span
-                            className={`shrink-0 font-mono text-xs ${
-                              selected ? "text-ink-2" : "text-caption"
-                            }`}
-                          >
-                            {item.hint}
-                          </span>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-              {term.length >= 2 && results && items.length === 0 ? (
-                <p className="px-3 py-6 text-center text-sm text-ink-2">
-                  Nada encontrado para “{term}”.
+            <div aria-live="polite" className="empty:hidden">
+              {dictation.listening ? (
+                <p className="px-4 pt-2 text-xs text-ink-2">
+                  Ouvindo… fale o pedido e pare: o Concierge mostra a prévia.
                 </p>
-              ) : null}
-              {searchError ? (
-                <p role="alert" className="px-3 py-3 text-sm text-danger-fg">
-                  {searchError}
-                </p>
-              ) : null}
-              {term.length === 1 ? (
-                <p className="px-3 py-2 text-xs text-caption">
-                  Digite mais uma letra para buscar tarefas e projetos.
+              ) : dictation.error ? (
+                <p className="px-4 pt-2 text-sm text-danger-fg">
+                  {dictation.error}
                 </p>
               ) : null}
             </div>
+            {asked ? (
+              <ConciergePanel
+                request={asked.request}
+                result={asked.result}
+                onBack={() => setAsked(null)}
+                onRetry={() =>
+                  ask(asked.request.text, asked.request.voice, Date.now())
+                }
+                onClose={() => dialog?.close()}
+              />
+            ) : (
+              <div
+                id={listId}
+                role="listbox"
+                aria-label="Resultados"
+                className="max-h-[min(60vh,28rem)] overflow-y-auto p-2"
+              >
+                {groups.map((group) => (
+                  <div
+                    key={group.name}
+                    role="group"
+                    aria-label={group.name}
+                    className="flex flex-col"
+                  >
+                    <div
+                      role="presentation"
+                      className="px-2 pt-2 pb-1 font-mono text-[10px] tracking-[0.12em] text-caption uppercase"
+                    >
+                      {group.name}
+                    </div>
+                    {group.items.map((item) => {
+                      const selected = item.id === active?.id;
+                      return (
+                        <div
+                          key={item.id}
+                          id={optionId(item)}
+                          role="option"
+                          aria-selected={selected}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onMouseMove={() => setActiveId(item.id)}
+                          onClick={() => choose(item)}
+                          className={`flex min-h-10 cursor-pointer items-center gap-3 rounded-lg px-3 text-sm ${
+                            selected ? "bg-brand-soft/20 text-navy" : "text-ink"
+                          }`}
+                        >
+                          <span className="min-w-0 flex-1 truncate">
+                            {item.label}
+                          </span>
+                          {item.hint ? (
+                            // Na opção escolhida, o cinza fica mais forte para manter o
+                            // contraste sobre o laranja (tema escuro).
+                            <span
+                              className={`shrink-0 font-mono text-xs ${
+                                selected ? "text-ink-2" : "text-caption"
+                              }`}
+                            >
+                              {item.hint}
+                            </span>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+                {term.length >= 2 && results && items.length === 0 ? (
+                  <p className="px-3 py-6 text-center text-sm text-ink-2">
+                    Nada encontrado para “{term}”.
+                  </p>
+                ) : null}
+                {searchError ? (
+                  <p role="alert" className="px-3 py-3 text-sm text-danger-fg">
+                    {searchError}
+                  </p>
+                ) : null}
+                {term.length === 1 ? (
+                  <p className="px-3 py-2 text-xs text-caption">
+                    Digite mais uma letra para buscar tarefas e projetos.
+                  </p>
+                ) : null}
+              </div>
+            )}
             <p className="hidden border-t border-line px-4 py-2 text-xs text-caption sm:block">
-              Setas para escolher, Enter para abrir, Esc para fechar. Atalho: ⌘K
-              ou Ctrl+K.
+              {asked
+                ? "Enter pede de novo ao Concierge, Esc fecha. Nada é feito sem você confirmar."
+                : "Setas para escolher, Enter para abrir, Esc para fechar. Uma frase vira pedido ao Concierge. Atalho: ⌘K ou Ctrl+K."}
             </p>
           </div>
         ) : null}
