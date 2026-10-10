@@ -53,6 +53,12 @@ export function encryptionKeyOrNull(): Buffer | null {
   }
 }
 
+/** Segredo dos webhooks do GitHub (32 caracteres ou mais); sem ele, o webhook recusa tudo. */
+export function githubWebhookSecret(): string | null {
+  const value = process.env.GITHUB_WEBHOOK_SECRET?.trim();
+  return value && value.length >= 32 ? value : null;
+}
+
 export function cronSecret(): string | null {
   const value = process.env.CRON_SECRET?.trim();
   return value && value.length >= 32 ? value : null;

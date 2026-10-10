@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { HubError, toHubError } from "@/lib/errors";
+import type { HubError } from "@/lib/errors";
+import { attempt } from "@/modules/attempt";
 import { ProjectCode, resolveProject } from "@/modules/common";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
 import { createComment } from "@/modules/comments/service";
@@ -121,26 +122,6 @@ export const SyncPlanResult = z.object({
   conflicts: z.array(SyncConflict),
 });
 export type SyncPlanResult = z.infer<typeof SyncPlanResult>;
-
-type Outcome<T> = { ok: true; value: T } | { ok: false; error: HubError };
-let savepoints = 0;
-
-/** Roda um passo num ponto de salvamento: se falhar, desfaz só ele e devolve o erro. */
-async function attempt<T>(t: TxCtx, fn: () => Promise<T>): Promise<Outcome<T>> {
-  const name = `hub_sync_${(savepoints = (savepoints + 1) % 1_000_000)}`;
-  await t.tx.query(`savepoint ${name}`);
-  try {
-    const value = await fn();
-    await t.tx.query(`release savepoint ${name}`);
-    return { ok: true, value };
-  } catch (raw) {
-    await t.tx.query(`rollback to savepoint ${name}`);
-    const error = toHubError(raw);
-    // Erro inesperado (do servidor) não vira conflito: derruba a sincronização inteira.
-    if (error.status >= 500) throw raw;
-    return { ok: false, error };
-  }
-}
 
 async function workspacePrefix(t: TxCtx): Promise<string> {
   const row = await maybeOne<{ task_prefix: string }>(

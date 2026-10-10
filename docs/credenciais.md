@@ -17,7 +17,7 @@ Nenhum valor secreto entra em chat, commit, log, comentário de tarefa ou docume
 | `HUB_ENCRYPTION_KEY` | Cifra das chaves de IA guardadas no banco (AES-256-GCM) | só no servidor | gerado uma vez; se perder, as chaves de IA precisam ser recadastradas |
 | `CRON_SECRET` | Protege as rotas internas do agendador | servidor e timer da VPS | gerado |
 | `RESEND_API_KEY` | E-mails do portal do cliente | só no servidor | Fábio, no M6 |
-| `GITHUB_WEBHOOK_SECRET` | Valida os webhooks do GitHub | servidor e configuração do webhook | gerado no M4 |
+| `GITHUB_WEBHOOK_SECRET` | Valida a assinatura dos eventos do GitHub (`/api/internal/webhooks/github`); 32 caracteres ou mais; sem ele, o webhook recusa tudo | `.env.production` e o campo Secret do webhook em cada repositório (`docs/github-webhook.md`) | Fábio gera e grava (passo do M4) |
 | `LLM_MONTHLY_BUDGET_USD` | Teto global de gasto com IA | servidor | 30, decisão D5 |
 | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `XAI_API_KEY` | Alternativa só para desenvolvimento local | só `.env.local` | Fábio |
 | `DATABASE_URL` | Conexão do servidor com o banco (papel próprio do Hub, sem passe livre na RLS) | só `.env.production` | Fábio, no M2, depois de autorizar o papel de banco |
