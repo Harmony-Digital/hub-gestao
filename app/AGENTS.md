@@ -33,6 +33,8 @@ As instruções canônicas do projeto estão em `../AGENTS.md` e valem integralm
 
 ## Telas: organização e padrões
 
+- Busca `⌘K` e criação rápida: `src/components/shell/command-palette.tsx` (uma só, no layout de `(interno)`; `openSearch()` e `openQuickCreate()` abrem de qualquer lugar por evento), `palette-items.ts` (itens e filtro, puro e testado), `quick-create.tsx` (Nova tarefa com a ação `criarTarefa`) e `shell-actions.tsx` (botões do menu; `data-fecha-menu` fecha a gaveta do celular). Dados pelas rotas `/busca?q=` e `/busca/projetos`, só com sessão.
+- Faixa de acentos em expressão regular: escreva o escape (`/[\u0300-\u036f]/g`). Já aconteceu de o arquivo ficar com os caracteres invisíveis no lugar do escape.
 - `src/app/(interno)/`: telas da equipe, com a barra lateral de `src/components/shell`. Cada tela confere a sessão de novo perto dos dados (`getCurrentUser`), além da porta do `src/proxy.ts`.
 - Projeto: `projetos/[code]/page.tsx` (Visão geral), `lista/` e `quadro/`. O que as três compartilham fica na pasta privada `_tasks/`:
   - `project-header.tsx`: cabeçalho com as abas;

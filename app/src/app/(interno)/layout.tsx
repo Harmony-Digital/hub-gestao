@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { CommandPalette } from "@/components/shell/command-palette";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { Sidebar } from "@/components/shell/sidebar";
 
@@ -21,6 +22,8 @@ export default function InternoLayout({ children }: { children: ReactNode }) {
         </MobileNav>
         {children}
       </div>
+      {/* Janela ⌘K e Nova tarefa de qualquer tela (uma só para todas as telas). */}
+      <CommandPalette />
     </div>
   );
 }
