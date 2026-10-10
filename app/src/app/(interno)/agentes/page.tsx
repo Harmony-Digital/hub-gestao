@@ -27,6 +27,11 @@ import { EditarAgenteButton, PausarAgenteButton } from "./agent-controls";
 import { ControlRoomView } from "./control-room-view";
 import { KIND_LABELS, SCOPE_LABELS, type KeyScope } from "./form";
 import { ChaveIAControls, NovaChaveIAForm } from "./ai-keys";
+import {
+  ModeloIAButton,
+  TestarConexaoButton,
+  type CredentialOption,
+} from "./agent-model";
 import { NovaChaveForm, NovoAgenteForm, RevogarChaveButton } from "./forms";
 
 export const metadata: Metadata = { title: "Sala de Controle" };
@@ -87,6 +92,14 @@ async function AgentsConsoleView({
       aiKeys: canSeeAiKeys ? await listCredentials(t) : [],
     }),
   );
+  const credentialOptions: CredentialOption[] = aiKeys
+    .filter((k) => !k.revokedAt)
+    .map((k) => ({
+      id: k.id,
+      provider: k.provider,
+      label: k.label,
+      last4: k.last4,
+    }));
   const date = new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
     timeZone: "America/Sao_Paulo",
@@ -140,6 +153,21 @@ async function AgentsConsoleView({
                   </span>
                   {data.canManage && agent.status !== "revoked" ? (
                     <div className="ml-auto flex items-start gap-1">
+                      {data.canManageKeys ? (
+                        <ModeloIAButton
+                          initial={{
+                            agentId: agent.id,
+                            agentName: agent.name,
+                            provider: agent.ai?.provider ?? null,
+                            model: agent.ai?.model ?? null,
+                            credentialId: agent.ai?.credentialId ?? null,
+                            priceIn: agent.ai?.priceIn ?? null,
+                            priceOut: agent.ai?.priceOut ?? null,
+                            budgetUsdMonth: agent.budgetUsdMonth,
+                          }}
+                          credentials={credentialOptions}
+                        />
+                      ) : null}
                       <EditarAgenteButton
                         agent={{
                           id: agent.id,
@@ -164,7 +192,7 @@ async function AgentsConsoleView({
                   ) : null}
                 </div>
 
-                <AgentDetails agent={agent} />
+                <AgentDetails agent={agent} canTest={data.canManageKeys} />
 
                 {data.canManageKeys ? (
                   <>
@@ -375,7 +403,13 @@ const money = new Intl.NumberFormat("pt-BR", {
 });
 
 /** Departamento, responsável, missão e o gasto de IA do mês contra o orçamento. */
-function AgentDetails({ agent }: { agent: ConsoleAgent }) {
+function AgentDetails({
+  agent,
+  canTest,
+}: {
+  agent: ConsoleAgent;
+  canTest: boolean;
+}) {
   const spent = money.format(agent.spentUsdMonth);
   const share =
     agent.budgetUsdMonth > 0
@@ -398,6 +432,28 @@ function AgentDetails({ agent }: { agent: ConsoleAgent }) {
           {agent.mission}
         </p>
       ) : null}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+        <span className="text-caption">Modelo de IA:</span>
+        {agent.ai ? (
+          <span className="text-ink">
+            {PROVIDER_LABEL[agent.ai.provider]} ·{" "}
+            <span className="font-mono text-xs">{agent.ai.model}</span>
+            {agent.ai.credentialLabel ? (
+              <span className="text-ink-2">
+                {" "}
+                · chave {agent.ai.credentialLabel} (final{" "}
+                {agent.ai.credentialLast4})
+                {agent.ai.credentialRevoked ? ", revogada" : ""}
+              </span>
+            ) : null}
+          </span>
+        ) : (
+          <span className="text-ink-2">nenhum (o agente não usa IA)</span>
+        )}
+        {canTest && agent.ai && agent.status === "active" ? (
+          <TestarConexaoButton agentId={agent.id} agentName={agent.name} />
+        ) : null}
+      </div>
       {agent.budgetUsdMonth > 0 ? (
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <span className="text-ink-2">
