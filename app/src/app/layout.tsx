@@ -37,7 +37,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="pt-BR"
       className={`${sora.variable} ${dmSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      // O script abaixo pode marcar o menu recolhido antes de o React assumir a página.
+      suppressHydrationWarning
     >
+      <head>
+        {/* Menu lateral recolhido (escolha guardada no navegador), aplicado antes de
+            desenhar, para a barra não abrir e fechar na frente de quem usa. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem("hub:menu")==="recolhido")document.documentElement.dataset.menu="recolhido"}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );

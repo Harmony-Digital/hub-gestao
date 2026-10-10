@@ -30,16 +30,17 @@ export function SidebarNav({
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
-            className={`${NAV_LINK_CLASS} ${active ? NAV_LINK_ACTIVE : NAV_LINK_IDLE}`}
+            title={label}
+            className={`hub-centro relative ${NAV_LINK_CLASS} ${active ? NAV_LINK_ACTIVE : NAV_LINK_IDLE}`}
           >
             <Icon
               aria-hidden="true"
               className={`size-[18px] shrink-0 ${active ? "text-brand" : ""}`}
             />
-            <span className="flex-1">{label}</span>
+            <span className="hub-rotulo flex-1">{label}</span>
             {badge && badge.n > 0 ? (
               <span
-                className="rounded-full bg-brand px-2 font-mono text-[11px] font-semibold text-navy"
+                className="hub-contador rounded-full bg-brand px-2 font-mono text-[11px] font-semibold text-navy"
                 aria-label={badge.label}
               >
                 {badge.n}
