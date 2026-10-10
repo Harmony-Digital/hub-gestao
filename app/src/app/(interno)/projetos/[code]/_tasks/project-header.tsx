@@ -1,17 +1,18 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { LayoutDashboard, List } from "lucide-react";
+import { LayoutDashboard, List, SquareKanban } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
 import { Avatar, Pill, Progress } from "@/components/shell/pill";
 import { initials } from "@/lib/format";
 import { HEALTH, PHASES, PROJECT_STATUS } from "@/lib/labels";
 import type { ProjectDetail } from "@/modules/projects/schemas";
 
-export type ProjectTab = "overview" | "list";
+export type ProjectTab = "overview" | "list" | "board";
 
 const TABS = [
   { key: "overview", label: "Visão geral", path: "", icon: LayoutDashboard },
   { key: "list", label: "Lista", path: "/lista", icon: List },
+  { key: "board", label: "Quadro", path: "/quadro", icon: SquareKanban },
 ] as const;
 
 /** Topo das telas de um projeto: identificação, saúde, fase e as abas de visão. */
