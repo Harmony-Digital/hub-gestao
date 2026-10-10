@@ -12,6 +12,7 @@ export const SCREENS = [
   "/projetos/EXE/lista",
   "/projetos/EXE/quadro",
   "/projetos/EXE/editar",
+  "/projetos/EXE/importar",
   "/agentes",
   "/conta",
 ];

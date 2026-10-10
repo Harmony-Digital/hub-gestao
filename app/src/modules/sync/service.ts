@@ -4,6 +4,7 @@ import { attempt } from "@/modules/attempt";
 import { ProjectCode, resolveProject } from "@/modules/common";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
 import { createComment } from "@/modules/comments/service";
+import { createMilestone } from "@/modules/milestones/admin";
 import { getPlan, renderPlanMarkdown } from "@/modules/projects/service";
 import { CreateTaskInput } from "@/modules/tasks/schemas";
 import {
@@ -107,6 +108,10 @@ export const SyncSummary = z.object({
   renamed: z.number().int(),
   archived: z.number().int(),
   workstreams_created: z.number().int(),
+  milestones_created: z
+    .number()
+    .int()
+    .describe("Marcos criados (só na importação feita por pessoa)."),
   updated_in_file: z.number().int(),
   inserted_in_file: z.number().int(),
 });
@@ -137,9 +142,10 @@ const lineOf = (item: PlanItem) => item.line + 1;
 async function recordRun(
   t: TxCtx,
   projectId: string,
-  input: SyncPlanInput,
+  input: Pick<SyncPlanInput, "direction" | "via" | "commit_sha">,
   summary: SyncSummary,
   conflicts: SyncConflict[],
+  direction: "pull" | "push" | "import" = input.direction,
 ): Promise<string> {
   const row = await maybeOne<{ id: string }>(
     t,
@@ -150,7 +156,7 @@ async function recordRun(
     [
       t.actor.workspaceId,
       projectId,
-      input.direction,
+      direction,
       input.via || t.source,
       input.commit_sha ?? null,
       JSON.stringify(summary),
@@ -168,6 +174,7 @@ const emptySummary = (): SyncSummary => ({
   renamed: 0,
   archived: 0,
   workstreams_created: 0,
+  milestones_created: 0,
   updated_in_file: 0,
   inserted_in_file: 0,
 });
@@ -255,14 +262,20 @@ function collectGateAlerts(
   }
 }
 
+type PushOptions = {
+  /** Importação por pessoa: os critérios do GATE já entram nos marcos criados. */
+  importing?: { evidence: string };
+};
+
 async function push(
   t: TxCtx,
   projectCode: string,
   file: ParsedPlanFile,
   base: ParsedPlanFile | null,
-  input: SyncPlanInput,
+  input: { commit_sha?: string },
   summary: SyncSummary,
   conflicts: SyncConflict[],
+  options: PushOptions = {},
 ): Promise<ItemChange[]> {
   const plan = await getPlan(t, projectCode, "sync.plan");
   const match = matchStructure(file, plan);
@@ -272,7 +285,7 @@ async function push(
       .filter((i) => i.kind === "task" && i.code)
       .map((i) => [i.code as string, i]),
   );
-  collectGateAlerts(file, plan, conflicts);
+  if (!options.importing) collectGateAlerts(file, plan, conflicts);
 
   const changes: ItemChange[] = [];
   const codeOfItem = new Map<number, string>();
@@ -325,7 +338,7 @@ async function push(
     item.evidence ??
     (input.commit_sha
       ? `plan.md marcado no commit ${input.commit_sha.slice(0, 12)}`
-      : null);
+      : (options.importing?.evidence ?? null));
   const refuse = (item: PlanItem, code: string | null, error: HubError) =>
     conflicts.push({
       kind: "refused",
@@ -557,4 +570,153 @@ async function noteOnTask(t: TxCtx, code: string, body: string) {
   if (repeated.length > 0) return;
   // Sem o escopo de comentários, o aviso fica só no registro da sincronização.
   await attempt(t, () => createComment(t, { task: code }, { body_md: body }));
+}
+
+export const ImportPlanInput = z.strictObject({
+  project: ProjectCode,
+  markdown: z.string().max(MARKDOWN_MAX),
+  dry_run: z.boolean().optional(),
+});
+export type ImportPlanInput = z.infer<typeof ImportPlanInput>;
+
+export type ImportPlanResult = SyncPlanResult & {
+  dry_run: boolean;
+  milestones: { code: string; title: string; status: string }[];
+};
+
+/** Status do marco novo pelo que o arquivo mostra. */
+function milestoneStatus(file: ParsedPlanFile, index: number) {
+  const m = file.milestones[index];
+  const criteria = file.items.filter(
+    (i) => i.milestone === index && i.kind === "criterion",
+  );
+  if (m.done || (criteria.length > 0 && criteria.every((c) => c.checked))) {
+    return "delivered" as const;
+  }
+  const started = file.items.some(
+    (i) => i.milestone === index && i.kind === "task" && i.checked,
+  );
+  return started ? ("in_progress" as const) : ("planned" as const);
+}
+
+/**
+ * Importação do plan.md por pessoa (dono ou administração): cria os marcos que faltam,
+ * com o código e a ordem do arquivo e os critérios do GATE, e então aplica o push normal
+ * (frentes, tarefas e subtarefas). Item marcado sem evidência escrita é concluído com a
+ * nota da importação. Marco entra no máximo como Entregue: o aceite continua sendo
+ * pedido e decidido nas Aprovações. Com `dry_run`, faz tudo e desfaz no fim (a prévia).
+ */
+export async function importPlan(
+  t: TxCtx,
+  raw: z.input<typeof ImportPlanInput>,
+): Promise<ImportPlanResult> {
+  const input = ImportPlanInput.parse(raw);
+  // Marco é decisão de pessoa: agente recebe 403 aqui.
+  const project = await resolveProject(t, input.project, "milestone.write");
+  const prefix = await workspacePrefix(t);
+  const file = parsePlanFile(input.markdown, { prefix });
+  const summary = emptySummary();
+  const conflicts: SyncConflict[] = [];
+  const created: ImportPlanResult["milestones"] = [];
+  const dryRun = input.dry_run === true;
+  if (dryRun) await t.tx.query("savepoint hub_import_preview");
+
+  // Marcos que faltam: primeiro os que trazem código (para o código do arquivo ficar
+  // livre), depois os outros, sempre na posição do arquivo.
+  const before = await getPlan(t, project.code, "milestone.read");
+  const match = matchStructure(file, before);
+  const offset = before.milestones.reduce(
+    (max, m) => Math.max(max, m.sort_order),
+    0,
+  );
+  const missing = file.milestones
+    .map((m, index) => ({ m, index }))
+    .filter(({ index }) => !match.milestones[index])
+    .sort((a, b) => Number(!a.m.code) - Number(!b.m.code));
+  for (const { m, index } of missing) {
+    const criteria = file.items
+      .filter((i) => i.milestone === index && i.kind === "criterion")
+      .slice(0, 30)
+      .map((c) => ({ text: c.title.slice(0, 300), done: c.checked }));
+    const made = await attempt(t, () =>
+      createMilestone(
+        t,
+        project.code,
+        {
+          title: m.title.slice(0, 200),
+          title_client: null,
+          description_client: null,
+          due_date: null,
+          status: milestoneStatus(file, index),
+          visibility: "internal",
+          acceptance_criteria: criteria,
+        },
+        { code: m.code ?? undefined, sortOrder: offset + index + 1 },
+      ),
+    );
+    if (!made.ok) {
+      conflicts.push({
+        kind: "refused",
+        line: m.line + 1,
+        code: null,
+        detail: made.error.message,
+      });
+      continue;
+    }
+    summary.milestones_created += 1;
+    created.push({
+      code: made.value.code,
+      title: made.value.title,
+      status: made.value.status,
+    });
+  }
+  created.sort((a, b) =>
+    a.code.localeCompare(b.code, "pt-BR", { numeric: true }),
+  );
+
+  const today = new Date().toISOString().slice(0, 10);
+  const changes = await push(
+    { ...t, source: "sync" },
+    project.code,
+    file,
+    null,
+    {},
+    summary,
+    conflicts,
+    {
+      importing: {
+        evidence: `Já estava concluída no plan.md quando ele foi importado (${today}).`,
+      },
+    },
+  );
+  const current = parsePlanFile(applyItemChanges(file, changes), { prefix });
+  const plan = await getPlan(t, project.code, "sync.plan");
+  const pulled = pullIntoFile(current, plan);
+  summary.updated_in_file = pulled.updated;
+  summary.inserted_in_file = pulled.inserted;
+
+  let runId = "";
+  if (dryRun) {
+    await t.tx.query("rollback to savepoint hub_import_preview");
+  } else {
+    runId = await recordRun(
+      t,
+      project.id,
+      { direction: "push", via: "tela" },
+      summary,
+      conflicts,
+      "import",
+    );
+  }
+  return {
+    project_code: project.code,
+    direction: "push",
+    run_id: runId,
+    markdown: pulled.markdown,
+    changed: pulled.markdown !== input.markdown,
+    summary,
+    conflicts,
+    dry_run: dryRun,
+    milestones: created,
+  };
 }

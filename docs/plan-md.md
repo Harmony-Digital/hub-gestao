@@ -79,3 +79,14 @@ Com a versão anterior do arquivo (`base_markdown`, por exemplo a do commit ante
 Sem a versão anterior, essas três mudanças não são aplicadas: a caixa desmarcada de uma tarefa concluída no Hub é conflito, e o pull devolve o arquivo com o estado do Hub.
 
 Cada item é aplicado à parte: o que o Hub recusar (falta de escopo da chave, título inválido) vira conflito do tipo `refused`, sem desfazer o resto.
+
+## Importação (pela tela, por pessoa)
+
+Para trazer um `plan.md` inteiro para um projeto, inclusive os marcos, há a tela **Importar o plan.md** (Editar projeto → Importar o plan.md), só para o dono do workspace e a administração: marco é decisão de pessoa, e agente recebe 403.
+
+- Cole o conteúdo ou escolha o arquivo e clique em **Ver o que entra**: a importação roda inteira e é desfeita no fim (nada é gravado), mostrando os marcos novos, as frentes, as tarefas, as concluídas e os avisos. **Importar** só vale depois da prévia do mesmo texto.
+- Os marcos que faltam entram com o código do arquivo (`## M3 — ...` vira o M3, se o código estiver livre) e na ordem do arquivo; marco sem código ganha o próximo livre. O status vem do arquivo: `✅` ou GATE todo marcado vira Entregue; algum item marcado, Em andamento; senão, Planejado. **Aceito, nunca**: o aceite continua sendo pedido (Pedir aceite) e decidido nas Aprovações.
+- Os itens do GATE viram critérios de aceite do marco, marcados como estão no arquivo.
+- Depois dos marcos, vale o push normal (frentes, tarefas, subtarefas). Item marcado sem evidência escrita entra concluído com a nota "Já estava concluída no plan.md quando ele foi importado".
+- A tela devolve o arquivo com os códigos (botão para baixar). Grave no repositório no lugar do plano: os itens passam a levar os códigos e o pull e o push seguintes casam tudo pelo código. Importar de novo o arquivo devolvido não cria nada.
+- A execução fica em `plan_sync_runs` com a direção `import`.
