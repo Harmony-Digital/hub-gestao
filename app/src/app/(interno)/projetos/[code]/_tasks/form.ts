@@ -388,3 +388,89 @@ export function parseDependencyForm(
   }
   return { ok: true, value: { op, code, other } };
 }
+
+// Edição na linha da Lista -------------------------------------------------------------
+
+export type InlineEdit = {
+  code: string;
+  version: number;
+  change:
+    | { field: "priority"; value: Priority }
+    | { field: "assignee"; value: Assignee }
+    | { field: "due_date"; value: string | null }
+    | { field: "status"; value: string };
+};
+
+export function parseInlineEdit(form: FormData): Parsed<InlineEdit> {
+  const ref = taskRef(form);
+  if (!ref.ok) return ref;
+  if (ref.value.version === undefined) return { ok: false, message: RELOAD };
+  const field = text(form, "field");
+  const value = text(form, "value");
+  const base = { code: ref.value.code, version: ref.value.version };
+  if (field === "priority") {
+    if (!(PRIORITIES as readonly string[]).includes(value)) {
+      return { ok: false, message: RELOAD };
+    }
+    return {
+      ok: true,
+      value: { ...base, change: { field, value: value as Priority } },
+    };
+  }
+  if (field === "assignee") {
+    if (!value)
+      return { ok: true, value: { ...base, change: { field, value: null } } };
+    const m = /^(user|agent):(.+)$/.exec(value);
+    if (!m || !UUID.test(m[2])) return { ok: false, message: RELOAD };
+    return {
+      ok: true,
+      value: {
+        ...base,
+        change: { field, value: { type: m[1] as "user" | "agent", id: m[2] } },
+      },
+    };
+  }
+  if (field === "due_date") {
+    const due = dueDate(value);
+    if (!due.ok) return due;
+    return {
+      ok: true,
+      value: { ...base, change: { field, value: due.value } },
+    };
+  }
+  if (field === "status") {
+    if (!UUID.test(value)) return { ok: false, message: RELOAD };
+    return { ok: true, value: { ...base, change: { field, value } } };
+  }
+  return { ok: false, message: RELOAD };
+}
+
+/** Visão salva: nome e os filtros do endereço (a ação normaliza antes de gravar). */
+export function parseViewForm(form: FormData): Parsed<{
+  project: string;
+  type: "list" | "board";
+  name: string;
+  query: string;
+}> {
+  const project = text(form, "project");
+  const type = text(form, "type");
+  if (!PROJECT_CODE.test(project) || (type !== "list" && type !== "board")) {
+    return { ok: false, message: RELOAD };
+  }
+  const name = text(form, "name").trim();
+  if (!name) return { ok: false, message: "Dê um nome à visão." };
+  if (name.length > 60 || CONTROL.test(name)) {
+    return {
+      ok: false,
+      message: "O nome da visão: até 60 caracteres, numa linha só.",
+    };
+  }
+  const query = text(form, "query");
+  if (query.length > 600) {
+    return {
+      ok: false,
+      message: "Filtros demais para uma visão. Simplifique.",
+    };
+  }
+  return { ok: true, value: { project, type, name, query } };
+}

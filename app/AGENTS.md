@@ -39,7 +39,7 @@ As instruções canônicas do projeto estão em `../AGENTS.md` e valem integralm
   - `task-panel.tsx` e `panel-frame.tsx`: painel da tarefa (`?tarefa=HUB-n`);
   - `task-forms.tsx` e `new-task.tsx`: formulários e Nova tarefa;
   - `kanban.tsx` e `board-state.ts`: quadro, com `@dnd-kit/core` 6.3.1 em versão fixa;
-  - `workstream-filter.tsx` e `params.ts`: filtro por frente e leitura do endereço;
+  - `params.ts`, `list-state.ts`, `list-toolbar.tsx`, `saved-views.tsx` e `inline-edit.tsx`: leitura do endereço, filtros combináveis (Lista e Quadro), visões salvas e edição na linha da Lista;
   - `actions.ts` e `form.ts`: ações de formulário e leitura do `FormData`.
 - Marcos e frentes da Visão geral: pasta privada `_plan/` (`milestone-dialog.tsx`, `workstream-dialog.tsx`, `actions.ts` e `form.ts`).
 - Anexos: núcleo em `src/modules/attachments/service.ts` (conteúdo na tabela `attachment_contents`, até 10 MB; tipo pela extensão e conferido pelos primeiros bytes). Envio pela ação `anexarArquivo` (limite das ações de formulário em 11 MB no `next.config.ts`); download em `src/app/(interno)/anexos/[id]/route.ts`, só com sessão, imagens e PDF inline e o resto como download, sempre com `nosniff`.
@@ -55,7 +55,7 @@ As instruções canônicas do projeto estão em `../AGENTS.md` e valem integralm
 - Texto só para leitor de tela (`sr-only`, de posição absoluta) dentro de área com rolagem horizontal: a área leva `relative`, senão o texto escondido alarga a página no celular.
 - Pedidos de aprovação: `src/app/(interno)/_approvals/` (cartões de decisão, textos de cada tipo e a ação `decidirPedido`), usados pela tela Hoje e pela de Aprovações.
 - Texto livre com links (motivo do bloqueio, evidência): `Linkified`, que só transforma http e https em link. Comentário e descrição de tarefa são Markdown: `Markdown` (`src/components/markdown.tsx`, sem HTML cru, só links http, https e e-mail), com estilos em `.hub-markdown` no `globals.css`.
-- Se o `next dev` servir CSS antigo depois de mudar o `globals.css` (observador de arquivos limitado neste Mac), pare o servidor, apague `app/.next/dev` (cache, regerado sozinho) e suba de novo.
+- Se o `next dev` servir CSS ou JavaScript antigo depois de uma edição (o observador de arquivos deste Mac perde mudanças; sintoma: o navegador não reage ao código novo), pare o servidor, espere o processo sair, apague `app/.next/dev` (cache, regerado sozinho) e suba de novo antes de concluir que há defeito.
 - O jsonb do Postgres não guarda a ordem das chaves: texto montado a partir de `before` e `after` do histórico usa ordem fixa (ver `describeTaskEvent`).
 
 ## Conferência local

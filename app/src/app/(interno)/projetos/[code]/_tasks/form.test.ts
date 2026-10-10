@@ -6,9 +6,11 @@ import {
   parseChecklistForm,
   parseCommentForm,
   parseDependencyForm,
+  parseInlineEdit,
   parseMoveForm,
   parseNewTaskForm,
   parseTaskFieldsForm,
+  parseViewForm,
 } from "./form";
 
 const ID = "4dc6721e-2ac8-463d-84cb-3b25ab170bbd";
@@ -321,6 +323,85 @@ describe("comentário com menções", () => {
     ).toBe(false);
     expect(
       parseCommentForm(fd({ code: "HUB-3", body: "Oi", mentions: "{" })).ok,
+    ).toBe(false);
+  });
+});
+
+describe("edição na linha e visões salvas", () => {
+  const ID = "4dc6721e-2ac8-463d-84cb-3b25ab170bbd";
+  const fd = (values: Record<string, string>) => {
+    const data = new FormData();
+    for (const [k, v] of Object.entries(values)) data.append(k, v);
+    return data;
+  };
+  it("lê cada campo editável e exige a versão", () => {
+    const base = { code: "HUB-3", version: "4" };
+    expect(
+      parseInlineEdit(fd({ ...base, field: "priority", value: "high" })),
+    ).toEqual({
+      ok: true,
+      value: {
+        code: "HUB-3",
+        version: 4,
+        change: { field: "priority", value: "high" },
+      },
+    });
+    expect(
+      parseInlineEdit(fd({ ...base, field: "assignee", value: `agent:${ID}` })),
+    ).toMatchObject({
+      ok: true,
+      value: { change: { value: { type: "agent", id: ID } } },
+    });
+    expect(
+      parseInlineEdit(fd({ ...base, field: "assignee", value: "" })),
+    ).toMatchObject({
+      ok: true,
+      value: { change: { field: "assignee", value: null } },
+    });
+    expect(
+      parseInlineEdit(fd({ ...base, field: "due_date", value: "" })),
+    ).toMatchObject({
+      ok: true,
+      value: { change: { field: "due_date", value: null } },
+    });
+    expect(
+      parseInlineEdit(fd({ ...base, field: "status", value: ID })).ok,
+    ).toBe(true);
+    expect(
+      parseInlineEdit(fd({ code: "HUB-3", field: "priority", value: "high" }))
+        .ok,
+    ).toBe(false);
+    expect(
+      parseInlineEdit(fd({ ...base, field: "titulo", value: "x" })).ok,
+    ).toBe(false);
+    expect(
+      parseInlineEdit(fd({ ...base, field: "priority", value: "max" })).ok,
+    ).toBe(false);
+  });
+  it("visão salva com nome e filtros", () => {
+    expect(
+      parseViewForm(
+        fd({
+          project: "EXE",
+          type: "list",
+          name: " Urgentes ",
+          query: "prio=urgent",
+        }),
+      ),
+    ).toEqual({
+      ok: true,
+      value: {
+        project: "EXE",
+        type: "list",
+        name: "Urgentes",
+        query: "prio=urgent",
+      },
+    });
+    expect(
+      parseViewForm(fd({ project: "EXE", type: "list", name: " " })).ok,
+    ).toBe(false);
+    expect(
+      parseViewForm(fd({ project: "EXE", type: "mapa", name: "x" })).ok,
     ).toBe(false);
   });
 });

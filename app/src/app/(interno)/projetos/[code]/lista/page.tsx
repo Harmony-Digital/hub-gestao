@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, type CSSProperties, type ReactNode } from "react";
 import { ChevronRight, CornerDownRight } from "lucide-react";
 import { Avatar, Pill } from "@/components/shell/pill";
+import { can } from "@/lib/authorize";
 import { HubError } from "@/lib/errors";
 import { formatDayMonth, initials } from "@/lib/format";
 import { PRIORITY, STATUS_CATEGORY_TONE } from "@/lib/labels";
-import { can } from "@/lib/authorize";
 import { pageContext } from "@/lib/ui-context";
 import { inTx } from "@/modules/context";
 import {
@@ -16,16 +16,28 @@ import {
   type StatusOption,
 } from "@/modules/tasks/board";
 import type { TaskDto } from "@/modules/tasks/schemas";
-import { NewTaskButton } from "../_tasks/new-task";
+import { listSavedViews, type SavedViewDto } from "@/modules/views/service";
 import {
-  firstParam,
-  openTaskParam,
-  PROJECT_CODE,
-  viewHref,
-} from "../_tasks/params";
+  AssigneeCell,
+  DueCell,
+  PriorityCell,
+  StatusCell,
+} from "../_tasks/inline-edit";
+import { ListToolbar } from "../_tasks/list-toolbar";
+import {
+  groupTasks,
+  hasFilters,
+  listQuery,
+  readListState,
+  sortTasks,
+  toTaskFilter,
+  type Column,
+} from "../_tasks/list-state";
+import { NewTaskButton } from "../_tasks/new-task";
+import { openTaskParam, PROJECT_CODE } from "../_tasks/params";
 import { ProjectHeader } from "../_tasks/project-header";
+import { SavedViews } from "../_tasks/saved-views";
 import { TaskPanel, taskHref } from "../_tasks/task-panel";
-import { WorkstreamFilter } from "../_tasks/workstream-filter";
 
 export async function generateMetadata({
   params,
@@ -45,6 +57,23 @@ export default function ListaPage({
   );
 }
 
+/** Larguras das colunas extras (a do título ocupa o resto). */
+const WIDTH: Record<Column | "status", string> = {
+  status: "9rem",
+  frente: "10rem",
+  responsavel: "11rem",
+  prazo: "8.5rem",
+  prioridade: "7rem",
+};
+
+const HEADER: Record<Column | "status", string> = {
+  status: "Status",
+  frente: "Frente",
+  responsavel: "Responsável",
+  prazo: "Prazo",
+  prioridade: "Prioridade",
+};
+
 async function ListView({
   params,
   searchParams,
@@ -52,12 +81,18 @@ async function ListView({
   const { code } = await params;
   if (!PROJECT_CODE.test(code)) notFound();
   const query = await searchParams;
+  const state = readListState(query);
   const { user, ctx } = await pageContext();
   let data: ProjectTaskList;
+  let views: SavedViewDto[];
   try {
-    data = await inTx(ctx, (t) =>
-      projectTaskList(t, code, { workstream: firstParam(query.frente) }),
-    );
+    ({ data, views } = await inTx(ctx, async (t) => {
+      const list = await projectTaskList(t, code, toTaskFilter(state));
+      return {
+        data: list,
+        views: await listSavedViews(t, list.project.id, "list"),
+      };
+    }));
   } catch (err) {
     // Projeto inexistente ou fora do alcance de quem vê: a mesma página de "não achei".
     if (err instanceof HubError && (err.status === 404 || err.status === 403)) {
@@ -67,19 +102,29 @@ async function ListView({
   }
 
   const basePath = `/projetos/${code}/lista`;
-  const keep: Record<string, string> = data.workstream
-    ? { frente: data.workstream }
-    : {};
+  const current = listQuery(state);
+  const keep = Object.fromEntries(current);
   const open = openTaskParam(query.tarefa);
-  const byStatus = new Map<string, TaskDto[]>();
-  for (const task of data.tasks) {
-    const group = byStatus.get(task.status.id) ?? [];
-    group.push(task);
-    byStatus.set(task.status.id, group);
-  }
-  const doneStatuses = data.statuses.filter(
-    (s) => s.category === "done",
-  ).length;
+  const archived = data.project.status === "archived";
+  const editable = !archived && can(user.actor, "task.write");
+  const columns: (Column | "status")[] = [
+    ...(state.agrupar === "status" ? [] : (["status"] as const)),
+    ...state.colunas,
+  ];
+  const grid = {
+    "--cols": ["minmax(0,1fr)", ...columns.map((c) => WIDTH[c])].join(" "),
+  } as CSSProperties;
+  const tasks = sortTasks(data.tasks, state.ordem);
+  const rowProps = {
+    columns,
+    grid,
+    today: data.today,
+    open,
+    editable,
+    statuses: data.statuses,
+    assignees: data.assignees,
+    hrefFor: (c: string) => taskHref(basePath, keep, c),
+  };
 
   return (
     <>
@@ -91,7 +136,7 @@ async function ListView({
           canRestore={can(user.actor, "workspace.admin")}
           actions={
             // Projeto arquivado é só consulta: sem Nova tarefa.
-            data.project.status === "archived" ? undefined : (
+            archived ? undefined : (
               <NewTaskButton
                 projectCode={code}
                 basePath={basePath}
@@ -102,40 +147,68 @@ async function ListView({
             )
           }
         />
-        <main className="flex w-full flex-col gap-5 px-4 py-6 sm:px-8">
-          <WorkstreamFilter
+        <main className="flex w-full flex-col gap-4 px-4 py-6 sm:px-8">
+          <SavedViews
+            projectCode={code}
+            type="list"
             basePath={basePath}
+            views={views}
+            currentQuery={current.toString()}
+          />
+          <ListToolbar
+            basePath={basePath}
+            state={state}
             workstreams={data.workstreams}
-            active={data.workstream}
+            assignees={data.assignees}
+            mode="list"
           />
 
           {data.tasks.length === 0 ? (
             <p className="rounded-xl border border-dashed border-line p-5 text-sm text-ink-2">
-              {data.workstream
-                ? "Nenhuma tarefa com este filtro."
+              {hasFilters(state)
+                ? "Nenhuma tarefa com estes filtros."
                 : "Nenhuma tarefa neste projeto ainda. Use o botão Nova tarefa, ou peça a um agente para criar pelo MCP."}
             </p>
           ) : null}
 
           <div className="@container flex flex-col gap-3">
-            {data.statuses.map((status) => {
-              const tasks = byStatus.get(status.id) ?? [];
-              return (
-                <StatusGroup
-                  key={status.id}
-                  status={status}
-                  tasks={tasks}
-                  total={
-                    status.category === "done" && doneStatuses === 1
-                      ? data.doneTotal
-                      : tasks.length
-                  }
-                  today={data.today}
-                  open={open}
-                  hrefFor={(c) => taskHref(basePath, keep, c)}
-                />
-              );
-            })}
+            {state.agrupar === "status"
+              ? data.statuses.map((status) => {
+                  const list = tasks.filter((t) => t.status.id === status.id);
+                  const doneStatuses = data.statuses.filter(
+                    (s) => s.category === "done",
+                  ).length;
+                  return (
+                    <Group
+                      key={status.id}
+                      label={<StatusLabel status={status} />}
+                      tasks={list}
+                      total={
+                        status.category === "done" &&
+                        doneStatuses === 1 &&
+                        !hasFilters(state)
+                          ? data.doneTotal
+                          : list.length
+                      }
+                      closed={status.category === "done" || list.length === 0}
+                      {...rowProps}
+                    />
+                  );
+                })
+              : groupTasks(tasks, state.agrupar, data.workstreams).map((g) => (
+                  <Group
+                    key={g.key}
+                    label={
+                      <span className="text-sm font-semibold text-navy">
+                        {g.label}
+                      </span>
+                    }
+                    tasks={g.tasks}
+                    total={g.tasks.length}
+                    closed={g.done}
+                    {...rowProps}
+                  />
+                ))}
           </div>
         </main>
       </div>
@@ -143,7 +216,7 @@ async function ListView({
         <TaskPanel
           projectCode={code}
           taskCode={open}
-          closeHref={viewHref(basePath, data.workstream)}
+          closeHref={current.size ? `${basePath}?${current}` : basePath}
           basePath={basePath}
           keep={keep}
         />
@@ -152,29 +225,49 @@ async function ListView({
   );
 }
 
-/** Colunas da linha em telas largas (a lista é um container: encolhe com o painel). */
-const ROW_GRID =
-  "@3xl:grid @3xl:grid-cols-[minmax(0,1fr)_10rem_10rem_5rem_6rem] @3xl:items-center @3xl:gap-x-4";
+function StatusLabel({ status }: { status: StatusOption }) {
+  return (
+    <Pill tone={STATUS_CATEGORY_TONE[status.category]}>
+      <span
+        aria-hidden="true"
+        className="size-2 rounded-full"
+        style={{ background: status.color }}
+      />
+      {status.name}
+    </Pill>
+  );
+}
 
-function StatusGroup({
-  status,
-  tasks,
-  total,
-  today,
-  open,
-  hrefFor,
-}: {
-  status: StatusOption;
-  tasks: TaskDto[];
-  total: number;
+type RowProps = {
+  columns: (Column | "status")[];
+  grid: CSSProperties;
   today: string;
   open: string | null;
+  editable: boolean;
+  statuses: ProjectTaskList["statuses"];
+  assignees: ProjectTaskList["assignees"];
   hrefFor: (code: string) => string;
+};
+
+/** Grade das colunas em telas largas (a lista é um container: encolhe com o painel). */
+const ROW_GRID =
+  "@3xl:grid @3xl:[grid-template-columns:var(--cols)] @3xl:items-center @3xl:gap-x-3";
+
+function Group({
+  label,
+  tasks,
+  total,
+  closed,
+  ...row
+}: RowProps & {
+  label: ReactNode;
+  tasks: TaskDto[];
+  total: number;
+  closed: boolean;
 }) {
-  const isDone = status.category === "done";
   return (
     <details
-      open={!isDone && tasks.length > 0}
+      open={!closed && tasks.length > 0}
       className="group rounded-2xl border border-line bg-card"
     >
       <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 py-2.5 [&::-webkit-details-marker]:hidden">
@@ -182,16 +275,9 @@ function StatusGroup({
           aria-hidden="true"
           className="size-4 text-caption transition-transform group-open:rotate-90"
         />
-        <Pill tone={STATUS_CATEGORY_TONE[status.category]}>
-          <span
-            aria-hidden="true"
-            className="size-2 rounded-full"
-            style={{ background: status.color }}
-          />
-          {status.name}
-        </Pill>
+        {label}
         <span className="font-mono text-xs text-caption">{total}</span>
-        {isDone && total > tasks.length ? (
+        {total > tasks.length ? (
           <span className="text-xs text-caption">
             mostrando as {tasks.length} mais recentes
           </span>
@@ -203,23 +289,17 @@ function StatusGroup({
         <div className="border-t border-line">
           <div
             aria-hidden="true"
+            style={row.grid}
             className={`hidden px-4 py-2 text-xs text-caption ${ROW_GRID}`}
           >
             <span>Tarefa</span>
-            <span>Frente</span>
-            <span>Responsável</span>
-            <span>Prazo</span>
-            <span>Prioridade</span>
+            {row.columns.map((c) => (
+              <span key={c}>{HEADER[c]}</span>
+            ))}
           </div>
           <ul className="divide-y divide-line">
             {tasks.map((task) => (
-              <TaskRow
-                key={task.code}
-                task={task}
-                today={today}
-                active={task.code === open}
-                href={hrefFor(task.code)}
-              />
+              <TaskRow key={task.code} task={task} {...row} />
             ))}
           </ul>
         </div>
@@ -230,56 +310,60 @@ function StatusGroup({
 
 function TaskRow({
   task,
+  columns,
+  grid,
   today,
-  active,
-  href,
-}: {
-  task: TaskDto;
-  today: string;
-  active: boolean;
-  href: string;
-}) {
+  open,
+  editable,
+  statuses,
+  assignees,
+  hrefFor,
+}: RowProps & { task: TaskDto }) {
   const late =
     task.due_date !== null &&
     task.due_date < today &&
     task.status.category !== "done";
   const priority = PRIORITY[task.priority];
-  return (
-    <li>
-      <Link
-        href={href}
-        scroll={false}
-        prefetch={false}
-        aria-current={active ? "true" : undefined}
-        className={`flex flex-col gap-1.5 px-4 py-2.5 text-sm transition-colors hover:bg-off ${ROW_GRID} ${
-          active
-            ? "bg-brand-soft/15 shadow-[inset_3px_0_0_var(--color-brand)]"
-            : ""
-        }`}
-      >
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="w-16 shrink-0 font-mono text-xs font-semibold text-caption">
-            {task.code}
-          </span>
-          {task.parent_code ? (
-            <CornerDownRight
-              aria-label={`Subtarefa de ${task.parent_code}`}
-              className="size-3.5 shrink-0 text-caption"
-            />
-          ) : null}
-          <span
-            className={`min-w-0 truncate ${task.status.category === "done" ? "text-ink-2 line-through decoration-mist" : "text-ink"}`}
-          >
-            {task.title}
-          </span>
-        </span>
-        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-18 text-xs @3xl:contents">
-          <span className="truncate text-ink-2">
+  const base = { code: task.code, version: task.version };
+  const assignee = task.assignee
+    ? `${task.assignee.type}:${task.assignee.id}`
+    : "";
+  const cell = (c: Column | "status") => {
+    switch (c) {
+      case "status":
+        return editable ? (
+          <StatusCell
+            {...base}
+            statusId={task.status.id}
+            statuses={statuses}
+            panelHref={hrefFor(task.code)}
+          />
+        ) : (
+          <Pill tone={STATUS_CATEGORY_TONE[task.status.category]}>
+            {task.status.name}
+          </Pill>
+        );
+      case "frente":
+        return (
+          <span className="truncate text-xs text-ink-2">
             {task.workstream?.title ?? (
-              <span className="text-caption @3xl:hidden">Sem frente</span>
+              <span className="text-caption">Sem frente</span>
             )}
           </span>
-          <span className="flex min-w-0 items-center gap-1.5 text-ink-2">
+        );
+      case "responsavel":
+        return editable ? (
+          <span className="flex min-w-0 items-center gap-1">
+            {task.assignee ? (
+              <Avatar
+                text={initials(task.assignee.name)}
+                agent={task.assignee.type === "agent"}
+              />
+            ) : null}
+            <AssigneeCell {...base} assignee={assignee} options={assignees} />
+          </span>
+        ) : (
+          <span className="flex min-w-0 items-center gap-1.5 text-xs text-ink-2">
             {task.assignee ? (
               <>
                 <Avatar
@@ -292,25 +376,69 @@ function TaskRow({
               <span className="text-caption">Ninguém</span>
             )}
           </span>
+        );
+      case "prazo":
+        return editable ? (
+          <DueCell {...base} due={task.due_date} late={late} />
+        ) : (
           <span
-            className={late ? "font-semibold text-danger-fg" : "text-ink-2"}
+            className={`text-xs ${late ? "font-semibold text-danger-fg" : "text-ink-2"}`}
           >
-            {task.due_date ? (
-              <>
-                {formatDayMonth(task.due_date)}
-                {late ? <span className="sr-only"> (atrasada)</span> : null}
-              </>
-            ) : (
-              <span className="text-caption @3xl:hidden">Sem prazo</span>
-            )}
+            {task.due_date ? formatDayMonth(task.due_date) : "Sem prazo"}
           </span>
-          <span>
-            {task.priority !== "normal" ? (
-              <Pill tone={priority.tone}>{priority.label}</Pill>
-            ) : null}
-          </span>
+        );
+      case "prioridade":
+        return editable ? (
+          <PriorityCell {...base} priority={task.priority} />
+        ) : task.priority !== "normal" ? (
+          <Pill tone={priority.tone}>{priority.label}</Pill>
+        ) : (
+          <span className="text-xs text-caption">Normal</span>
+        );
+    }
+  };
+
+  return (
+    <li
+      style={grid}
+      aria-current={task.code === open ? "true" : undefined}
+      className={`flex flex-col gap-1.5 px-4 py-2 text-sm transition-colors hover:bg-off ${ROW_GRID} ${
+        task.code === open
+          ? "bg-brand-soft/15 shadow-[inset_3px_0_0_var(--color-brand)]"
+          : ""
+      }`}
+    >
+      <Link
+        href={hrefFor(task.code)}
+        scroll={false}
+        prefetch={false}
+        className="flex min-w-0 items-center gap-2 hover:underline"
+      >
+        <span className="w-16 shrink-0 font-mono text-xs font-semibold text-caption">
+          {task.code}
+        </span>
+        {task.parent_code ? (
+          <CornerDownRight
+            aria-label={`Subtarefa de ${task.parent_code}`}
+            className="size-3.5 shrink-0 text-caption"
+          />
+        ) : null}
+        <span
+          className={`min-w-0 truncate ${task.status.category === "done" ? "text-ink-2 line-through decoration-mist" : "text-ink"}`}
+        >
+          {task.title}
         </span>
       </Link>
+      {columns.length ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-18 @3xl:contents">
+          {columns.map((c) => (
+            // A versão na chave remonta a célula quando a tarefa muda (valor sempre o atual).
+            <div key={`${c}-${task.version}`} className="min-w-0">
+              {cell(c)}
+            </div>
+          ))}
+        </div>
+      ) : null}
     </li>
   );
 }
