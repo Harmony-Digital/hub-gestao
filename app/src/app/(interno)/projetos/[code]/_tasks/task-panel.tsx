@@ -8,11 +8,16 @@ import { HubError } from "@/lib/errors";
 import { formatMoment, formatTimestampDay, initials } from "@/lib/format";
 import { STATUS_CATEGORY_TONE, TASK_SOURCE } from "@/lib/labels";
 import { pageContext } from "@/lib/ui-context";
+import { ACCEPTED_EXTENSIONS } from "@/modules/attachments/service";
 import { inTx } from "@/modules/context";
 import { taskDetail, type TaskDetail } from "@/modules/tasks/board";
 import { assigneeValue } from "./form";
 import { TaskPanelFrame } from "./panel-frame";
-import { ChecklistEditor, DependenciesEditor } from "./task-extras";
+import {
+  AttachmentsEditor,
+  ChecklistEditor,
+  DependenciesEditor,
+} from "./task-extras";
 import { CommentForm } from "./comment-editor";
 import {
   DescriptionField,
@@ -197,6 +202,20 @@ async function PanelContent({
           </ul>
         </Section>
       ) : null}
+
+      <Section
+        title={
+          data.attachments.length > 0
+            ? `Anexos (${data.attachments.length})`
+            : "Anexos"
+        }
+      >
+        <AttachmentsEditor
+          code={task.code}
+          items={data.attachments}
+          accept={ACCEPTED_EXTENSIONS}
+        />
+      </Section>
 
       <Section title="Dependências">
         <DependenciesEditor

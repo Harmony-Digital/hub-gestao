@@ -13,6 +13,7 @@ import {
   updateChecklistItem,
 } from "@/modules/tasks/extras";
 import { CreateTaskInput, UpdateTaskInput } from "@/modules/tasks/schemas";
+import { addAttachment, removeAttachment } from "@/modules/attachments/service";
 import {
   createTask,
   getTask,
@@ -165,6 +166,51 @@ export async function dependenciaTarefa(
         ? addDependency(t, code, other)
         : removeDependency(t, code, other),
     );
+    refresh();
+    return { status: "ok" };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+const TASK = /^[A-Z]{2,6}-[0-9]{1,9}$/;
+const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Anexa um arquivo à tarefa (até 10 MB; o núcleo confere tipo e conteúdo). */
+export async function anexarArquivo(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const code = form.get("code");
+  const file = form.get("file");
+  if (typeof code !== "string" || !TASK.test(code)) {
+    return { status: "error", message: "Recarregue a página e tente de novo." };
+  }
+  if (!(file instanceof File) || file.size === 0) {
+    return { status: "error", message: "Escolha um arquivo para anexar." };
+  }
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    await inTx(ctx, (t) => addAttachment(t, code, { name: file.name, bytes }));
+    refresh();
+    return { status: "ok", message: `${file.name} anexado.` };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+export async function removerAnexo(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const id = form.get("id");
+  if (typeof id !== "string" || !ID.test(id)) {
+    return { status: "error", message: "Recarregue a página e tente de novo." };
+  }
+  try {
+    await inTx(ctx, (t) => removeAttachment(t, id));
     refresh();
     return { status: "ok" };
   } catch (err) {

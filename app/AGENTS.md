@@ -42,6 +42,7 @@ As instruções canônicas do projeto estão em `../AGENTS.md` e valem integralm
   - `workstream-filter.tsx` e `params.ts`: filtro por frente e leitura do endereço;
   - `actions.ts` e `form.ts`: ações de formulário e leitura do `FormData`.
 - Marcos e frentes da Visão geral: pasta privada `_plan/` (`milestone-dialog.tsx`, `workstream-dialog.tsx`, `actions.ts` e `form.ts`).
+- Anexos: núcleo em `src/modules/attachments/service.ts` (conteúdo na tabela `attachment_contents`, até 10 MB; tipo pela extensão e conferido pelos primeiros bytes). Envio pela ação `anexarArquivo` (limite das ações de formulário em 11 MB no `next.config.ts`); download em `src/app/(interno)/anexos/[id]/route.ts`, só com sessão, imagens e PDF inline e o resto como download, sempre com `nosniff`.
 - Arquivar e restaurar (marco, frente, projeto e cliente): pasta privada `src/app/(interno)/_archive/` (`ArchiveConfirm`, `ArchiveButton`, `RestoreButton`, `ArchivedSection` e a ação `arquivar`), com o núcleo em `src/modules/archive/service.ts`. Projeto arquivado é só leitura pela regra central de `resolveProject` e `authorizeProjectId` (`src/modules/common.ts`): as telas escondem os botões de criar e editar, e o núcleo recusa a escrita de qualquer forma.
 - Dados das telas vêm de funções de leitura em `src/modules` (ex.: `modules/tasks/board.ts`, `modules/projects/overview.ts`). Mudanças passam sempre pelos casos de uso, com autorização, auditoria e `source = ui`.
 - Ação de formulário:

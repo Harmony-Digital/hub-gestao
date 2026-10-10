@@ -8,13 +8,31 @@ import {
   useState,
   useTransition,
 } from "react";
-import { Check, Link2, LoaderCircle, Pencil, Plus, X } from "lucide-react";
+import {
+  Check,
+  File as FileIcon,
+  FileImage,
+  FileText,
+  Link2,
+  LoaderCircle,
+  Paperclip,
+  Pencil,
+  Plus,
+  X,
+} from "lucide-react";
 import { ErrorNote, inputClass, useSubmit } from "@/components/forms";
 import { Pill } from "@/components/shell/pill";
 import { Button } from "@/components/ui/button";
+import { formatBytes, formatTimestampDay } from "@/lib/format";
 import { STATUS_CATEGORY_TONE } from "@/lib/labels";
+import type { AttachmentDto } from "@/modules/attachments/service";
 import type { ChecklistItemDto, DependencyRef } from "@/modules/tasks/extras";
-import { checklistTarefa, dependenciaTarefa } from "./actions";
+import {
+  anexarArquivo,
+  checklistTarefa,
+  dependenciaTarefa,
+  removerAnexo,
+} from "./actions";
 import { IDLE, type ActionState } from "./form";
 
 // Checklist ---------------------------------------------------------------------------
@@ -341,6 +359,151 @@ function AddDependency({ code }: { code: string }) {
           Depender
         </Button>
       </div>
+      {state.status === "error" ? <ErrorNote message={state.message} /> : null}
+    </form>
+  );
+}
+
+// Anexos ------------------------------------------------------------------------------
+
+const MAX_BYTES = 10 * 1024 * 1024;
+
+function AttachmentIcon({ mime }: { mime: string }) {
+  const Icon = mime.startsWith("image/")
+    ? FileImage
+    : mime.startsWith("text/") || mime === "application/pdf"
+      ? FileText
+      : FileIcon;
+  return <Icon aria-hidden="true" className="size-4 shrink-0 text-caption" />;
+}
+
+/** Anexos da tarefa: abrir (imagem e PDF no navegador), tirar e anexar até 10 MB. */
+export function AttachmentsEditor({
+  code,
+  items,
+  accept,
+}: {
+  code: string;
+  items: AttachmentDto[];
+  /** Extensões aceitas (vêm do servidor, que é quem decide). */
+  accept: string;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      {items.length > 0 ? (
+        <ul className="flex flex-col gap-1">
+          {items.map((a) => (
+            <li
+              key={a.id}
+              className="flex items-center gap-2 rounded-lg px-1 py-1 hover:bg-off"
+            >
+              <AttachmentIcon mime={a.mime} />
+              <a
+                href={`/anexos/${a.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="min-w-0 flex-1 truncate text-sm text-info-fg underline-offset-2 hover:underline"
+              >
+                {a.filename}
+              </a>
+              <span className="shrink-0 text-xs text-caption">
+                {formatBytes(a.size_bytes)} · {a.uploaded_by?.name ?? "Hub"} ·{" "}
+                {formatTimestampDay(a.created_at)}
+              </span>
+              <RemoveAttachment id={a.id} filename={a.filename} />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <UploadAttachment code={code} accept={accept} />
+    </div>
+  );
+}
+
+function RemoveAttachment({ id, filename }: { id: string; filename: string }) {
+  const [state, action, pending] = useActionState(removerAnexo, IDLE);
+  const submit = useSubmit(action);
+  return (
+    <form onSubmit={submit} className="flex flex-col items-end">
+      <input type="hidden" name="id" value={id} />
+      <Button
+        type="submit"
+        variant="ghost"
+        size="icon-sm"
+        disabled={pending}
+        aria-label={`Tirar o anexo ${filename}`}
+      >
+        {pending ? (
+          <LoaderCircle aria-hidden="true" className="animate-spin" />
+        ) : (
+          <X aria-hidden="true" />
+        )}
+      </Button>
+      {state.status === "error" ? (
+        <p role="alert" className="text-xs text-danger-fg">
+          {state.message}
+        </p>
+      ) : null}
+    </form>
+  );
+}
+
+function UploadAttachment({ code, accept }: { code: string; accept: string }) {
+  const form = useRef<HTMLFormElement>(null);
+  const [tooBig, setTooBig] = useState<string | null>(null);
+  const [state, action, pending] = useActionState(
+    async (previous: ActionState, data: FormData) => {
+      const result = await anexarArquivo(previous, data);
+      if (result.status === "ok") form.current?.reset();
+      return result;
+    },
+    IDLE,
+  );
+  const send = useSubmit(action);
+  return (
+    <form
+      ref={form}
+      onSubmit={(event) => {
+        const file = new FormData(event.currentTarget).get("file");
+        if (file instanceof File && file.size > MAX_BYTES) {
+          event.preventDefault();
+          setTooBig(
+            `${file.name} passou de 10 MB. Compacte ou divida o arquivo.`,
+          );
+          return;
+        }
+        setTooBig(null);
+        send(event);
+      }}
+      className="flex flex-col gap-1.5"
+    >
+      <input type="hidden" name="code" value={code} />
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor={`anexo-${code}`} className="sr-only">
+          Arquivo para anexar
+        </label>
+        <input
+          id={`anexo-${code}`}
+          type="file"
+          name="file"
+          required
+          accept={accept}
+          disabled={pending}
+          className="min-w-0 flex-1 text-sm text-ink-2 file:mr-3 file:rounded-lg file:border file:border-line file:bg-paper file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-navy hover:file:bg-off"
+        />
+        <Button type="submit" variant="outline" size="lg" disabled={pending}>
+          {pending ? (
+            <LoaderCircle aria-hidden="true" className="animate-spin" />
+          ) : (
+            <Paperclip aria-hidden="true" />
+          )}
+          Anexar
+        </Button>
+      </div>
+      <p className="text-xs text-caption">
+        Até 10 MB: imagens, PDF, texto, CSV, planilhas, documentos e zip.
+      </p>
+      {tooBig ? <ErrorNote message={tooBig} /> : null}
       {state.status === "error" ? <ErrorNote message={state.message} /> : null}
     </form>
   );
