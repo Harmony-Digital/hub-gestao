@@ -14,7 +14,8 @@ export const MILESTONE_SELECT = `
          coalesce(m.status in ('planned', 'in_progress') and m.due_date < current_date, false) as late,
          m.visibility, m.acceptance_criteria, m.progress_pct, m.task_count, m.done_count,
          m.delivered_at, m.accepted_at, m.accepted_by_profile_id,
-         (select pr.full_name from ${S}.profiles pr where pr.id = m.accepted_by_profile_id) as accepted_by_name
+         (select pr.full_name from ${S}.profiles pr where pr.id = m.accepted_by_profile_id) as accepted_by_name,
+         m.client_received_at, m.client_received_by_name
     from ${S}.milestones m
     join ${S}.projects p on p.id = m.project_id`;
 
@@ -40,6 +41,8 @@ export type MilestoneRow = {
   accepted_at: Date | string | null;
   accepted_by_profile_id: string | null;
   accepted_by_name: string | null;
+  client_received_at: Date | string | null;
+  client_received_by_name: string | null;
 };
 
 /** Critérios de aceite como lista de { text, done }, aceitando texto simples. */
@@ -80,6 +83,8 @@ export function toMilestoneDto(r: MilestoneRow): MilestoneDto {
     accepted_by: r.accepted_by_profile_id
       ? actorRef("user", r.accepted_by_profile_id, r.accepted_by_name)
       : null,
+    client_received_at: isoOrNull(r.client_received_at),
+    client_received_by: r.client_received_by_name,
   };
 }
 

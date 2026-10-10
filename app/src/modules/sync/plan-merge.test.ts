@@ -94,6 +94,8 @@ function milestone(
     delivered_at: null,
     accepted_at: null,
     accepted_by: null,
+    client_received_at: null,
+    client_received_by: null,
     workstreams: build(ref),
     ...extra,
   };

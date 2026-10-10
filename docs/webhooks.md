@@ -47,6 +47,7 @@ O `data` de cada evento:
 | `task.created` / `task.updated` / `task.completed` / `task.blocked` | `code`, `project_code` e os campos da mudança |
 | `workstream.updated`, `milestone.status_changed`, `report.published` | o item e o projeto |
 | `client.commented` | `project_code`, `author` (o nome do contato) e `excerpt` (o começo da mensagem, até 140 caracteres). Sai quando o contato escreve no portal ("Conversa com a equipe"); bom para o Telegram, pelo Hermes |
+| `client.receipt_confirmed` | `project_code`, `milestone` (o código, como M2), `title` (o título para o cliente) e `author` (o nome do contato). Sai quando o contato decisor confirma no portal que recebeu uma entrega (opção do projeto; não é o aceite, que é do dono) |
 | `webhook.test` | `message` (só pelo botão Enviar teste) |
 
 ## Conferir a assinatura

@@ -183,6 +183,18 @@ test("o dono libera o acesso e o contato acompanha os projetos pelo portal", asy
     arquivos.getByRole("button", { name: "Entregar ao cliente" }),
   );
   expect(await violations(page)).toEqual([]);
+
+  // Confirmar recebimento (D9): o dono liga a opção do projeto.
+  await page.goto("/projetos/EXE/editar");
+  await settle(page);
+  const receiptOption = page.getByLabel(
+    /O cliente pode confirmar o recebimento das entregas/,
+  );
+  if (!(await receiptOption.isChecked())) {
+    await receiptOption.check();
+    await page.getByRole("button", { name: "Salvar alterações" }).click();
+    await expect(page).toHaveURL(/\/projetos\/EXE$/);
+  }
   // O aviso chegou na caixa de entrada do dono.
   await page.goto("/caixa-de-entrada");
   await settle(page);
@@ -208,6 +220,26 @@ test("o dono libera o acesso e o contato acompanha os projetos pelo portal", asy
   expect(download.headers()["content-type"]).toBe("application/pdf");
   expect((await download.body()).toString()).toContain("Entrega de teste");
   expect(await violations(client)).toEqual([]);
+
+  // O contato decisor confirma que recebeu uma entrega já entregue. No banco novo do CI
+  // a do M1 (concluída) está esperando; num banco local já confirmada, só a conferência.
+  const confirmar = client.getByRole("button", {
+    name: /^Confirmar o recebimento de /,
+  });
+  if ((await confirmar.count()) > 0) {
+    await confirmar.first().click();
+    await client.getByRole("button", { name: "Sim, recebi" }).click();
+    await expect(
+      client
+        .getByText(`Recebimento confirmado por ${name}`, { exact: false })
+        .first(),
+    ).toBeVisible();
+  } else {
+    await expect(
+      client.getByText(/Recebimento confirmado por/).first(),
+    ).toBeVisible();
+  }
+  expect(await violations(client)).toEqual([]);
   // Projeto que não é do cliente: a mesma resposta de "não encontrado".
   await client.goto("/portal/clinica-exemplo/HUB");
   await expect(
@@ -228,6 +260,13 @@ test("o dono libera o acesso e o contato acompanha os projetos pelo portal", asy
   await client.getByRole("button", { name: "Entrar no portal" }).click();
   await expect(client).toHaveURL(/\/portal\/sem-acesso$/);
   await context.close();
+
+  // A equipe vê a confirmação na Visão geral.
+  await page.goto("/projetos/EXE");
+  await settle(page);
+  await expect(
+    page.getByText(/Recebimento confirmado pelo cliente/).first(),
+  ).toBeVisible();
 
   // De volta à equipe: o contato entrou e aceitou; o dono revoga.
   await page.goto("/clientes/clinica-exemplo/portal");

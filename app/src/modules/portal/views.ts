@@ -99,6 +99,8 @@ export type PortalWorkstream = {
 };
 
 export type PortalMilestone = {
+  /** Id do marco, só para o formulário de confirmar o recebimento. */
+  id: string;
   title: string;
   description: string | null;
   dueDate: string | null;
@@ -107,6 +109,9 @@ export type PortalMilestone = {
   status: PortalMilestoneStatus;
   /** Quando foi entregue (ou concluída), para "Entregue em". */
   deliveredAt: string | null;
+  /** O cliente confirmou que recebeu (opção do projeto): quando e quem. */
+  receivedAt: string | null;
+  receivedBy: string | null;
   workstreams: PortalWorkstream[];
 };
 
@@ -118,6 +123,8 @@ export type PortalReport = {
 };
 
 export type PortalProjectDetail = PortalProject & {
+  /** O projeto deixa o cliente decisor confirmar o recebimento das entregas (D9). */
+  clientCanConfirm: boolean;
   milestones: PortalMilestone[];
   /** Frentes marcadas para o cliente sem um marco que ele veja. */
   otherWorkstreams: PortalWorkstream[];
@@ -132,6 +139,8 @@ type DetailMilestoneRow = {
   status: PortalMilestoneStatus;
   delivered_at: Date | string | null;
   accepted_at: Date | string | null;
+  client_received_at: Date | string | null;
+  client_received_by_name: string | null;
 };
 
 type DetailWorkstreamRow = {
@@ -159,10 +168,13 @@ export async function portalProject(
   code: string,
 ): Promise<PortalProjectDetail> {
   assertClient(t.actor);
-  const project = await maybeOne<ProjectRow>(
+  const project = await maybeOne<
+    ProjectRow & { client_can_confirm_receipt: boolean }
+  >(
     t,
     `select p.id, p.code, p.name, p.phase::text as phase, p.objective_client,
-            p.progress_pct, p.target_date::text as target_date
+            p.progress_pct, p.target_date::text as target_date,
+            p.client_can_confirm_receipt
        from ${S}.projects p
       where p.code = $1`,
     [code],
@@ -172,7 +184,8 @@ export async function portalProject(
   const milestoneRows = await many<DetailMilestoneRow>(
     t,
     `select m.id, m.title_client, m.description_client, m.due_date::text as due_date,
-            m.status::text as status, m.delivered_at, m.accepted_at
+            m.status::text as status, m.delivered_at, m.accepted_at,
+            m.client_received_at, m.client_received_by_name
        from ${S}.milestones m
       where m.project_id = $1 and m.title_client is not null
       order by m.sort_order, m.code`,
@@ -214,6 +227,7 @@ export async function portalProject(
   });
   const shown = new Set(milestoneRows.map((m) => m.id));
   const milestones = milestoneRows.map((m) => ({
+    id: m.id,
     title: m.title_client,
     description: m.description_client,
     dueDate: m.due_date,
@@ -224,6 +238,8 @@ export async function portalProject(
       (m.delivered_at ?? m.accepted_at)
         ? iso(m.delivered_at ?? m.accepted_at)
         : null,
+    receivedAt: m.client_received_at ? iso(m.client_received_at) : null,
+    receivedBy: m.client_received_by_name,
     workstreams: workstreamRows
       .filter((w) => w.milestone_id === m.id)
       .map(toWorkstream),
@@ -239,6 +255,7 @@ export async function portalProject(
     progressPct: Number(project.progress_pct),
     targetDate: project.target_date,
     nextMilestone: next ? { title: next.title, dueDate: next.dueDate } : null,
+    clientCanConfirm: project.client_can_confirm_receipt,
     milestones,
     otherWorkstreams: workstreamRows
       .filter((w) => !w.milestone_id || !shown.has(w.milestone_id))
