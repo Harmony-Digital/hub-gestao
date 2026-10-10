@@ -195,6 +195,11 @@ export const MeDto = z.object({
     z.object({ code: ProjectCode, name: z.string(), status: z.string() }),
   ),
   all_projects: z.boolean(),
+  departments: z
+    .array(z.object({ slug: z.string(), name: z.string() }))
+    .describe(
+      "Departamentos do workspace (os slugs servem para hub_create_project).",
+    ),
   budget: z
     .object({
       month_usd: z.number(),
@@ -275,6 +280,12 @@ export async function whoami(t: TxCtx): Promise<MeDto> {
     key,
     projects,
     all_projects: allProjects,
+    departments: await many<{ slug: string; name: string }>(
+      t,
+      `select slug, name from ${S}.departments
+        where workspace_id = $1 order by sort_order, name`,
+      [t.actor.workspaceId],
+    ),
     budget,
   };
 }

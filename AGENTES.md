@@ -286,6 +286,8 @@ Na fase 1 (D6 e D10), o Kratos também recebe `projects:import`, para cadastrar 
 3. Cada projeto entra "Em revisão" com um resumo: marcos, frentes, tarefas, GATEs preservados e o que ficou de fora.
 4. O Fábio aprova em lote no Hoje. A partir daí, o projeto sincroniza com o `plan.md` do repositório.
 
+**No Hub (desde o PR #48):** as três ferramentas existem no MCP para chaves com `projects:import` e acesso a todos os projetos; o `hub_whoami` traz os departamentos (slugs). O projeto nasce "Em revisão", os marcos entram como Planejado (o andamento é marcado pelo Fábio depois), item marcado entra concluído com a evidência escrita ou com a nota da importação, e o `hub_import_plan` abre um só pedido `import_review` por projeto, com o resumo do agente e a contagem do que entrou. Tudo é idempotente (cliente pelo nome, projeto pelo código, o arquivo devolvido com os códigos). No Hoje, com duas ou mais importações pendentes, aparece "Importações de projeto para revisar", com Aprovar as marcadas (e uma confirmação); recusar ou pedir ajuste é no cartão de cada pedido. O passo a passo do agente importador está na skill `agents/skills/importar-projetos-no-hub/SKILL.md`, que ganha a orientação do Fábio na sessão de orientação.
+
 ---
 
 ## 6. Comunicação e canais

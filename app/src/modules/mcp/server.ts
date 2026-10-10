@@ -45,6 +45,14 @@ import {
   DraftReportInput,
   DraftReportResult,
 } from "@/modules/reports/service";
+import {
+  ImportClientInput,
+  importClient,
+  ImportProjectInput,
+  importProject,
+  ImportProjectPlanInput,
+  importProjectPlan,
+} from "@/modules/projects/import";
 import { search, SearchDto } from "@/modules/search/service";
 import {
   syncPlan,
@@ -90,7 +98,8 @@ export const MCP_INSTRUCTIONS = `Você está conectado ao Hub de Gestão da Harm
 3. Bloqueio: hub_block_task dizendo o que falta e de quem depende.
 4. Nunca marque GATE, nunca crie ou mude marco, nunca escreva texto para o cliente: peça com hub_request_approval. Só o Fábio decide.
 5. Nunca coloque segredos, tokens, senhas ou dados pessoais em título, descrição, comentário ou evidência.
-6. Toda escrita exige idempotency_key, um valor novo por ação (por exemplo, um UUID); repetir a mesma chave com os mesmos dados é seguro. Se você acumula papéis, informe papel (ex.: GP-01).`;
+6. Toda escrita exige idempotency_key, um valor novo por ação (por exemplo, um UUID); repetir a mesma chave com os mesmos dados é seguro. Se você acumula papéis, informe papel (ex.: GP-01).
+7. Importação de projetos (só com o escopo projects:import): hub_create_client, hub_create_project e hub_import_plan, nessa ordem, sempre com dry_run antes. O projeto nasce "Em revisão" e só passa a valer com o ok do Fábio; é a única exceção à regra 4, e só em projeto em revisão.`;
 
 type ToolResult = {
   [key: string]: unknown;
@@ -628,6 +637,63 @@ export function buildMcpServer(
         void _p;
         void _k;
         return write("hub_sync_plan", args, (t) => syncPlan(t, input));
+      },
+    );
+  }
+
+  // Importação de projetos (D10) -----------------------------------------------------------
+
+  if (has("projects:import")) {
+    server.registerTool(
+      "hub_create_client",
+      {
+        title: "Cadastrar cliente (importação)",
+        description:
+          "Cadastra o cliente de um projeto que você vai importar, sem acesso ao portal (quem libera o portal é o Fábio). Se já existe cliente com o mesmo nome, devolve esse, com created: false. Nunca coloque segredos nem dados pessoais nas notas.",
+        inputSchema: ImportClientInput.extend(writeFields),
+        annotations: mutating,
+      },
+      async (args) => {
+        const { papel: _p, idempotency_key: _k, ...input } = args;
+        void _p;
+        void _k;
+        return write("hub_create_client", args, (t) => importClient(t, input));
+      },
+    );
+    server.registerTool(
+      "hub_create_project",
+      {
+        title: "Cadastrar projeto em revisão (importação)",
+        description:
+          'Cadastra um projeto "Em revisão" ligado a um cliente (o de hub_create_client), com departamentos (slugs de hub_whoami), repositório e caminho do plan.md. O projeto só passa a valer quando o Fábio aprovar a importação. Repetir com o mesmo código e o mesmo cliente devolve o mesmo projeto (created: false); código de um projeto que já está no Hub fora de revisão é recusado (409). Depois, importe o plano com hub_import_plan.',
+        inputSchema: ImportProjectInput.extend(writeFields),
+        annotations: mutating,
+      },
+      async (args) => {
+        const { papel: _p, idempotency_key: _k, ...input } = args;
+        void _p;
+        void _k;
+        return write("hub_create_project", args, (t) =>
+          importProject(t, input),
+        );
+      },
+    );
+    server.registerTool(
+      "hub_import_plan",
+      {
+        title: "Importar o plan.md de um projeto em revisão",
+        description:
+          'Importa o plan.md inteiro num projeto "Em revisão" (de hub_create_project): marcos com o código do arquivo (sempre como Planejado), frentes, tarefas e subtarefas, e os critérios do GATE; item marcado entra concluído, com a evidência escrita ou com a nota da importação. Abre o pedido import_review para o Fábio (um só por projeto) com o seu resumo (summary: de onde veio o plano e o que ficou de fora). Use antes dry_run: true para ver o que entraria e os avisos, sem gravar. O markdown devolvido traz os códigos: entregue-o para ir ao repositório por PR depois da aprovação, nunca direto na main.',
+        inputSchema: ImportProjectPlanInput.extend(writeFields),
+        annotations: mutating,
+      },
+      async (args) => {
+        const { papel: _p, idempotency_key: _k, ...input } = args;
+        void _p;
+        void _k;
+        return write("hub_import_plan", args, (t) =>
+          importProjectPlan(t, input),
+        );
       },
     );
   }

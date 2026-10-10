@@ -83,7 +83,7 @@ export async function listClients(t: TxCtx): Promise<ClientDto[]> {
   return rows.map(toClient);
 }
 
-async function clientById(t: TxCtx, id: string): Promise<ClientDto> {
+export async function clientById(t: TxCtx, id: string): Promise<ClientDto> {
   const row = await maybeOne<ClientRow>(t, `${CLIENT_SELECT} where c.id = $1`, [
     id,
   ]);
@@ -91,7 +91,7 @@ async function clientById(t: TxCtx, id: string): Promise<ClientDto> {
   return toClient(row);
 }
 
-async function freeSlug(t: TxCtx, base: string): Promise<string> {
+export async function freeSlug(t: TxCtx, base: string): Promise<string> {
   const taken = new Set(
     (
       await many<{ slug: string }>(
@@ -169,7 +169,8 @@ export const EditableProjectStatus = z.enum([
   "delivered",
 ]);
 
-const Url = z
+/** Endereço do repositório: https, uma linha. */
+export const ProjectUrl = z
   .string()
   .trim()
   .max(500)
@@ -186,7 +187,7 @@ const ProjectFields = {
   target_date: IsoDate.nullable(),
   owner_profile_id: Uuid.nullable(),
   pm_agent_id: Uuid.nullable(),
-  repo_url: Url.nullable(),
+  repo_url: ProjectUrl.nullable(),
   plan_path: Line(300).nullable(),
   require_evidence: z.boolean(),
   client_can_confirm_receipt: z.boolean(),
@@ -302,7 +303,7 @@ async function checkReferences(
   return departments.map((d) => d.id);
 }
 
-async function setDepartments(
+export async function setDepartments(
   t: TxCtx,
   projectId: string,
   departmentIds: string[],

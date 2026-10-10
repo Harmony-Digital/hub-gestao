@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { HubError } from "@/lib/errors";
+import { unprocessable, type HubError } from "@/lib/errors";
 import { attempt } from "@/modules/attempt";
 import { ProjectCode, resolveProject } from "@/modules/common";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
@@ -605,14 +605,29 @@ function milestoneStatus(file: ParsedPlanFile, index: number) {
  * (frentes, tarefas e subtarefas). Item marcado sem evidência escrita é concluído com a
  * nota da importação. Marco entra no máximo como Entregue: o aceite continua sendo
  * pedido e decidido nas Aprovações. Com `dry_run`, faz tudo e desfaz no fim (a prévia).
+ *
+ * `importer`: o agente importador (D10, escopo projects:import), só em projeto em revisão;
+ * os marcos entram como Planejado (o banco também exige) e o projeto só passa a valer com
+ * o ok do Fábio no pedido import_review (src/modules/projects/import.ts).
  */
 export async function importPlan(
   t: TxCtx,
   raw: z.input<typeof ImportPlanInput>,
+  options: { importer?: boolean } = {},
 ): Promise<ImportPlanResult> {
   const input = ImportPlanInput.parse(raw);
-  // Marco é decisão de pessoa: agente recebe 403 aqui.
-  const project = await resolveProject(t, input.project, "milestone.write");
+  const importer = options.importer === true;
+  // Marco é decisão de pessoa: agente recebe 403 aqui, menos o importador em revisão.
+  const project = await resolveProject(
+    t,
+    input.project,
+    importer ? "project.import" : "milestone.write",
+  );
+  if (importer && project.status !== "in_review") {
+    throw unprocessable(
+      `O projeto ${project.code} não está em revisão: a importação por agente vale só para projeto novo, cadastrado com hub_create_project. Para um projeto que já está no Hub, use hub_sync_plan.`,
+    );
+  }
   const prefix = await workspacePrefix(t);
   const file = parsePlanFile(input.markdown, { prefix });
   const summary = emptySummary();
@@ -647,11 +662,16 @@ export async function importPlan(
           title_client: null,
           description_client: null,
           due_date: null,
-          status: milestoneStatus(file, index),
+          // O importador cria tudo como Planejado; quem marca o andamento é a pessoa.
+          status: importer ? "planned" : milestoneStatus(file, index),
           visibility: "internal",
           acceptance_criteria: criteria,
         },
-        { code: m.code ?? undefined, sortOrder: offset + index + 1 },
+        {
+          code: m.code ?? undefined,
+          sortOrder: offset + index + 1,
+          importer,
+        },
       ),
     );
     if (!made.ok) {
@@ -702,7 +722,7 @@ export async function importPlan(
     runId = await recordRun(
       t,
       project.id,
-      { direction: "push", via: "tela" },
+      { direction: "push", via: importer ? "mcp" : "tela" },
       summary,
       conflicts,
       "import",

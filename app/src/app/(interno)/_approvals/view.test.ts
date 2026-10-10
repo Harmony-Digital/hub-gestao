@@ -5,6 +5,7 @@ import {
   decisionMessage,
   decisionView,
   historyView,
+  parseBatchForm,
   parseDecisionForm,
   type ApprovalLike,
 } from "./view";
@@ -263,5 +264,19 @@ describe("pedido parado", () => {
         new Date("2026-10-30T12:00:00Z"),
       ).stalledDays,
     ).toBeNull();
+  });
+});
+
+describe("aprovação em lote das importações", () => {
+  it("lê os pedidos marcados: só ids válidos, sem repetir", () => {
+    const A = "0b7c6f1e-6f6a-4f0e-9a51-2f7d4c1b8a90";
+    const B = "5d0c2f7e-1a2b-4c3d-8e9f-0a1b2c3d4e5f";
+    const f = new FormData();
+    for (const v of [A, B, A, "x", ""]) f.append("id", v);
+    expect(parseBatchForm(f)).toEqual({ ok: true, ids: [A, B] });
+    expect(parseBatchForm(new FormData())).toEqual({
+      ok: false,
+      message: "Marque pelo menos um pedido.",
+    });
   });
 });

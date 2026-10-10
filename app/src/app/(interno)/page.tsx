@@ -33,6 +33,7 @@ import { inTx } from "@/modules/context";
 import type { TaskSummary } from "@/modules/projects/schemas";
 import { cockpit, type Cockpit } from "@/modules/today/cockpit";
 import { DecisionList } from "./_approvals/decision-list";
+import { ImportBatch } from "./_approvals/import-batch";
 import { decisionView } from "./_approvals/view";
 
 export const metadata: Metadata = { title: "Hoje" };
@@ -74,6 +75,12 @@ async function TodayView() {
   const today = todayKey(now);
   const firstName = user.fullName.trim().split(/\s+/)[0];
   const decisions = data.pending_approvals.map((a) => decisionView(a, now));
+  // Importações de projeto (D10): com duas ou mais, o dono aprova em lote.
+  const imports = data.canDecide
+    ? data.pending_approvals
+        .filter((a) => a.type === "import_review")
+        .map((a) => decisionView(a, now))
+    : [];
   const n = decisions.length;
   const summary = data.canDecide
     ? n === 0
@@ -128,6 +135,7 @@ async function TodayView() {
                   </Link>
                 </p>
               </div>
+              {data.canDecide ? <ImportBatch items={imports} /> : null}
               <DecisionList
                 items={decisions}
                 canDecide={data.canDecide}

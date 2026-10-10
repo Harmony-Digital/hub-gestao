@@ -72,10 +72,22 @@ export async function createMilestone(
   t: TxCtx,
   projectCode: string,
   input: CreateMilestoneInput,
-  /** Importação do plan.md: o código do arquivo (se estiver livre) e a posição dele. */
-  extra: { code?: string; sortOrder?: number } = {},
+  /**
+   * Importação do plan.md: o código do arquivo (se estiver livre) e a posição dele. O
+   * agente importador (D10) cria marco só em projeto em revisão: `importer`.
+   */
+  extra: { code?: string; sortOrder?: number; importer?: boolean } = {},
 ): Promise<MilestoneDto> {
-  const project = await resolveProject(t, projectCode, "milestone.write");
+  const project = await resolveProject(
+    t,
+    projectCode,
+    extra.importer ? "project.import" : "milestone.write",
+  );
+  if (extra.importer && project.status !== "in_review") {
+    throw unprocessable(
+      `O projeto ${project.code} não está em revisão: marco novo é decisão do Fábio (peça com hub_request_approval).`,
+    );
+  }
   guardText(input);
   // Próximo código (M1, M2…) e posição no fim da lista, com trava contra pedidos simultâneos.
   await t.tx.query(`select 1 from ${S}.projects where id = $1 for update`, [

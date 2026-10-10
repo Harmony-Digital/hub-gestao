@@ -108,12 +108,14 @@ hub-gestao/
 │                                      #   backup e provisionamento (README com o passo a passo)
 ├── scripts/                           # conectar o Claude Code à produção e teste MCP de produção
 ├── packages/cli/                      # CLI hub (um arquivo, sem dependências) e os testes dela
+├── agents/skills/                     # skills versionadas dos agentes que operam o Hub
+│                                      #   (importar-projetos-no-hub: o agente importador, D10)
 ├── docs/                              # credenciais, conexão dos agentes, contratos da API e do MCP,
 │                                      #   formato do plan.md (plan-md.md) e a CLI (cli.md)
 └── .github/workflows/                 # ci.yml ("Qualidade") e deploy-vps.yml ("Publicação na VPS")
 ```
 
-Ainda não existem: portal do cliente (`src/app/portal/`, M6) e skills do Kratos versionadas (`agents/hermes/`, M5). Os testes de unidade e integração ficam ao lado do código (`*.test.ts`), não numa pasta `tests/`; os de ponta a ponta ficam em `app/e2e/`.
+Ainda não existem: portal do cliente (`src/app/portal/`, M6) e as skills de gestão do Kratos versionadas (`agents/hermes/`, M5); a skill do importador já está em `agents/skills/`. Os testes de unidade e integração ficam ao lado do código (`*.test.ts`), não numa pasta `tests/`; os de ponta a ponta ficam em `app/e2e/`.
 
 ### 5.2 Convenções
 
