@@ -3,7 +3,7 @@
  * Puro (sem React nem servidor), para valer na tela e nos testes.
  */
 
-export type PaletteAction = "nova-tarefa";
+export type PaletteAction = "nova-tarefa" | "tema";
 
 export type PaletteItem = {
   id: string;
@@ -78,10 +78,13 @@ export function paletteItems({
   query,
   results,
   canCreateProject,
+  dark = false,
 }: {
   query: string;
   results: SearchResult | null;
   canCreateProject: boolean;
+  /** O tema escuro está valendo (a ação oferece o outro). */
+  dark?: boolean;
 }): PaletteItem[] {
   const q = normalize(query);
   const items: PaletteItem[] = [];
@@ -104,6 +107,15 @@ export function paletteItems({
     });
   }
   items.push(...actions.filter((a) => matches(q, a.label, "criar")));
+  const theme: PaletteItem = {
+    id: "acao-tema",
+    group: "Ações",
+    label: dark ? "Usar o tema claro" : "Usar o tema escuro",
+    action: "tema",
+  };
+  if (matches(q, theme.label, "tema aparencia escuro claro modo noturno")) {
+    items.push(theme);
+  }
 
   items.push(
     ...SCREENS.filter((s) => matches(q, s.label, s.keywords)).map((s) => ({

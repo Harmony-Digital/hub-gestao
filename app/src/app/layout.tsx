@@ -41,11 +41,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
     >
       <head>
-        {/* Menu lateral recolhido (escolha guardada no navegador), aplicado antes de
-            desenhar, para a barra não abrir e fechar na frente de quem usa. */}
+        {/* Menu lateral recolhido e tema (escolhas guardadas no navegador), aplicados
+            antes de desenhar, para nada piscar na frente de quem usa. A regra do tema é
+            a mesma de isDark (components/shell/theme.ts). */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{if(localStorage.getItem("hub:menu")==="recolhido")document.documentElement.dataset.menu="recolhido"}catch(e){}`,
+            __html: `try{var d=document.documentElement;if(localStorage.getItem("hub:menu")==="recolhido")d.dataset.menu="recolhido";var t=localStorage.getItem("hub:tema");if(t==="escuro"||(t==="sistema"&&matchMedia("(prefers-color-scheme: dark)").matches))d.classList.add("dark")}catch(e){}`,
           }}
         />
       </head>

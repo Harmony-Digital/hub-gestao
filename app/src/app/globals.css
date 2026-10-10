@@ -182,6 +182,19 @@
   ::selection {
     background: rgb(242 140 29 / 30%);
   }
+  /* Foco visível pelo teclado em tudo o que não tem um estilo de foco próprio. */
+  :where(
+    a,
+    button,
+    summary,
+    select,
+    input,
+    textarea,
+    [tabindex]
+  ):focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -295,4 +308,54 @@ html[data-menu="recolhido"] .hub-lateral .hub-contador {
   right: 0.35rem;
   padding-inline: 0.3rem;
   font-size: 9px;
+}
+
+/* Tema escuro "Sala de Controle" (D4: opção de quem usa; classe `dark` no <html>).
+   As cores da marca fazem dois papéis (navy é cor de título e também fundo do menu;
+   off é fundo claro e também texto sobre o menu). Por isso o escuro troca as
+   variáveis das cores de um papel só e ajusta as outras por classe. */
+.dark {
+  color-scheme: dark;
+  --color-paper: #1b2139;
+  --color-off-2: #232a45;
+  --color-ink: #e9ebf1;
+  --color-ink-2: #c9ccd6;
+  --color-caption: #9ca1b2;
+  --color-line: rgb(250 248 244 / 12%);
+  --color-brand-strong: #ffb366;
+  --color-ok-fg: #8fdcae;
+  --color-ok-soft: rgb(47 143 91 / 24%);
+  --color-warn-fg: #f3c27a;
+  --color-warn-soft: rgb(217 139 30 / 24%);
+  --color-danger-fg: #f6aaa2;
+  --color-danger-soft: rgb(200 70 60 / 26%);
+  --color-info-fg: #a9c6ef;
+  --color-info-soft: rgb(59 111 182 / 28%);
+  --color-review-fg: #cdbcf2;
+  --color-review-soft: rgb(126 92 196 / 28%);
+}
+/* Título navy vira claro, menos sobre o laranja da marca (botões, avatares). */
+.dark .text-navy:not(.bg-brand):not(.bg-brand *) {
+  color: #f5f3ee;
+}
+/* Fundo off (claro) vira uma superfície escura; o texto off continua claro. */
+.dark .bg-off {
+  background-color: #151a2d;
+}
+.dark .bg-off\/60 {
+  background-color: rgb(21 26 45 / 60%);
+}
+@media (hover: hover) {
+  .dark .hover\:bg-off:hover {
+    background-color: #232a45;
+  }
+  .dark .hover\:bg-off\/60:hover {
+    background-color: rgb(35 42 69 / 60%);
+  }
+}
+/* Filtro ou escolha ativa (navy sobre fundo claro): no escuro, o laranja da marca. */
+.dark .border-navy.bg-navy {
+  border-color: var(--color-brand);
+  background-color: var(--color-brand);
+  color: var(--color-navy);
 }

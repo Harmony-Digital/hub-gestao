@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { PageHeader } from "@/components/shell/page-header";
 import { pageContext } from "@/lib/ui-context";
 import { ROLE_LABEL } from "@/lib/labels";
+import { Aparencia } from "./aparencia";
 import { SenhaForm } from "./senha-form";
 
 export const metadata: Metadata = { title: "Minha conta" };
@@ -54,6 +55,24 @@ async function ContaView() {
           </p>
         </div>
         <SenhaForm email={user.email} />
+      </section>
+
+      <section
+        aria-labelledby="aparencia"
+        className="flex flex-col gap-4 rounded-xl border border-line bg-card p-4"
+      >
+        <div className="flex flex-col gap-1">
+          <h2
+            id="aparencia"
+            className="font-heading text-lg font-semibold text-navy"
+          >
+            Aparência
+          </h2>
+          <p className="text-sm text-ink-2">
+            Tema das telas do Hub. Também dá para trocar pela busca (⌘K).
+          </p>
+        </div>
+        <Aparencia />
       </section>
     </div>
   );
