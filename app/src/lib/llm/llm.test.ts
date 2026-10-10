@@ -1,10 +1,13 @@
+import { generateText, Output } from "ai";
 import { MockLanguageModelV4 } from "ai/test";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { z } from "zod";
 import { inTx } from "@/modules/context";
 import { createCredential, revokeCredential } from "@/modules/llm/credentials";
 import type { LlmProvider } from "@/modules/llm/providers";
 import { count, ctxFor, openTestHub, type TestHub } from "@/test/hub";
-import { costOf, generate, type ModelFactory } from "./index";
+import { fakeModel } from "./dev-fake";
+import { costOf, generate, generateObject, type ModelFactory } from "./index";
 
 const S = "proj_hub_gestao";
 // Chaves de mentira, só para o teste.
@@ -102,12 +105,10 @@ describe("adaptador de IA", () => {
       await configure(provider);
       const calls: { provider: string; key: string; model: string }[] = [];
       const { factory, prompts } = mock(calls);
-      const result = await inTx(system(), (t) =>
-        generate(
-          t,
-          { ...request, agentId: h.agents.kratos },
-          { modelFor: factory },
-        ),
+      const result = await generate(
+        system(),
+        { ...request, agentId: h.agents.kratos },
+        { modelFor: factory },
       );
       expect(result).toEqual({
         ok: true,
@@ -152,12 +153,10 @@ describe("adaptador de IA", () => {
     const calls: { provider: string; key: string; model: string }[] = [];
     const { factory } = mock(calls);
     const run = (deps = {}) =>
-      inTx(system(), (t) =>
-        generate(
-          t,
-          { ...request, agentId: h.agents.kratos },
-          { modelFor: factory, ...deps },
-        ),
+      generate(
+        system(),
+        { ...request, agentId: h.agents.kratos },
+        { modelFor: factory, ...deps },
       );
     await configure(null);
     expect(await run()).toMatchObject({ ok: false, reason: "no_model" });
@@ -197,12 +196,10 @@ describe("adaptador de IA", () => {
           );
         },
       });
-    const result = await inTx(system(), (t) =>
-      generate(
-        t,
-        { ...request, agentId: h.agents.kratos },
-        { modelFor: failing },
-      ),
+    const result = await generate(
+      system(),
+      { ...request, agentId: h.agents.kratos },
+      { modelFor: failing },
     );
     expect(result).toEqual({
       ok: false,
@@ -215,5 +212,97 @@ describe("adaptador de IA", () => {
       [h.agents.kratos],
     );
     expect(row.rows[0].error).not.toContain(KEYS.anthropic);
+  });
+  it("resposta estruturada: o objeto vem conferido pelo esquema; fora do formato vira recusa registrada", async () => {
+    await configure("openai");
+    const Intent = z.object({
+      kind: z.enum(["create_task", "unknown"]),
+      title: z.string().nullable(),
+    });
+    const formats: unknown[] = [];
+    const answering =
+      (text: string): ModelFactory =>
+      () =>
+        new MockLanguageModelV4({
+          doGenerate: async (options) => {
+            formats.push(options.responseFormat);
+            return {
+              content: [{ type: "text", text }],
+              finishReason: { unified: "stop", raw: undefined },
+              usage: {
+                inputTokens: {
+                  total: 1000,
+                  noCache: 1000,
+                  cacheRead: undefined,
+                  cacheWrite: undefined,
+                },
+                outputTokens: { total: 500, text: 500, reasoning: undefined },
+              },
+              warnings: [],
+            };
+          },
+        });
+    const ask = (text: string) =>
+      generateObject(
+        system(),
+        {
+          ...request,
+          agentId: h.agents.kratos,
+          schema: Intent,
+          schemaName: "acao",
+        },
+        { modelFor: answering(text) },
+      );
+
+    expect(await ask('{"kind":"create_task","title":"Revisar"}')).toEqual({
+      ok: true,
+      object: { kind: "create_task", title: "Revisar" },
+      provider: "openai",
+      model: "modelo-openai",
+      usage: { inputTokens: 1000, outputTokens: 500 },
+      costUsd: costOf(
+        { inputTokens: 1000, outputTokens: 500 },
+        { in: 3, out: 15 },
+      ),
+    });
+    // O provedor recebe o pedido de JSON com o esquema e o nome.
+    expect(formats[0]).toMatchObject({ type: "json", name: "acao" });
+
+    expect(await ask('{"kind":"outra coisa"}')).toEqual({
+      ok: false,
+      reason: "invalid_output",
+      detail: expect.stringContaining("fora do formato"),
+    });
+    // Fora do formato também gastou: a execução fica registrada com o custo.
+    const row = await h.raw.query<{ cost: string; error: string }>(
+      `select cost_usd::text as cost, error from ${S}.agent_runs
+        where agent_id = $1 order by started_at desc limit 1`,
+      [h.agents.kratos],
+    );
+    expect(row.rows[0].error).toContain("fora do formato");
+    expect(Number(row.rows[0].cost)).toBeCloseTo(0.0105, 6);
+  });
+
+  it("modelo simulado (só no computador): texto responde ok; objeto devolve o JSON do fim do pedido", async () => {
+    const model = fakeModel("openai", "sem-chave", "modelo-simulado");
+    expect((await generateText({ model, prompt: "Teste." })).text).toBe("ok");
+    const Intent = z.object({
+      kind: z.enum(["create_task", "unknown"]),
+      title: z.string().nullable(),
+    });
+    const answer = await generateText({
+      model,
+      prompt: 'Contexto do pedido.\nPEDIDO:\n{"kind":"create_task"}',
+      output: Output.object({ schema: Intent }),
+    });
+    // O campo que faltou no JSON vem como null.
+    expect(answer.output).toEqual({ kind: "create_task", title: null });
+    await expect(
+      generateText({
+        model,
+        prompt: "PEDIDO: sem JSON",
+        output: Output.object({ schema: Intent }),
+      }),
+    ).rejects.toThrow();
   });
 });

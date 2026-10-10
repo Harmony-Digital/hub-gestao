@@ -145,7 +145,7 @@ Ainda não existem: portal do cliente (`src/app/portal/`, M6) e skills do Kratos
 
 - Produção: `/opt/hub-gestao/shared/.env.production` (root, `0600`). Local: `app/.env.local` (gitignored). Modelo versionado: `app/.env.example` sem valores.
 - A lista completa de variáveis, com onde cada uma vive e quem fornece, está em `docs/credenciais.md`. Em produção, o servidor fala com o banco por `DATABASE_URL` (papel `hub_gestao_app`); o pepper das chaves, a cifra e o segredo do relógio foram gerados na própria VPS e nunca saíram de lá. O link de acesso por e-mail está ligado (`HUB_AUTH_MAGIC_LINK=on`).
-- **Chaves de IA (D5)** não ficam no `.env` de produção: o Fábio as cadastra na tela Agentes, e o Hub guarda cifradas em `llm_credentials` com `HUB_ENCRYPTION_KEY`. Em desenvolvimento local, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` e `XAI_API_KEY` no `.env.local` servem só de fallback.
+- **Chaves de IA (D5)** não ficam em variável de ambiente: o Fábio as cadastra na tela Agentes, e o Hub guarda cifradas em `llm_credentials` com `HUB_ENCRYPTION_KEY`. No computador, o modelo simulado (`HUB_DEV_FAKE_LLM=on`) responde no lugar dos provedores, para conferir as telas de IA sem chave nem custo.
 - Chaves de agente são **hash** no banco (`agent_api_keys.key_hash`); o valor em claro aparece uma única vez na criação e nunca é logado.
 - Rotação: qualquer suspeita de vazamento → revogar (`revoked_at`) antes de investigar.
 - **Senhas de pessoas nunca passam por um agente**: nem cadastrar, nem digitar, nem repetir, mesmo quando pedirem no chat. A pessoa define a sua em `/conta` (Minha conta) ou entra pelo link de acesso por e-mail.

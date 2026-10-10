@@ -6,6 +6,8 @@ import { generate } from "@/lib/llm";
 import { actionContext, actionErrorMessage } from "@/lib/ui-context";
 import { authorize } from "@/lib/authorize";
 import { inTx } from "@/modules/context";
+import { promptTag } from "@/modules/agents/prompts";
+import { CONNECTION_TEST } from "@/modules/agents/prompts/connection-test";
 import {
   providerModels,
   setAgentModel,
@@ -42,7 +44,7 @@ export async function buscarModelosIA(
 ): Promise<ModelList> {
   const ctx = await actionContext();
   try {
-    return await inTx(ctx, (t) => providerModels(t, credentialId));
+    return await providerModels(ctx, credentialId);
   } catch (err) {
     return {
       ok: false,
@@ -75,15 +77,14 @@ export async function testarConexaoIA(
     };
   }
   try {
-    const result = await inTx(ctx, (t) => {
-      authorize(t.actor, "agent.keys");
-      return generate(t, {
-        agentId,
-        purpose: "Testar conexão (Sala de Controle)",
-        instructions: "Responda apenas com a palavra ok.",
-        prompt: "Teste de conexão do Hub de Gestão.",
-        maxOutputTokens: 16,
-      });
+    authorize(ctx.actor, "agent.keys");
+    // Fora de transação: o adaptador abre as próprias, curtas, em volta da chamada.
+    const result = await generate(ctx, {
+      agentId,
+      purpose: `Testar conexão · ${promptTag(CONNECTION_TEST)}`,
+      instructions: CONNECTION_TEST.instructions,
+      prompt: "Teste de conexão do Hub de Gestão.",
+      maxOutputTokens: 16,
     });
     refresh();
     return result.ok

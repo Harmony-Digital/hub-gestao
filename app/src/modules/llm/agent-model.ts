@@ -3,7 +3,7 @@ import { audit } from "@/lib/audit";
 import { authorize } from "@/lib/authorize";
 import { notFound, unprocessable } from "@/lib/errors";
 import { Uuid } from "@/modules/common";
-import { maybeOne, S, type TxCtx } from "@/modules/context";
+import { inTx, maybeOne, S, type Ctx, type TxCtx } from "@/modules/context";
 import { credentialSecret } from "./credentials";
 import { LLM_PROVIDERS, type LlmProvider } from "./providers";
 
@@ -176,18 +176,19 @@ const MODELS_URL: Record<LlmProvider, string> = {
 
 /**
  * Lista de modelos do provedor, buscada no servidor com a chave guardada (só o dono pede).
- * A chave não sai do servidor; erro do provedor volta com texto próprio.
+ * A chave não sai do servidor; erro do provedor volta com texto próprio. A chave é lida
+ * numa transação curta e a busca no provedor fica fora dela (o banco não espera a rede).
  */
 export async function providerModels(
-  t: TxCtx,
+  ctx: Ctx,
   credentialId: string,
   doFetch: typeof fetch = fetch,
 ): Promise<ModelList> {
-  authorize(t.actor, "agent.keys");
+  authorize(ctx.actor, "agent.keys");
   if (!Uuid.safeParse(credentialId).success) {
     return { ok: false, message: "Escolha a chave." };
   }
-  const secret = await credentialSecret(t, credentialId);
+  const secret = await inTx(ctx, (t) => credentialSecret(t, credentialId));
   if (!secret) return { ok: false, message: "A chave foi revogada." };
   const headers: Record<string, string> =
     secret.provider === "anthropic"

@@ -161,12 +161,14 @@ describe("modelo de IA do agente", () => {
         { status: 200 },
       );
     }) as typeof fetch;
-    expect(
-      await inTx(owner(), (t) => providerModels(t, ids.anthropic, fakeFetch)),
-    ).toEqual({ ok: true, models: ["modelo-a", "modelo-b"] });
-    expect(
-      await inTx(owner(), (t) => providerModels(t, ids.openai, fakeFetch)),
-    ).toEqual({ ok: true, models: ["modelo-a", "modelo-b"] });
+    expect(await providerModels(owner(), ids.anthropic, fakeFetch)).toEqual({
+      ok: true,
+      models: ["modelo-a", "modelo-b"],
+    });
+    expect(await providerModels(owner(), ids.openai, fakeFetch)).toEqual({
+      ok: true,
+      models: ["modelo-a", "modelo-b"],
+    });
     expect(seen[0]).toMatchObject({
       url: "https://api.anthropic.com/v1/models?limit=100",
       headers: {
@@ -180,16 +182,16 @@ describe("modelo de IA do agente", () => {
     });
     const refused = (async () =>
       new Response("{}", { status: 401 })) as unknown as typeof fetch;
+    expect(await providerModels(owner(), ids.openai, refused)).toEqual({
+      ok: false,
+      message: "O provedor recusou a chave.",
+    });
+    expect(await providerModels(owner(), ids.xai, fakeFetch)).toEqual({
+      ok: false,
+      message: "A chave foi revogada.",
+    });
     expect(
-      await inTx(owner(), (t) => providerModels(t, ids.openai, refused)),
-    ).toEqual({ ok: false, message: "O provedor recusou a chave." });
-    expect(
-      await inTx(owner(), (t) => providerModels(t, ids.xai, fakeFetch)),
-    ).toEqual({ ok: false, message: "A chave foi revogada." });
-    expect(
-      await status(
-        inTx(as("admin"), (t) => providerModels(t, ids.openai, fakeFetch)),
-      ),
+      await status(providerModels(as("admin"), ids.openai, fakeFetch)),
     ).toBe(403);
   });
 });
