@@ -22,6 +22,7 @@ Cabeçalhos:
 | `Hub-Delivery` | id da entrega (o mesmo em cada nova tentativa: use para não processar duas vezes) |
 | `Hub-Timestamp` | segundos desde 1970 (UTC), no momento do envio |
 | `Hub-Signature` | `sha256=` + HMAC-SHA256, em hexadecimal, de `"<Hub-Timestamp>.<corpo>"` com o segredo |
+| `X-Hub-Signature-256` | `sha256=` + HMAC-SHA256, em hexadecimal, só do corpo, com o mesmo segredo: o padrão do GitHub, para quem só sabe conferir esse formato (o receptor de webhooks do Hermes, o n8n). Prefira a `Hub-Signature`, que inclui o horário e impede reenvio de um aviso antigo |
 
 Corpo:
 
@@ -88,6 +89,20 @@ Use o corpo exatamente como chegou (os bytes), antes de qualquer conversão.
 
 ## Hermes → Telegram (passo do Fábio)
 
-1. No Hermes, um ponto de entrada HTTPS que receba o `POST`, confira a assinatura com o segredo (acima) e mande a mensagem para o Telegram do Fábio. Sugestão de texto: "Pedido esperando a sua decisão em CER: Mover o lançamento em uma semana", "A saúde de CER mudou para Atenção", "O Concierge parou de usar IA: o orçamento do mês acabou", sempre com o link do Hoje (`https://hub.harmonydigital.com.br/`).
-2. No Hub, Sala de Controle → Webhooks de saída: o endereço do Hermes e os três eventos marcados. Copie o segredo para o cofre do Hermes (nunca no código nem no chat).
-3. **Enviar teste** e confira "entregue" na lista e a mensagem no Telegram.
+O Hermes tem receptor de webhooks próprio, que, pela documentação dele (skill `hermes-agent`, no segundo cérebro), confere a assinatura no padrão do GitHub (`X-Hub-Signature-256`, que o Hub manda) e entrega a resposta do agente no Telegram. A versão instalada na VPS ainda não foi conferida por dentro do contêiner: se a assinatura não bater no teste, o passo seguinte é ver no Hermes qual cabeçalho ele espera.
+
+1. No Hub, Sala de Controle → Webhooks de saída: cadastre o endereço público do Hermes (o passo 3 diz qual) com os três eventos marcados, e copie o segredo.
+2. No Hermes (dentro do contêiner, onde roda o `hermes gateway`), ligue os webhooks se ainda não estiverem (`hermes webhook list` diz; `hermes gateway setup` liga) e crie a assinatura com o segredo do Hub:
+
+   ```bash
+   hermes webhook subscribe hub-gestao \
+     --secret "<segredo do Hub>" \
+     --skills "vigia-de-prazos,gestor-de-projetos" \
+     --deliver telegram --deliver-chat-id "<chat do Fábio>" \
+     --prompt "Aviso do Hub de Gestão ({event}): {data}. Explique em uma frase e diga se pede decisão, com o link https://hub.harmonydigital.com.br/"
+   ```
+
+3. O endereço do Hermes é `/webhooks/hub-gestao` no servidor de webhooks dele (porta 8644, dentro da VPS). Para o Hub alcançar, ele precisa de um endereço público com https (uma rota no Traefik): mudança de infraestrutura, só com a ordem do Fábio. Volte ao passo 1 com esse endereço.
+4. **Enviar teste** no Hub e confira "entregue" na lista e a mensagem no Telegram.
+
+O segredo fica só no Hub (cifrado) e no Hermes: nunca no código, no chat ou no segundo cérebro (que vai para o GitHub).

@@ -145,6 +145,11 @@ describe("webhooks de saída", () => {
         .update(`${test!.headers["Hub-Timestamp"]}.${test!.body}`)
         .digest("hex");
     expect(test!.headers["Hub-Signature"]).toBe(expected);
+    // E no padrão do GitHub (só o corpo), para o receptor do Hermes e o n8n.
+    expect(test!.headers["X-Hub-Signature-256"]).toBe(
+      "sha256=" +
+        createHmac("sha256", made.secret).update(test!.body).digest("hex"),
+    );
 
     const list = await inTx(asOwner(), (t) => listWebhooks(t));
     const item = list.find((w) => w.id === made.id)!;
