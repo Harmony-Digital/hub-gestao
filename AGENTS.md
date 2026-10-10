@@ -219,7 +219,7 @@ hub_create_task(...)               # trabalho descoberto: nível operacional, li
 hub plan push                      # fim de sessão: devolve o estado ao Hub e regrava o plan.md
 ```
 
-Até a CLI `hub` existir (M4), o plano se lê pelo `hub_get_plan` (JSON ou `plan.md`) e a sincronização fica de fora.
+Até a CLI `hub` existir, o `hub plan pull` e o `hub plan push` se fazem pelo `hub_sync_plan` (MCP) ou pelo `POST /api/v1/sync/plan` (REST), com o conteúdo do `plan.md` (`direction` `pull` ou `push`): grave no repositório o `markdown` devolvido. No push, mande `commit_sha` quando houver commit e, para que desmarcar, renomear e apagar itens tenham efeito, `base_markdown` (o arquivo da última sincronização). A chave precisa de `sync:plan` e, para o push criar e concluir tarefas, de `tasks:write` e `tasks:complete` (frente nova pede `workstreams:write`). Regras do formato e da sincronização em `docs/plan-md.md`. Só para ler o plano, `hub_get_plan` (JSON ou `plan.md`).
 
 Regras:
 - **Nunca** marcar GATE, nunca mudar prazo de marco, nunca criar marco. Isso é `hub_request_approval` (pedido) para o Fábio decidir.

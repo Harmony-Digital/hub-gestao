@@ -2102,7 +2102,7 @@
           "Sincronização"
         ],
         "summary": "Exportar plan.md",
-        "description": "Pull simples do M1. O push chega no M4 (CLI hub). Escopo da chave: `sync:plan`.",
+        "description": "O plano do Hub no formato plan.md, do zero. Para sincronizar um arquivo que já existe, use o POST (pull ou push). Escopo da chave: `sync:plan`.",
         "operationId": "getSyncPlan",
         "parameters": [
           {
@@ -2150,8 +2150,8 @@
         "tags": [
           "Sincronização"
         ],
-        "summary": "Enviar plan.md (ainda não disponível)",
-        "description": "Responde 501 até o M4, quando chega o push com preservação do arquivo e registro de conflitos. Escopo da chave: `sync:plan`.",
+        "summary": "Sincronizar plan.md (pull ou push)",
+        "description": "pull: o Hub vai para o arquivo (caixas, critérios do GATE e as tarefas que faltam). push: item sem código vira tarefa e ganha o código; caixa marcada conclui com a evidência do item ou o commit_sha; com base_markdown, desmarcar reabre, renomear renomeia e tirar o item arquiva. O Hub vence; GATE marcado no arquivo é ignorado e alertado; marco novo não é criado. Devolve o arquivo para gravar, o resumo e os conflitos (também em plan_sync_runs). Formato do arquivo em docs/plan-md.md. Escopo da chave: `sync:plan`.",
         "operationId": "postSyncPlan",
         "parameters": [
           {
@@ -2161,7 +2161,27 @@
             "$ref": "#/components/parameters/ActingRole"
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncPlanRequest"
+              }
+            }
+          }
+        },
         "responses": {
+          "200": {
+            "description": "Sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncPlanResult"
+                }
+              }
+            }
+          },
           "400": {
             "$ref": "#/components/responses/Problem"
           },
@@ -2185,16 +2205,6 @@
           },
           "429": {
             "$ref": "#/components/responses/Problem"
-          },
-          "501": {
-            "description": "Sucesso.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
           }
         }
       }
@@ -2296,6 +2306,49 @@
             "type": "string"
           }
         }
+      },
+      "SyncPlanRequest": {
+        "$id": "#/components/schemas/SyncPlanRequest",
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{2,8}$"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "pull",
+              "push"
+            ]
+          },
+          "markdown": {
+            "type": "string",
+            "maxLength": 1000000,
+            "description": "Conteúdo atual do plan.md, inteiro."
+          },
+          "base_markdown": {
+            "description": "Push: o plan.md da última sincronização (ex.: o do commit anterior). Com ele, desmarcar reabre, renomear renomeia e tirar o item arquiva a tarefa.",
+            "type": "string",
+            "maxLength": 1000000
+          },
+          "commit_sha": {
+            "description": "Push: commit que trouxe o arquivo. Vira a evidência de item marcado sem evidência escrita.",
+            "type": "string",
+            "pattern": "^[0-9a-f]{7,40}$"
+          },
+          "via": {
+            "description": "De onde veio a sincronização (ex.: \"cli\", \"github-action\").",
+            "type": "string",
+            "maxLength": 40
+          }
+        },
+        "required": [
+          "project",
+          "direction",
+          "markdown"
+        ],
+        "additionalProperties": false
       },
       "CreateTaskRequest": {
         "$id": "#/components/schemas/CreateTaskRequest",
@@ -8021,6 +8074,149 @@
           "project_code",
           "plan_path",
           "markdown"
+        ],
+        "additionalProperties": false
+      },
+      "SyncPlanResult": {
+        "$id": "#/components/schemas/SyncPlanResult",
+        "type": "object",
+        "properties": {
+          "project_code": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{2,8}$"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "pull",
+              "push"
+            ]
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "markdown": {
+            "type": "string",
+            "description": "O plan.md para gravar no repositório."
+          },
+          "changed": {
+            "type": "boolean",
+            "description": "O arquivo mudou em relação ao enviado."
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "created": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "completed": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "reopened": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "renamed": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "archived": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "workstreams_created": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "updated_in_file": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "inserted_in_file": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "created",
+              "completed",
+              "reopened",
+              "renamed",
+              "archived",
+              "workstreams_created",
+              "updated_in_file",
+              "inserted_in_file"
+            ],
+            "additionalProperties": false
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "gate_checked",
+                    "unknown_code",
+                    "duplicate_code",
+                    "milestone_missing",
+                    "hub_wins",
+                    "no_evidence",
+                    "refused"
+                  ]
+                },
+                "line": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Linha do arquivo (começa em 1)."
+                },
+                "code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "detail": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "line",
+                "code",
+                "detail"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "project_code",
+          "direction",
+          "run_id",
+          "markdown",
+          "changed",
+          "summary",
+          "conflicts"
         ],
         "additionalProperties": false
       }

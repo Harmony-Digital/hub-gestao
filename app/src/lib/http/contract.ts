@@ -36,6 +36,7 @@ import {
   UpdateTaskInput,
 } from "@/modules/tasks/schemas";
 import { LogTimeInput, TimeEntryDto } from "@/modules/time/service";
+import { SyncPlanInput, SyncPlanResult } from "@/modules/sync/service";
 import { TodayDto } from "@/modules/today/service";
 import {
   CreateWorkstreamInput,
@@ -108,9 +109,11 @@ const RESPONSES = {
     plan_path: z.string().nullable(),
     markdown: z.string(),
   }),
+  SyncPlanResult,
 } satisfies Record<string, z.ZodType>;
 
 const REQUESTS = {
+  SyncPlanRequest: SyncPlanInput,
   CreateTaskRequest: CreateTaskInput,
   UpdateTaskRequest: UpdateTaskInput,
   StartTaskRequest: z.strictObject({}),
@@ -529,7 +532,8 @@ export const API_SPECS: Spec[] = [
     path: "/sync/plan",
     tag: "Sincronização",
     summary: "Exportar plan.md",
-    description: "Pull simples do M1. O push chega no M4 (CLI hub).",
+    description:
+      "O plano do Hub no formato plan.md, do zero. Para sincronizar um arquivo que já existe, use o POST (pull ou push).",
     scope: "sync:plan",
     query: [
       { name: "project", description: "Código do projeto.", required: true },
@@ -540,12 +544,12 @@ export const API_SPECS: Spec[] = [
     method: "post",
     path: "/sync/plan",
     tag: "Sincronização",
-    summary: "Enviar plan.md (ainda não disponível)",
+    summary: "Sincronizar plan.md (pull ou push)",
     description:
-      "Responde 501 até o M4, quando chega o push com preservação do arquivo e registro de conflitos.",
+      "pull: o Hub vai para o arquivo (caixas, critérios do GATE e as tarefas que faltam). push: item sem código vira tarefa e ganha o código; caixa marcada conclui com a evidência do item ou o commit_sha; com base_markdown, desmarcar reabre, renomear renomeia e tirar o item arquiva. O Hub vence; GATE marcado no arquivo é ignorado e alertado; marco novo não é criado. Devolve o arquivo para gravar, o resumo e os conflitos (também em plan_sync_runs). Formato do arquivo em docs/plan-md.md.",
     scope: "sync:plan",
-    response: "Problem",
-    status: 501,
+    body: "SyncPlanRequest",
+    response: "SyncPlanResult",
     write: true,
   },
 ];

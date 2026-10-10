@@ -1,12 +1,12 @@
 import { z } from "zod";
-import { notImplemented } from "@/lib/errors";
 import { apiRoute, ok, parseQuery } from "@/lib/http/api";
 import { ProjectCode } from "@/modules/common";
 import { getPlan, renderPlanMarkdown } from "@/modules/projects/service";
+import { syncPlan, SyncPlanInput } from "@/modules/sync/service";
 
 /**
- * Exportação do plan.md (?project=CODE). É o "pull" simples do M1; o "push" com
- * preservação do arquivo e conflitos chega no M4, com a CLI hub.
+ * Exportação do plan.md (?project=CODE): o plano do Hub no formato do arquivo, do zero.
+ * Para sincronizar um arquivo que já existe, use o POST (pull ou push).
  */
 export const GET = apiRoute({
   handler: async ({ t, url }) => {
@@ -23,11 +23,12 @@ export const GET = apiRoute({
   },
 });
 
+/**
+ * Sincroniza o plan.md com o Hub (direction "pull" ou "push"). Devolve o arquivo para
+ * gravar, o resumo e os conflitos; toda execução fica em plan_sync_runs.
+ */
 export const POST = apiRoute({
   write: true,
-  handler: async () => {
-    throw notImplemented(
-      "A importação e o envio do plan.md chegam no M4 (CLI hub plan push). Por enquanto, use as ações de tarefa.",
-    );
-  },
+  handler: async ({ t, body }) =>
+    ok(await syncPlan(t, SyncPlanInput.parse(body))),
 });

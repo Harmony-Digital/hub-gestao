@@ -18,6 +18,8 @@ export type PlanLine = {
 
 export type PlanMilestone = {
   line: number;
+  /** Última linha da seção (antes do próximo `#` ou `##`). */
+  end: number;
   /** Código no título (`## M3 — ...`), quando houver. */
   code: string | null;
   title: string;
@@ -29,12 +31,19 @@ export type PlanMilestone = {
 
 export type PlanWorkstream = {
   line: number;
+  /** Última linha da frente (antes do próximo título de nível 1 a 3). */
+  end: number;
   title: string;
   /** Índice em `milestones`; `null` na seção "Sem marco". */
   milestone: number | null;
 };
 
-export type PlanGate = { line: number; milestone: number; title: string };
+export type PlanGate = {
+  line: number;
+  end: number;
+  milestone: number;
+  title: string;
+};
 
 export type PlanItem = {
   /** Linha do item; `lastLine` inclui as linhas de continuação. */
@@ -70,6 +79,10 @@ export type ParsedPlanFile = {
   workstreams: PlanWorkstream[];
   gates: PlanGate[];
   items: PlanItem[];
+  /** Seção "Sem marco" (da exportação do Hub), se houver. */
+  unplanned: { line: number; end: number } | null;
+  /** Todas as seções `##` do arquivo (marcos ou não), na ordem. */
+  sections: { line: number; end: number; title: string }[];
 };
 
 export type ParseOptions = {
@@ -85,6 +98,8 @@ const ITEM = /^([ \t]*)[-*+][ \t]+\[([ xX])\][ \t]+(\S.*)$/;
 const BOX = /^([ \t]*[-*+][ \t]+)\[[ xX]\]/;
 const GATE = /(?:^|[\s(])(?:🔒\s*)?GATE\b/u;
 const MILESTONE_TITLE = /^(✅\s*)?(?:(M\d+)\s*[—–-]\s*)?(.+)$/u;
+/** Título com o código do marco (`## M3 — ...`): é marco mesmo sem itens. */
+const MILESTONE_CODE = /^(✅\s*)?M\d+\s*[—–-]/u;
 const UNPLANNED = /^sem marco$/i;
 /** `<!-- hub: ignorar -->` numa seção `##`: a sincronização trata a seção como texto livre. */
 const IGNORE = /^\s*<!--\s*hub:\s*(?:ignorar|ignore)\s*-->\s*$/i;
@@ -190,6 +205,7 @@ function sectionKinds(kinds: LineKind[]) {
     if (k.type === "heading" && k.level <= 2) {
       section = k.level === 2 ? n : null;
       unplanned = k.level === 2 && UNPLANNED.test(k.title);
+      if (k.level === 2 && MILESTONE_CODE.test(k.title)) milestones.add(n);
       continue;
     }
     if (section === null) continue;
@@ -230,8 +246,9 @@ function describe(text: string) {
 }
 
 /**
- * Lê o plan.md. Um título `##` vira marco quando a seção tem algum item ou um GATE; as
- * outras seções (regras, registro, decisões) são texto livre. `###` dentro de um marco é
+ * Lê o plan.md. Um título `##` vira marco quando traz o código (`## M3 — ...`) ou quando a
+ * seção tem algum item ou um GATE; as outras seções (regras, registro, decisões) são texto
+ * livre. `###` dentro de um marco é
  * frente, menos o GATE, cujos itens são critérios de aceite do marco. A seção "Sem marco"
  * (da exportação do Hub) guarda frentes e tarefas sem marco. Uma seção com a linha
  * `<!-- hub: ignorar -->` (decisões registradas como caixas, por exemplo) fica inteira
@@ -252,6 +269,30 @@ export function parsePlanFile(
     workstreams: [],
     gates: [],
     items: [],
+    unplanned: null,
+    sections: [],
+  };
+
+  // Seções abertas, para anotar onde terminam.
+  let openMilestone: number | null = null;
+  let openWorkstream: number | null = null;
+  let openGate: number | null = null;
+  let openUnplanned = false;
+  let openSection: number | null = null;
+  const closeInner = (end: number) => {
+    if (openWorkstream !== null) parsed.workstreams[openWorkstream].end = end;
+    if (openGate !== null) parsed.gates[openGate].end = end;
+    openWorkstream = null;
+    openGate = null;
+  };
+  const closeAll = (end: number) => {
+    closeInner(end);
+    if (openMilestone !== null) parsed.milestones[openMilestone].end = end;
+    if (openUnplanned && parsed.unplanned) parsed.unplanned.end = end;
+    if (openSection !== null) parsed.sections[openSection].end = end;
+    openMilestone = null;
+    openUnplanned = false;
+    openSection = null;
   };
 
   let milestone: number | null = null;
@@ -267,12 +308,18 @@ export function parsePlanFile(
     if (k.type === "heading") {
       open = null;
       if (k.level <= 2) {
+        closeAll(n - 1);
         milestone = null;
         workstream = null;
         inSection = false;
         gateMode = false;
         lastTop = null;
         ignored = k.level === 2 && sections.ignored.has(n);
+        if (k.level === 2) {
+          openSection =
+            parsed.sections.push({ line: n, end: n, title: plain(k.title) }) -
+            1;
+        }
         if (k.level === 1) {
           parsed.title ??= k.title;
         } else if (sections.milestones.has(n)) {
@@ -280,22 +327,34 @@ export function parsePlanFile(
           milestone =
             parsed.milestones.push({
               line: n,
+              end: n,
               code: m[2] ?? null,
               title: plain(m[3]),
               done: Boolean(m[1]),
               gate: null,
             }) - 1;
+          openMilestone = milestone;
           inSection = true;
         } else {
           inSection = !ignored && UNPLANNED.test(k.title);
+          if (inSection) {
+            parsed.unplanned = { line: n, end: n };
+            openUnplanned = true;
+          }
         }
       } else if (k.level === 3 && inSection) {
+        closeInner(n - 1);
         lastTop = null;
         if (GATE.test(k.title) && milestone !== null) {
           const gate =
-            parsed.gates.push({ line: n, milestone, title: plain(k.title) }) -
-            1;
+            parsed.gates.push({
+              line: n,
+              end: n,
+              milestone,
+              title: plain(k.title),
+            }) - 1;
           parsed.milestones[milestone].gate = gate;
+          openGate = gate;
           gateMode = true;
           workstream = null;
         } else {
@@ -304,9 +363,11 @@ export function parsePlanFile(
             ? null
             : parsed.workstreams.push({
                 line: n,
+                end: n,
                 title: plain(k.title),
                 milestone,
               }) - 1;
+          openWorkstream = workstream;
         }
       }
       continue;
@@ -346,6 +407,7 @@ export function parsePlanFile(
     open = null;
     if (k.type === "text" && k.indent === 0) lastTop = null;
   }
+  closeAll(lines.length - 1);
 
   // O código é o último entre parênteses com o prefixo do workspace.
   const pattern = new RegExp(`\\((${prefix}-\\d{1,9})\\)`, "g");

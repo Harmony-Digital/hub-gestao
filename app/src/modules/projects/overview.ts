@@ -42,6 +42,7 @@ const VERBS: Record<string, string> = {
   "task.completed": "concluiu",
   "task.blocked": "bloqueou",
   "task.reopened": "reabriu",
+  "task.archived": "arquivou",
   "task.updated": "atualizou",
   "comment.created": "comentou em",
   "checklist.added": "mexeu no checklist de",

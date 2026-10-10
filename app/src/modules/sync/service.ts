@@ -1,0 +1,506 @@
+import { z } from "zod";
+import { HubError, toHubError } from "@/lib/errors";
+import { ProjectCode, resolveProject } from "@/modules/common";
+import { many, maybeOne, S, type TxCtx } from "@/modules/context";
+import { createComment } from "@/modules/comments/service";
+import { getPlan } from "@/modules/projects/service";
+import { CreateTaskInput } from "@/modules/tasks/schemas";
+import {
+  archiveTask,
+  completeTask,
+  createTask,
+  reopenTask,
+  updateTask,
+} from "@/modules/tasks/service";
+import {
+  CreateWorkstreamInput,
+  createWorkstream,
+} from "@/modules/workstreams/service";
+import {
+  applyItemChanges,
+  parsePlanFile,
+  type ItemChange,
+  type ParsedPlanFile,
+  type PlanItem,
+} from "./plan-file";
+import {
+  hubTasks,
+  matchStructure,
+  normalizeTitle,
+  pullIntoFile,
+} from "./plan-merge";
+
+/**
+ * Sincronização do plan.md com o Hub (PRD §5.5 e §8.5), pela API, pelo MCP e pela CLI.
+ *
+ * - **pull**: o Hub vai para o arquivo (caixas, critérios do GATE e as tarefas que faltam).
+ * - **push**: o que mudou no arquivo vem para o Hub: itens sem código viram tarefas (e
+ *   ganham o código), caixa marcada conclui com a evidência do item ou o commit,
+ *   e, com a versão anterior do arquivo (`base_markdown`), desmarcar reabre, renomear
+ *   renomeia e tirar o item arquiva a tarefa. Sem a versão anterior, o Hub vence.
+ *
+ * Regras fixas: o GATE marcado no arquivo nunca aceita o marco (é ignorado e alertado);
+ * marco novo no arquivo não é criado (marco é decisão de pessoa); cada item é aplicado
+ * à parte, e o que não der certo vira conflito, sem desfazer o resto. Toda execução fica
+ * em `plan_sync_runs`, com o resumo e os conflitos.
+ */
+
+const MARKDOWN_MAX = 1_000_000;
+
+export const SyncPlanInput = z.strictObject({
+  project: ProjectCode,
+  direction: z.enum(["pull", "push"]),
+  markdown: z
+    .string()
+    .max(MARKDOWN_MAX)
+    .describe("Conteúdo atual do plan.md, inteiro."),
+  base_markdown: z
+    .string()
+    .max(MARKDOWN_MAX)
+    .optional()
+    .describe(
+      "Push: o plan.md da última sincronização (ex.: o do commit anterior). Com ele, desmarcar reabre, renomear renomeia e tirar o item arquiva a tarefa.",
+    ),
+  commit_sha: z
+    .string()
+    .regex(/^[0-9a-f]{7,40}$/i, "Use o SHA do commit (7 a 40 caracteres).")
+    .optional()
+    .describe(
+      "Push: commit que trouxe o arquivo. Vira a evidência de item marcado sem evidência escrita.",
+    ),
+  via: z
+    .string()
+    .trim()
+    .max(40)
+    .optional()
+    .describe('De onde veio a sincronização (ex.: "cli", "github-action").'),
+});
+export type SyncPlanInput = z.infer<typeof SyncPlanInput>;
+
+export const SyncConflict = z.object({
+  kind: z.enum([
+    "gate_checked",
+    "unknown_code",
+    "duplicate_code",
+    "milestone_missing",
+    "hub_wins",
+    "no_evidence",
+    "refused",
+  ]),
+  line: z.number().int().nullable().describe("Linha do arquivo (começa em 1)."),
+  code: z.string().nullable(),
+  detail: z.string(),
+});
+export type SyncConflict = z.infer<typeof SyncConflict>;
+
+export const SyncSummary = z.object({
+  created: z.number().int(),
+  completed: z.number().int(),
+  reopened: z.number().int(),
+  renamed: z.number().int(),
+  archived: z.number().int(),
+  workstreams_created: z.number().int(),
+  updated_in_file: z.number().int(),
+  inserted_in_file: z.number().int(),
+});
+export type SyncSummary = z.infer<typeof SyncSummary>;
+
+export const SyncPlanResult = z.object({
+  project_code: ProjectCode,
+  direction: z.enum(["pull", "push"]),
+  run_id: z.string(),
+  markdown: z.string().describe("O plan.md para gravar no repositório."),
+  changed: z.boolean().describe("O arquivo mudou em relação ao enviado."),
+  summary: SyncSummary,
+  conflicts: z.array(SyncConflict),
+});
+export type SyncPlanResult = z.infer<typeof SyncPlanResult>;
+
+type Outcome<T> = { ok: true; value: T } | { ok: false; error: HubError };
+let savepoints = 0;
+
+/** Roda um passo num ponto de salvamento: se falhar, desfaz só ele e devolve o erro. */
+async function attempt<T>(t: TxCtx, fn: () => Promise<T>): Promise<Outcome<T>> {
+  const name = `hub_sync_${(savepoints = (savepoints + 1) % 1_000_000)}`;
+  await t.tx.query(`savepoint ${name}`);
+  try {
+    const value = await fn();
+    await t.tx.query(`release savepoint ${name}`);
+    return { ok: true, value };
+  } catch (raw) {
+    await t.tx.query(`rollback to savepoint ${name}`);
+    const error = toHubError(raw);
+    // Erro inesperado (do servidor) não vira conflito: derruba a sincronização inteira.
+    if (error.status >= 500) throw raw;
+    return { ok: false, error };
+  }
+}
+
+async function workspacePrefix(t: TxCtx): Promise<string> {
+  const row = await maybeOne<{ task_prefix: string }>(
+    t,
+    `select task_prefix from ${S}.workspaces where id = $1`,
+    [t.actor.workspaceId],
+  );
+  return row?.task_prefix ?? "HUB";
+}
+
+const lineOf = (item: PlanItem) => item.line + 1;
+
+async function recordRun(
+  t: TxCtx,
+  projectId: string,
+  input: SyncPlanInput,
+  summary: SyncSummary,
+  conflicts: SyncConflict[],
+): Promise<string> {
+  const row = await maybeOne<{ id: string }>(
+    t,
+    `insert into ${S}.plan_sync_runs
+       (workspace_id, project_id, direction, source, commit_sha, summary, conflicts)
+     values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)
+     returning id`,
+    [
+      t.actor.workspaceId,
+      projectId,
+      input.direction,
+      input.via || t.source,
+      input.commit_sha ?? null,
+      JSON.stringify(summary),
+      JSON.stringify(conflicts),
+    ],
+  );
+  return row!.id;
+}
+
+const emptySummary = (): SyncSummary => ({
+  created: 0,
+  completed: 0,
+  reopened: 0,
+  renamed: 0,
+  archived: 0,
+  workstreams_created: 0,
+  updated_in_file: 0,
+  inserted_in_file: 0,
+});
+
+/** Pull ou push, conforme `direction`. */
+export async function syncPlan(
+  t: TxCtx,
+  raw: z.input<typeof SyncPlanInput>,
+): Promise<SyncPlanResult> {
+  const input = SyncPlanInput.parse(raw);
+  const project = await resolveProject(t, input.project, "sync.plan");
+  const prefix = await workspacePrefix(t);
+  const file = parsePlanFile(input.markdown, { prefix });
+  const summary = emptySummary();
+  const conflicts: SyncConflict[] = [];
+
+  let current = file;
+  if (input.direction === "push") {
+    const base =
+      input.base_markdown === undefined
+        ? null
+        : parsePlanFile(input.base_markdown, { prefix });
+    // As mudanças rodam com origem "sync" (tarefas novas ficam com source plan_md).
+    const changes = await push(
+      { ...t, source: "sync" },
+      project.code,
+      file,
+      base,
+      input,
+      summary,
+      conflicts,
+    );
+    current = parsePlanFile(applyItemChanges(file, changes), { prefix });
+  }
+
+  // Nos dois sentidos, o arquivo devolvido é o do Hub depois das mudanças.
+  const plan = await getPlan(t, project.code, "sync.plan");
+  const pulled = pullIntoFile(current, plan);
+  summary.updated_in_file = pulled.updated;
+  summary.inserted_in_file = pulled.inserted;
+  if (input.direction === "pull") collectGateAlerts(current, plan, conflicts);
+
+  const runId = await recordRun(t, project.id, input, summary, conflicts);
+  return {
+    project_code: project.code,
+    direction: input.direction,
+    run_id: runId,
+    markdown: pulled.markdown,
+    changed: pulled.markdown !== input.markdown,
+    summary,
+    conflicts,
+  };
+}
+
+/** GATE marcado no arquivo sem o marco aceito no Hub: alerta (nunca aceita). */
+function collectGateAlerts(
+  file: ParsedPlanFile,
+  plan: Awaited<ReturnType<typeof getPlan>>,
+  conflicts: SyncConflict[],
+) {
+  const match = matchStructure(file, plan);
+  for (const item of file.items) {
+    if (item.kind !== "criterion" || !item.checked) continue;
+    const milestone =
+      item.milestone === null ? null : match.milestones[item.milestone];
+    if (milestone?.status === "accepted") continue;
+    const criterion = milestone?.acceptance_criteria.find(
+      (c) => normalizeTitle(c.text) === normalizeTitle(item.title),
+    );
+    if (criterion?.done) continue;
+    conflicts.push({
+      kind: "gate_checked",
+      line: lineOf(item),
+      code: null,
+      detail:
+        "Critério de GATE marcado no arquivo é ignorado: o aceite do marco é do Fábio, nas Aprovações do Hub.",
+    });
+  }
+}
+
+async function push(
+  t: TxCtx,
+  projectCode: string,
+  file: ParsedPlanFile,
+  base: ParsedPlanFile | null,
+  input: SyncPlanInput,
+  summary: SyncSummary,
+  conflicts: SyncConflict[],
+): Promise<ItemChange[]> {
+  const plan = await getPlan(t, projectCode, "sync.plan");
+  const match = matchStructure(file, plan);
+  const tasks = hubTasks(plan);
+  const baseByCode = new Map(
+    (base?.items ?? [])
+      .filter((i) => i.kind === "task" && i.code)
+      .map((i) => [i.code as string, i]),
+  );
+  collectGateAlerts(file, plan, conflicts);
+
+  const changes: ItemChange[] = [];
+  const codeOfItem = new Map<number, string>();
+  const seen = new Set<string>();
+  const missingMilestone = new Set<number>();
+  const createdWorkstream = new Map<string, string>(); // chave → id da frente
+
+  const evidenceFor = (item: PlanItem): string | null =>
+    item.evidence ??
+    (input.commit_sha
+      ? `plan.md marcado no commit ${input.commit_sha.slice(0, 12)}`
+      : null);
+  const refuse = (item: PlanItem, code: string | null, error: HubError) =>
+    conflicts.push({
+      kind: "refused",
+      line: lineOf(item),
+      code,
+      detail: error.message,
+    });
+
+  /** Conclui pelo arquivo, com evidência; sem ela, vira conflito e comentário. */
+  const complete = async (item: PlanItem, code: string) => {
+    const evidence = evidenceFor(item);
+    if (!evidence) {
+      const detail = `${code} está marcada no plan.md, mas sem evidência. Escreva "— evidência: ..." no item ou conclua com a evidência (hub task done ${code} --evidence ...).`;
+      conflicts.push({
+        kind: "no_evidence",
+        line: lineOf(item),
+        code,
+        detail,
+      });
+      await noteOnTask(t, code, `Sincronização do plan.md: ${detail}`);
+      return;
+    }
+    const done = await attempt(t, () => completeTask(t, code, { evidence }));
+    if (done.ok) summary.completed += 1;
+    else refuse(item, code, done.error);
+  };
+
+  /** Frente do Hub para um item novo (achada, criada ou a "frente do marco"). */
+  const workstreamFor = async (
+    item: PlanItem,
+  ): Promise<{ id: string | null } | null> => {
+    const milestone =
+      item.milestone === null ? null : match.milestones[item.milestone];
+    if (item.milestone !== null && !milestone) {
+      if (!missingMilestone.has(item.milestone)) {
+        missingMilestone.add(item.milestone);
+        const m = file.milestones[item.milestone];
+        conflicts.push({
+          kind: "milestone_missing",
+          line: m.line + 1,
+          code: null,
+          detail: `O marco "${m.title}" não existe no Hub. Marco é decisão de pessoa: crie pela tela (Novo marco, na Visão geral do projeto) e sincronize de novo. Os itens dele ficaram de fora.`,
+        });
+      }
+      return null;
+    }
+    let title: string | null = null;
+    if (item.workstream !== null) {
+      const found = match.workstreams[item.workstream];
+      if (found) return { id: found.id };
+      title = file.workstreams[item.workstream].title;
+    } else if (milestone) {
+      // Item direto embaixo do `##`: vai para a frente com o nome do marco.
+      const own = milestone.workstreams.find(
+        (w) => normalizeTitle(w.title) === normalizeTitle(milestone.title),
+      );
+      if (own) return { id: own.id };
+      title = milestone.title;
+    } else {
+      return { id: null }; // sem marco e sem frente
+    }
+    const key = `${milestone?.id ?? "-"}|${normalizeTitle(title)}`;
+    const cached = createdWorkstream.get(key);
+    if (cached) return { id: cached };
+    const created = await attempt(t, () =>
+      createWorkstream(
+        t,
+        CreateWorkstreamInput.parse({
+          project: projectCode,
+          title: title.slice(0, 200),
+          ...(milestone ? { milestone: milestone.code } : {}),
+        }),
+      ),
+    );
+    if (!created.ok) {
+      refuse(item, null, created.error);
+      return null;
+    }
+    summary.workstreams_created += 1;
+    createdWorkstream.set(key, created.value.id);
+    return { id: created.value.id };
+  };
+
+  for (const [index, item] of file.items.entries()) {
+    if (item.kind === "criterion") continue;
+
+    if (item.code) {
+      const code = item.code;
+      if (seen.has(code)) {
+        conflicts.push({
+          kind: "duplicate_code",
+          line: lineOf(item),
+          code,
+          detail: `${code} aparece mais de uma vez no arquivo; só a primeira conta.`,
+        });
+        continue;
+      }
+      seen.add(code);
+      codeOfItem.set(index, code);
+      const hub = tasks.get(code);
+      if (!hub) {
+        conflicts.push({
+          kind: "unknown_code",
+          line: lineOf(item),
+          code,
+          detail: `${code} não está entre as tarefas ativas do projeto ${projectCode} (outro projeto, arquivada ou inexistente).`,
+        });
+        continue;
+      }
+      const before = baseByCode.get(code);
+      const hubDone = hub.status_category === "done";
+      if (item.checked && !hubDone) {
+        if (before?.checked) {
+          conflicts.push({
+            kind: "hub_wins",
+            line: lineOf(item),
+            code,
+            detail: `${code} foi reaberta no Hub depois da última sincronização; o Hub vence e o arquivo volta a ficar desmarcado.`,
+          });
+        } else {
+          await complete(item, code);
+        }
+      } else if (!item.checked && hubDone) {
+        if (before?.checked) {
+          const reopened = await attempt(t, () =>
+            reopenTask(t, code, { reason: "Desmarcada no plan.md." }),
+          );
+          if (reopened.ok) summary.reopened += 1;
+          else refuse(item, code, reopened.error);
+        } else {
+          conflicts.push({
+            kind: "hub_wins",
+            line: lineOf(item),
+            code,
+            detail: `${code} está concluída no Hub e desmarcada no arquivo; o Hub vence e o arquivo volta a ficar marcado.`,
+          });
+        }
+      }
+      // Título: só com a versão anterior, e se o Hub ainda tem o título antigo.
+      if (
+        before &&
+        item.title &&
+        before.title !== item.title &&
+        normalizeTitle(hub.title) === normalizeTitle(before.title)
+      ) {
+        const renamed = await attempt(t, () =>
+          updateTask(t, code, { title: item.title }),
+        );
+        if (renamed.ok) summary.renamed += 1;
+        else refuse(item, code, renamed.error);
+      }
+      continue;
+    }
+
+    // Item novo. Riscado é cancelado no plano: não vira tarefa.
+    if (item.struck || !item.title) continue;
+    const parentCode =
+      item.parent === null ? undefined : codeOfItem.get(item.parent);
+    if (item.parent !== null && !parentCode) continue; // pai ficou de fora
+    const workstream = parentCode ? { id: null } : await workstreamFor(item);
+    if (!workstream) continue;
+    const note =
+      item.note && !item.evidence ? item.note.slice(0, 20000) : undefined;
+    const created = await attempt(t, () =>
+      createTask(
+        t,
+        CreateTaskInput.parse({
+          project: projectCode,
+          title: item.title,
+          ...(note ? { description_md: note } : {}),
+          ...(workstream.id ? { workstream_id: workstream.id } : {}),
+          ...(parentCode ? { parent: parentCode } : {}),
+        }),
+      ),
+    );
+    if (!created.ok) {
+      refuse(item, null, created.error);
+      continue;
+    }
+    const code = created.value.code;
+    summary.created += 1;
+    codeOfItem.set(index, code);
+    changes.push({ item: index, code });
+    if (item.checked) await complete(item, code);
+  }
+
+  // Itens que saíram do arquivo (só se sabe com a versão anterior): arquivar.
+  if (base) {
+    for (const [code, before] of baseByCode) {
+      if (seen.has(code) || !tasks.has(code)) continue;
+      const archived = await attempt(t, () =>
+        archiveTask(t, code, { reason: "Saiu do plan.md." }),
+      );
+      if (archived.ok) summary.archived += 1;
+      else refuse(before, code, archived.error);
+    }
+  }
+  return changes;
+}
+
+/** Comentário interno na tarefa, sem repetir o mesmo aviso a cada sincronização. */
+async function noteOnTask(t: TxCtx, code: string, body: string) {
+  const repeated = await many<{ id: string }>(
+    t,
+    `select c.id from ${S}.comments c
+       join ${S}.tasks k on k.id = c.entity_id and c.entity_type = 'task'
+      where k.code = $1 and c.body_md = $2
+      limit 1`,
+    [code, body],
+  );
+  if (repeated.length > 0) return;
+  // Sem o escopo de comentários, o aviso fica só no registro da sincronização.
+  await attempt(t, () => createComment(t, { task: code }, { body_md: body }));
+}

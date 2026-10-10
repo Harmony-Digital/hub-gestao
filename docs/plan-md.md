@@ -25,7 +25,7 @@ Todo o resto (títulos, textos, tabelas, quebras de linha, inclusive `\r\n`, esp
 | `### 🔒 GATE M2 (aprovação do Fábio)` | GATE do marco: os itens abaixo são critérios de aceite, nunca tarefas |
 | `## Sem marco` e `### Tarefas sem frente` | frentes e tarefas sem marco (como na exportação do Hub) |
 
-Uma seção `##` só vira marco se tiver pelo menos um item com caixa ou um GATE. Seções sem caixas (regras, "Onde estamos", "Registro de Execução") são texto livre.
+Uma seção `##` vira marco quando o título traz o código (`## M3 — ...`, mesmo sem itens) ou quando tem pelo menos um item com caixa ou um GATE. Seções sem caixas (regras, "Onde estamos", "Registro de Execução") são texto livre.
 
 ## Itens
 
@@ -49,3 +49,33 @@ Uma seção `##` com a linha abaixo fica inteira como texto livre, mesmo com cai
 ```
 
 A linha é um comentário HTML: não aparece quando o Markdown é exibido.
+
+## Sincronização (pull e push)
+
+Pelo MCP (`hub_sync_plan`) ou pela REST (`POST /api/v1/sync/plan`), sempre com o arquivo inteiro em `markdown` e `direction` `pull` ou `push`. A resposta traz o `markdown` para gravar no repositório, o resumo e os conflitos; toda execução fica registrada em `plan_sync_runs`. O Hub é a fonte de verdade: nos conflitos, ele vence.
+
+**Pull** (o Hub vai para o arquivo):
+
+- a caixa de cada tarefa com código fica igual ao Hub;
+- os critérios de GATE ficam marcados se o marco foi aceito no Hub, ou se o critério está cumprido lá;
+- as tarefas que só existem no Hub entram no lugar certo: na frente do arquivo com o mesmo nome, numa frente nova dentro do marco (antes do GATE), num marco novo (depois do último marco, ou antes do registro de execução) ou na seção "Sem marco";
+- nada mais muda no arquivo.
+
+**Push** (o que mudou no arquivo vem para o Hub):
+
+- item sem código vira tarefa (origem `plan_md`) e ganha o código no arquivo devolvido; subitem vira subtarefa; frente nova dentro de um marco que existe é criada;
+- caixa marcada conclui a tarefa com a evidência escrita no item (`— evidência: ...`) ou, se o push trouxer `commit_sha`, com "plan.md marcado no commit ...". Sem nenhuma das duas, a tarefa não é concluída: vira conflito e comentário na tarefa (uma vez só);
+- item riscado não vira tarefa;
+- **marco novo não é criado** (marco é decisão de pessoa): o conflito pede para criar pela tela e sincronizar de novo, e os itens dele ficam de fora;
+- **GATE marcado no arquivo é ignorado** e gera alerta: o aceite do marco é do Fábio, nas Aprovações;
+- código desconhecido (de outro projeto, arquivado ou inexistente) e código repetido viram conflito.
+
+Com a versão anterior do arquivo (`base_markdown`, por exemplo a do commit anterior), o push também sabe o que o autor do arquivo quis mudar:
+
+- desmarcar reabre a tarefa;
+- renomear o item renomeia a tarefa (se ninguém mudou o título no Hub);
+- tirar o item do arquivo **arquiva** a tarefa (nunca apaga).
+
+Sem a versão anterior, essas três mudanças não são aplicadas: a caixa desmarcada de uma tarefa concluída no Hub é conflito, e o pull devolve o arquivo com o estado do Hub.
+
+Cada item é aplicado à parte: o que o Hub recusar (falta de escopo da chave, título inválido) vira conflito do tipo `refused`, sem desfazer o resto.
