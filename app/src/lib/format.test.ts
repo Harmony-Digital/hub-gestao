@@ -34,6 +34,8 @@ describe("iniciais", () => {
     ["Fábio Almeida", "FA"],
     ["Kratos", "K"],
     ["Claude Code do Fábio", "CF"],
+    ["Codex (exemplo)", "C"],
+    ["Kratos (exemplo)", "K"],
     ["  ", "?"],
     [null, "?"],
   ])("%s", (name, expected) => {

@@ -53,9 +53,14 @@ const VERBS: Record<string, string> = {
   "report.drafted": "rascunhou um relatório",
 };
 
+/** Ações cujo objeto é uma tarefa (o código vai depois do verbo). */
+const ABOUT_TASK = new Set(["comment.created", "time.logged"]);
+
 export function describeActivity(action: string, taskCode: string | null) {
   const verb = VERBS[action] ?? action;
-  return taskCode && action.startsWith("task.") ? `${verb} ${taskCode}` : verb;
+  return taskCode && (action.startsWith("task.") || ABOUT_TASK.has(action))
+    ? `${verb} ${taskCode}`
+    : verb;
 }
 
 const QUEUE_ORDER = `
@@ -167,9 +172,11 @@ export async function projectOverview(
     t,
     `select a.created_at, a.action, a.actor_type::text as actor_type, a.actor_id,
             ${ACTOR_NAME_SQL("a.actor_type::text", "a.actor_id")} as actor_name,
-            tk.code as task_code
+            coalesce(tk.code, tkc.code) as task_code
        from ${S}.activity_log a
        left join ${S}.tasks tk on a.entity_type = 'task' and tk.id = a.entity_id
+       left join ${S}.comments cm on a.entity_type = 'comment' and cm.id = a.entity_id
+       left join ${S}.tasks tkc on cm.entity_type = 'task' and tkc.id = cm.entity_id
       where a.project_id = $1
       order by a.id desc limit 12`,
     [project.id],

@@ -1,5 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
+import { connection } from "next/server";
 import { cache } from "react";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import type { HubUser } from "@/lib/auth/resolve";
@@ -12,6 +13,9 @@ import { shellData, type ShellData } from "@/modules/shell/service";
  * autorização e histórico com source = ui). Sem sessão, getCurrentUser manda ao login.
  */
 export async function pageContext(): Promise<{ user: HubUser; ctx: Ctx }> {
+  // Sessão, banco, datas relativas e identificadores são da hora do pedido, nunca do
+  // build: a marcação vem antes de tudo, inclusive da conferência de quem está logado.
+  await connection();
   const user = await getCurrentUser();
   return {
     user,

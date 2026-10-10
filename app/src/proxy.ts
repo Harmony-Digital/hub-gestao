@@ -22,6 +22,16 @@ export async function proxy(request: NextRequest) {
       readOnly ? 307 : 303,
     );
 
+  // Login de teste local (src/lib/auth/dev-login.ts): só fora da produção. O teste de
+  // NODE_ENV fica escrito aqui para o build de produção remover o ramo inteiro.
+  if (process.env.NODE_ENV !== "production") {
+    const { DEV_LOGIN_COOKIE, isValidDevLogin } =
+      await import("@/lib/auth/dev-login");
+    if (isValidDevLogin(request.cookies.get(DEV_LOGIN_COOKIE)?.value)) {
+      return NextResponse.next();
+    }
+  }
+
   const config = authConfig();
   if (!config) return isPublic ? NextResponse.next() : toLogin();
 

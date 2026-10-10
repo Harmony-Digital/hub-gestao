@@ -189,10 +189,11 @@ function ProjectRow({ project: p }: { project: ProjectBoardRow }) {
         <Progress value={p.progress_pct} label={`Progresso de ${p.name}`} />
       </td>
       <td className="px-4 py-3 text-xs whitespace-nowrap text-ink-2">
-        {p.open_task_count} abertas
+        {p.open_task_count} {p.open_task_count === 1 ? "aberta" : "abertas"}
         {p.blocked_task_count > 0 ? (
           <span className="block font-semibold text-danger-fg">
-            {p.blocked_task_count} bloqueadas
+            {p.blocked_task_count}{" "}
+            {p.blocked_task_count === 1 ? "bloqueada" : "bloqueadas"}
           </span>
         ) : null}
       </td>

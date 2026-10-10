@@ -70,6 +70,8 @@ jobs:
             --cap-drop ALL --security-opt no-new-privileges:true \
             --pids-limit 256 --memory 2g \
             --env HUB_API_KEY_PEPPER="$(openssl rand -hex 32)" \
+            --env HUB_DEV_LOGIN=on \
+            --env HUB_DEV_LOGIN_SECRET="$(openssl rand -hex 32)" \
             --publish 127.0.0.1:3000:3000 \
             "$IMAGE"
           for attempt in $(seq 1 30); do
@@ -99,6 +101,11 @@ jobs:
           test "$gate" = "307 /login?next=%2Fprojetos%3Faba%3Dplano" || { echo "Esperava 307 para o login, veio $gate"; exit 1; }
           curl --silent --fail http://127.0.0.1:3000/login | grep -q "O login ainda não foi configurado" \
             || { echo "A tela de login não avisou que o login está sem configuração"; exit 1; }
+          # O login de teste local não existe na imagem de produção, mesmo com as variáveis.
+          gate="$(curl --silent --output /dev/null --write-out '%{http_code}' --cookie 'hub_dev_login=qualquer' http://127.0.0.1:3000/projetos)"
+          test "$gate" = "307" || { echo "Cookie do login de teste abriu uma tela em produção ($gate)"; exit 1; }
+          ! curl --silent http://127.0.0.1:3000/login | grep -q "Entrar como dono" \
+            || { echo "A tela de login de produção mostrou o login de teste"; exit 1; }
           test "$(docker exec hub-app-teste id -u)" = "1001"
           docker exec hub-app-teste sh -c 'test ! -e /app/src && test ! -e /app/.data && ! ls -a /app | grep -q "^\.env"'
           echo "Contêiner sem root, sem código-fonte, sem banco local e sem arquivos .env."

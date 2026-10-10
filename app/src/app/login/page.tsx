@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Suspense } from "react";
 import { authConfig, magicLinkEnabled } from "@/lib/auth/config";
 import { loginErrorMessage, safeNextPath } from "@/lib/auth/next-path";
+import { entrarLocal } from "./actions";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Entrar" };
@@ -55,13 +56,39 @@ async function LoginFormFromUrl({
   const params = await searchParams;
   const first = (value: string | string[] | undefined) =>
     Array.isArray(value) ? value[0] : value;
+  const next = safeNextPath(first(params.next));
+  // Só no computador de quem programa; em produção o ramo some do build.
+  let localLogin = false;
+  if (process.env.NODE_ENV !== "production") {
+    const { devLoginEnabled } = await import("@/lib/auth/dev-login");
+    localLogin = devLoginEnabled();
+  }
   return (
-    <LoginForm
-      next={safeNextPath(first(params.next))}
-      initialError={loginErrorMessage(first(params.erro))}
-      magicLink={magicLinkEnabled()}
-      configured={authConfig() !== null}
-    />
+    <>
+      <LoginForm
+        next={next}
+        initialError={loginErrorMessage(first(params.erro))}
+        magicLink={magicLinkEnabled()}
+        configured={authConfig() !== null}
+      />
+      {localLogin ? (
+        <form
+          action={entrarLocal}
+          className="mt-4 rounded-lg border border-dashed border-brand/60 p-3"
+        >
+          <input type="hidden" name="next" value={next} />
+          <p className="text-xs text-ink-2">
+            Ambiente local de desenvolvimento, com o banco de teste.
+          </p>
+          <button
+            type="submit"
+            className="mt-2 text-sm font-semibold text-brand-strong underline-offset-4 hover:underline"
+          >
+            Entrar como dono, sem senha (só neste computador)
+          </button>
+        </form>
+      ) : null}
+    </>
   );
 }
 

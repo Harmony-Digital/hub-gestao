@@ -44,6 +44,7 @@ async function openDb(): Promise<Db> {
       dataDir: env.dataDir,
       devAgentKey: env.devAgentKey,
       pepper: process.env.HUB_API_KEY_PEPPER ?? null,
+      sample: process.env.HUB_DEV_SAMPLE === "on",
     });
   }
   throw new Error("DATABASE_URL é obrigatório em produção.");

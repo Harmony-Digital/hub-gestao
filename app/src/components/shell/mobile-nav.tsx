@@ -44,7 +44,9 @@ export function MobileNav({ children }: { children: ReactNode }) {
         }}
         className="m-0 h-full max-h-none w-[min(86vw,300px)] max-w-none bg-navy p-0 backdrop:bg-navy-3/60"
       >
-        <div className="relative min-h-full">
+        {/* Altura definida para o cartão de quem está logado ficar no pé, e espaço no
+            topo para o botão de fechar não cobrir o selo "Hub". */}
+        <div className="relative h-full overflow-y-auto pt-12">
           <button
             type="button"
             onClick={() => dialog.current?.close()}

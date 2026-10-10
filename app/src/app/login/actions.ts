@@ -1,6 +1,6 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { appUrl, magicLinkEnabled } from "@/lib/auth/config";
 import {
@@ -11,6 +11,7 @@ import {
   type LoginDeps,
   type LoginState,
 } from "@/lib/auth/login";
+import { safeNextPath } from "@/lib/auth/next-path";
 import { supabaseForRequest } from "@/lib/auth/supabase";
 import { getDb } from "@/lib/db";
 import { serverEnv } from "@/lib/env";
@@ -55,7 +56,34 @@ export async function enviarLinkDeAcesso(
 }
 
 export async function sair(): Promise<void> {
+  if (process.env.NODE_ENV !== "production") {
+    const { DEV_LOGIN_COOKIE } = await import("@/lib/auth/dev-login");
+    (await cookies()).delete(DEV_LOGIN_COOKIE);
+  }
   const supabase = await supabaseForRequest();
   await supabase?.auth.signOut({ scope: "local" }).catch(() => undefined);
+  redirect("/login");
+}
+
+/**
+ * Login de teste no computador de quem programa (src/lib/auth/dev-login.ts). Em
+ * produção esta ação só devolve ao login: o ramo de teste some do build.
+ */
+export async function entrarLocal(form: FormData): Promise<void> {
+  if (process.env.NODE_ENV !== "production") {
+    const { DEV_LOGIN_COOKIE, devLoginCookieValue } =
+      await import("@/lib/auth/dev-login");
+    const value = devLoginCookieValue();
+    if (value) {
+      (await cookies()).set(DEV_LOGIN_COOKIE, value, {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: false,
+        maxAge: 12 * 60 * 60,
+      });
+      redirect(safeNextPath(form.get("next")));
+    }
+  }
   redirect("/login");
 }

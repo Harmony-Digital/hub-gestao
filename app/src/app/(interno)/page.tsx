@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
-import { getCurrentUser } from "@/lib/auth/current-user";
+import { pageContext } from "@/lib/ui-context";
 import { roadmap, statusLabel, type MilestoneStatus } from "@/lib/roadmap";
 
 const statusStyle: Record<MilestoneStatus, string> = {
@@ -53,7 +53,7 @@ export default function Home() {
 }
 
 async function HomeContent() {
-  const user = await getCurrentUser();
+  const { user } = await pageContext();
   const firstName = user.fullName.trim().split(/\s+/)[0];
   return (
     <main className="flex w-full max-w-5xl flex-col gap-10 px-4 py-8 sm:px-8">
