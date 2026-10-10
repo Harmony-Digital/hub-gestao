@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Bot } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
 import { Progress } from "@/components/shell/pill";
+import { can } from "@/lib/authorize";
 import { pageContext } from "@/lib/ui-context";
 import {
   controlRoom,
@@ -15,11 +16,17 @@ import {
   type ConsoleKey,
 } from "@/modules/agents/service";
 import { inTx } from "@/modules/context";
+import {
+  listCredentials,
+  PROVIDER_LABEL,
+  type CredentialItem,
+} from "@/modules/llm/credentials";
 import { listProjects } from "@/modules/projects/service";
 import { LiveRefresh } from "../_live/live-refresh";
 import { EditarAgenteButton, PausarAgenteButton } from "./agent-controls";
 import { ControlRoomView } from "./control-room-view";
 import { KIND_LABELS, SCOPE_LABELS, type KeyScope } from "./form";
+import { ChaveIAControls, NovaChaveIAForm } from "./ai-keys";
 import { NovaChaveForm, NovoAgenteForm, RevogarChaveButton } from "./forms";
 
 export const metadata: Metadata = { title: "Sala de Controle" };
@@ -66,15 +73,20 @@ async function AgentsConsoleView({
   const filter = readControlRoomFilter(query);
   const { ctx } = await pageContext();
   const now = new Date();
-  const { data, projects, room, marker } = await inTx(ctx, async (t) => ({
-    data: await listAgentsConsole(t),
-    projects: (await listProjects(t)).items.map((p) => ({
-      code: p.code,
-      name: p.name,
-    })),
-    room: await controlRoom(t, filter),
-    marker: await controlRoomMarker(t),
-  }));
+  const canSeeAiKeys = can(ctx.actor, "agent.manage");
+  const { data, projects, room, marker, aiKeys } = await inTx(
+    ctx,
+    async (t) => ({
+      data: await listAgentsConsole(t),
+      projects: (await listProjects(t)).items.map((p) => ({
+        code: p.code,
+        name: p.name,
+      })),
+      room: await controlRoom(t, filter),
+      marker: await controlRoomMarker(t),
+      aiKeys: canSeeAiKeys ? await listCredentials(t) : [],
+    }),
+  );
   const date = new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
     timeZone: "America/Sao_Paulo",
@@ -249,7 +261,111 @@ async function AgentsConsoleView({
           </ul>
         )}
       </section>
+
+      {canSeeAiKeys ? (
+        <AiKeysSection
+          keys={aiKeys}
+          canManage={data.canManageKeys}
+          date={date}
+        />
+      ) : null}
     </div>
+  );
+}
+
+/** Chaves de IA do workspace (D5): lista para a administração; mudanças só do dono. */
+function AiKeysSection({
+  keys,
+  canManage,
+  date,
+}: {
+  keys: CredentialItem[];
+  canManage: boolean;
+  date: Intl.DateTimeFormat;
+}) {
+  return (
+    <section aria-labelledby="chaves-ia-titulo" className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1">
+        <h2
+          id="chaves-ia-titulo"
+          className="font-heading text-xl font-semibold text-navy"
+        >
+          Chaves de IA
+        </h2>
+        <p className="max-w-3xl text-sm text-ink-2">
+          Uma chave por provedor e conta, usada pelos agentes internos do Hub
+          para redigir. Sem chave, o Hub funciona normalmente, só sem as funções
+          de redação. Cadastrar, trocar e revogar é só do dono.
+        </p>
+      </div>
+      {keys.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-line p-4 text-sm text-ink-2">
+          Nenhuma chave de IA cadastrada.
+        </p>
+      ) : (
+        <div className="relative overflow-x-auto rounded-xl border border-line">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead className="bg-off-2 text-xs text-caption">
+              <tr>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Provedor
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Nome
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Final
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Agentes
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Situação
+                </th>
+                {canManage ? (
+                  <th scope="col" className="px-3 py-2 font-medium">
+                    <span className="sr-only">Ações</span>
+                  </th>
+                ) : null}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {keys.map((k) => (
+                <tr key={k.id} className="align-top">
+                  <td className="px-3 py-2 text-ink">
+                    {PROVIDER_LABEL[k.provider]}
+                  </td>
+                  <td className="px-3 py-2 text-ink">{k.label}</td>
+                  <td className="px-3 py-2 font-mono text-xs text-ink-2">
+                    …{k.last4}
+                  </td>
+                  <td className="px-3 py-2 text-ink-2">{k.agents}</td>
+                  <td className="px-3 py-2 text-xs text-ink-2">
+                    {k.revokedAt
+                      ? `Revogada em ${date.format(new Date(k.revokedAt))}`
+                      : k.rotatedAt
+                        ? `Trocada em ${date.format(new Date(k.rotatedAt))}`
+                        : `Desde ${date.format(new Date(k.createdAt))}${k.createdBy ? `, por ${k.createdBy}` : ""}`}
+                  </td>
+                  {canManage ? (
+                    <td className="px-3 py-2 text-right">
+                      {k.revokedAt ? null : (
+                        <ChaveIAControls
+                          id={k.id}
+                          label={k.label}
+                          last4={k.last4}
+                        />
+                      )}
+                    </td>
+                  ) : null}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {canManage ? <NovaChaveIAForm /> : null}
+    </section>
   );
 }
 
