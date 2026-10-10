@@ -25,6 +25,7 @@ import {
   resolveAssignee,
   resolveProject,
   TaskCode,
+  Uuid,
 } from "@/modules/common";
 import { many, maybeOne, S, type Source, type TxCtx } from "@/modules/context";
 import { emitEvent, recomputeRollup } from "@/modules/events";
@@ -35,7 +36,8 @@ import type {
   UpdateTaskInput,
 } from "@/modules/tasks/schemas";
 
-const TASK_SELECT = `
+/** Leitura completa da tarefa (TaskDto), compartilhada com as telas (board.ts). */
+export const TASK_SELECT = `
   select t.id, t.code, p.code as project_code, t.project_id, t.title, t.description_md,
          t.status_id, s.name as status_name, t.status_category, s.color as status_color,
          t.priority, t.assignee_type, t.assignee_id,
@@ -54,7 +56,7 @@ const TASK_SELECT = `
     left join ${S}.workstreams w on w.id = t.workstream_id
     left join ${S}.tasks par on par.id = t.parent_task_id`;
 
-type TaskRow = {
+export type TaskRow = {
   id: string;
   code: string;
   project_code: string;
@@ -802,4 +804,59 @@ export async function reopenTask(
     status_category: after.status.category,
   });
   return after;
+}
+
+/**
+ * Muda o status pela tela (lista e quadro), escolhendo o caminho de cada destino:
+ * concluir exige evidência, bloquear exige o motivo e tarefa concluída é reaberta antes.
+ * Cada passo grava a própria atividade. Para pessoas: agentes usam as ações próprias
+ * (iniciar, bloquear, concluir), que também aplicam o limite de tarefas em andamento.
+ */
+export async function moveTask(
+  t: TxCtx,
+  code: string,
+  input: { status_id: string; evidence?: string; reason?: string },
+  expectedVersion?: number,
+): Promise<TaskDto> {
+  const row = await lockTask(t, code, "task.transition");
+  if (expectedVersion !== undefined && row.version !== expectedVersion) {
+    throw preconditionFailed(
+      `A tarefa ${row.code} mudou desde a sua leitura (versão atual ${row.version}). Leia de novo e reaplique a mudança.`,
+      { current_version: row.version },
+    );
+  }
+  if (!Uuid.safeParse(input.status_id).success) {
+    throw badRequest("Status inválido.");
+  }
+  const target = await maybeOne<{
+    id: string;
+    name: string;
+    category: TaskDto["status"]["category"];
+  }>(
+    t,
+    `select id, name, category from ${S}.task_statuses where id = $1 and project_id = $2`,
+    [input.status_id, row.project_id],
+  );
+  if (!target) throw unprocessable("Esse status não existe neste projeto.");
+
+  const current = await taskById(t, row.id);
+  if (current.status.id === target.id) return current;
+
+  if (target.category === "done") {
+    return completeTask(t, row.code, {
+      evidence: input.evidence?.trim() ?? "",
+    });
+  }
+  if (target.category === "blocked" && !input.reason?.trim()) {
+    throw unprocessable("Para bloquear, diga o que falta e de quem depende.");
+  }
+  if (current.status.category === "done") {
+    await reopenTask(t, row.code, {});
+  }
+  if (target.category === "blocked") {
+    return blockTask(t, row.code, { reason: input.reason!.trim() });
+  }
+  const now = await taskById(t, row.id);
+  if (now.status.id === target.id) return now;
+  return updateTask(t, row.code, { status: target.name });
 }
