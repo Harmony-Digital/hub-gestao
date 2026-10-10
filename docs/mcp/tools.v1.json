@@ -30,6 +30,26 @@
     }
   },
   {
+    "name": "hub_create_client",
+    "title": "Cadastrar cliente (importação)",
+    "description": "Cadastra o cliente de um projeto que você vai importar, sem acesso ao portal (quem libera o portal é o Fábio). Se já existe cliente com o mesmo nome, devolve esse, com created: false. Nunca coloque segredos nem dados pessoais nas notas.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_create_project",
+    "title": "Cadastrar projeto em revisão (importação)",
+    "description": "Cadastra um projeto \"Em revisão\" ligado a um cliente (o de hub_create_client), com departamentos (slugs de hub_whoami), repositório e caminho do plan.md. O projeto só passa a valer quando o Fábio aprovar a importação. Repetir com o mesmo código e o mesmo cliente devolve o mesmo projeto (created: false); código de um projeto que já está no Hub fora de revisão é recusado (409). Depois, importe o plano com hub_import_plan.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "hub_create_task",
     "title": "Criar tarefa",
     "description": "Cria tarefa operacional com código HUB-n. Use para trabalho descoberto e ligue à frente (workstream_id) ou à tarefa-pai (parent). Marco novo não: peça com hub_request_approval.",
@@ -92,6 +112,16 @@
     "description": "Sua fila do dia: tarefas atribuídas a você na ordem de trabalho, bloqueios dos seus projetos, prazos dos próximos 3 dias e seus pedidos de aprovação.",
     "annotations": {
       "readOnlyHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "hub_import_plan",
+    "title": "Importar o plan.md de um projeto em revisão",
+    "description": "Importa o plan.md inteiro num projeto \"Em revisão\" (de hub_create_project): marcos com o código do arquivo (sempre como Planejado), frentes, tarefas e subtarefas, e os critérios do GATE; item marcado entra concluído, com a evidência escrita ou com a nota da importação. Abre o pedido import_review para o Fábio (um só por projeto) com o seu resumo (summary: de onde veio o plano e o que ficou de fora). Use antes dry_run: true para ver o que entraria e os avisos, sem gravar. O markdown devolvido traz os códigos: entregue-o para ir ao repositório por PR depois da aprovação, nunca direto na main.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
       "openWorldHint": false
     }
   },

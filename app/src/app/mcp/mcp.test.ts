@@ -392,4 +392,73 @@ describe("correções da revisão de segurança", () => {
       }),
     ]);
   });
+  it("importação de projeto (D10): cliente, projeto em revisão e plano, com o pedido de revisão", async () => {
+    const importer = await connect(h.keys.todos);
+    const names = (await importer.listTools()).tools.map((t) => t.name);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        "hub_create_client",
+        "hub_create_project",
+        "hub_import_plan",
+      ]),
+    );
+    const me = await callTool(importer, "hub_whoami");
+    expect(
+      (me.structuredContent?.departments as { slug: string }[]).map(
+        (d) => d.slug,
+      ),
+    ).toContain("sistemas");
+
+    const client = await callTool(importer, "hub_create_client", {
+      name: "Clínica do Teste MCP",
+      idempotency_key: ikey(),
+    });
+    expect(client.structuredContent).toMatchObject({ created: true });
+    const project = await callTool(importer, "hub_create_project", {
+      client: "Clínica do Teste MCP",
+      code: "MCPI",
+      name: "Projeto importado pelo MCP",
+      departments: ["sistemas"],
+      idempotency_key: ikey(),
+    });
+    expect(project.structuredContent).toMatchObject({
+      created: true,
+      project: { code: "MCPI", status: "in_review" },
+    });
+    const markdown =
+      "# Plano\n\n## M1 — Começo\n\n### Frente\n- [ ] Primeira tarefa\n";
+    const preview = await callTool(importer, "hub_import_plan", {
+      project: "MCPI",
+      markdown,
+      dry_run: true,
+      idempotency_key: ikey(),
+    });
+    expect(preview.structuredContent).toMatchObject({
+      dry_run: true,
+      approval: null,
+    });
+    const imported = await callTool(importer, "hub_import_plan", {
+      project: "MCPI",
+      markdown,
+      summary: "Teste do importador pelo MCP.",
+      idempotency_key: ikey(),
+    });
+    expect(imported.structuredContent).toMatchObject({
+      dry_run: false,
+      approval: { created: true },
+      summary: { milestones_created: 1, created: 1 },
+    });
+    expect(
+      await count(
+        h,
+        `select count(*)::int as n from ${S}.approvals a join ${S}.projects p on p.id = a.project_id
+          where p.code = 'MCPI' and a.type = 'import_review' and a.status = 'pending'`,
+      ),
+    ).toBe(1);
+
+    // Quem não tem projects:import não vê as ferramentas.
+    const kratos = await connect(h.keys.kratos);
+    const kratosTools = (await kratos.listTools()).tools.map((t) => t.name);
+    expect(kratosTools).not.toContain("hub_import_plan");
+  });
 });

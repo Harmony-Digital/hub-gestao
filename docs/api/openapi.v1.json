@@ -3270,6 +3270,26 @@
           "all_projects": {
             "type": "boolean"
           },
+          "departments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "slug",
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Departamentos do workspace (os slugs servem para hub_create_project)."
+          },
           "budget": {
             "anyOf": [
               {
@@ -3304,6 +3324,7 @@
           "key",
           "projects",
           "all_projects",
+          "departments",
           "budget"
         ],
         "additionalProperties": false

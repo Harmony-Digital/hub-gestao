@@ -18,6 +18,7 @@ import {
   Timestamp,
   Uuid,
 } from "@/modules/common";
+import { attempt } from "@/modules/attempt";
 import { json, many, maybeOne, S, type TxCtx } from "@/modules/context";
 import { emitEvent } from "@/modules/events";
 import { notifyOwners, notifyProfile } from "@/modules/notifications";
@@ -313,6 +314,72 @@ export async function requestApproval(
     }
   }
 
+  return insertApproval(t, project, {
+    type: input.type,
+    entity,
+    title: input.title,
+    summary: input.summary ?? null,
+    payload,
+    due_at: input.due_at ?? null,
+  });
+}
+
+/**
+ * Pedido de revisão da importação de um projeto (D10): aberto pelo próprio Hub no fim do
+ * hub_import_plan, um só pendente por projeto. Aprovar tira o projeto de "Em revisão"
+ * e o põe no status pedido (applyEffect); o Fábio decide no Hoje, um a um ou em lote.
+ */
+export async function requestImportReview(
+  t: TxCtx,
+  projectCode: string,
+  input: {
+    summary?: string;
+    next_status: "discovery" | "active" | "paused";
+    counts: {
+      milestones: number;
+      workstreams: number;
+      tasks: number;
+      completed: number;
+      conflicts: number;
+    };
+  },
+): Promise<{ id: string; created: boolean }> {
+  const project = await resolveProject(t, projectCode, "project.import");
+  const pending = await maybeOne<{ id: string }>(
+    t,
+    `select id from ${S}.approvals
+      where type = 'import_review' and project_id = $1 and status = 'pending'`,
+    [project.id],
+  );
+  if (pending) return { id: pending.id, created: false };
+  const c = input.counts;
+  const imported = `Importado do plan.md: ${c.milestones} marco(s), ${c.workstreams} frente(s) e ${c.tasks} tarefa(s), ${c.completed} já concluída(s)${c.conflicts ? `; ${c.conflicts} aviso(s) da importação` : ""}.`;
+  const dto = await insertApproval(t, project, {
+    type: "import_review",
+    entity: { type: "project", id: project.id },
+    title: `Revisar a importação de ${project.code} · ${project.name}`,
+    // O resumo do pedido tem até 4000 caracteres: o do agente cede espaço à contagem.
+    summary: [input.summary?.trim().slice(0, 3600), imported]
+      .filter(Boolean)
+      .join("\n\n"),
+    payload: { next_status: input.next_status },
+    due_at: null,
+  });
+  return { id: dto.id, created: true };
+}
+
+async function insertApproval(
+  t: TxCtx,
+  project: { id: string },
+  input: {
+    type: z.infer<typeof ApprovalType>;
+    entity: { type: string; id: string } | null;
+    title: string;
+    summary: string | null;
+    payload: Record<string, unknown>;
+    due_at: string | null;
+  },
+): Promise<ApprovalDto> {
   const inserted = await maybeOne<{ id: string }>(
     t,
     `insert into ${S}.approvals
@@ -324,16 +391,16 @@ export async function requestApproval(
       t.actor.workspaceId,
       project.id,
       input.type,
-      entity?.type ?? null,
-      entity?.id ?? null,
+      input.entity?.type ?? null,
+      input.entity?.id ?? null,
       input.title,
-      input.summary ?? null,
-      json(payload),
+      input.summary,
+      json(input.payload),
       t.actor.type,
       t.actor.id,
       t.actor.actingRole ?? null,
       await ownerProfileId(t),
-      input.due_at ?? null,
+      input.due_at,
     ],
   );
   const dto = await approvalById(t, inserted!.id);
@@ -564,4 +631,44 @@ async function applyEffect(
         note: "Sem efeito automático neste tipo: a decisão fica registrada para quem pediu.",
       };
   }
+}
+
+/**
+ * Aprovação em lote das importações de projeto (D10), no Hoje: só pedidos import_review,
+ * cada um num ponto de salvamento (o que falhar não desfaz os outros). Recusar ou pedir
+ * ajuste continua sendo um a um, no cartão de cada pedido.
+ */
+export async function approveImportsInBatch(
+  t: TxCtx,
+  ids: string[],
+): Promise<{
+  approved: { id: string; project_code: string | null }[];
+  failed: { id: string; message: string }[];
+}> {
+  authorize(t.actor, "approval.decide");
+  const approved: { id: string; project_code: string | null }[] = [];
+  const failed: { id: string; message: string }[] = [];
+  for (const id of [...new Set(ids)].slice(0, 100)) {
+    const row = await maybeOne<{ type: string }>(
+      t,
+      `select type::text as type from ${S}.approvals where id = $1`,
+      [id],
+    );
+    if (!row || row.type !== "import_review") {
+      failed.push({ id, message: "Não é um pedido de importação de projeto." });
+      continue;
+    }
+    const outcome = await attempt(t, () =>
+      decideApproval(t, id, {
+        decision: "approved",
+        note: "Aprovada em lote no Hoje.",
+      }),
+    );
+    if (outcome.ok) {
+      approved.push({ id, project_code: outcome.value.project_code });
+    } else {
+      failed.push({ id, message: outcome.error.detail });
+    }
+  }
+  return { approved, failed };
 }

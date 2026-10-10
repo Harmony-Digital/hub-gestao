@@ -278,3 +278,19 @@ export function historyView(a: ApprovalLike, now: Date): HistoryItem {
     result: a.status === "approved" ? approvalResult(a.effect) : null,
   };
 }
+
+/** Os pedidos marcados para a aprovação em lote (só ids válidos, sem repetir, até 100). */
+export function parseBatchForm(
+  form: FormData,
+): { ok: true; ids: string[] } | { ok: false; message: string } {
+  const ids = [
+    ...new Set(
+      form
+        .getAll("id")
+        .filter((v): v is string => typeof v === "string" && UUID.test(v)),
+    ),
+  ].slice(0, 100);
+  return ids.length
+    ? { ok: true, ids }
+    : { ok: false, message: "Marque pelo menos um pedido." };
+}

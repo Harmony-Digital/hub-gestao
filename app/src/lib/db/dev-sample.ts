@@ -5,6 +5,11 @@ import type { AgentActor, UserActor } from "@/lib/db/actor";
 import { encryptionKeyOrNull } from "@/lib/env";
 import { requestApproval } from "@/modules/approvals/service";
 import { createComment } from "@/modules/comments/service";
+import {
+  importClient,
+  importProject,
+  importProjectPlan,
+} from "@/modules/projects/import";
 import { inTx } from "@/modules/context";
 import {
   blockTask,
@@ -32,6 +37,7 @@ export async function ensureDevSample(db: Db, raw: PGlite): Promise<void> {
     // Bancos locais criados antes dos pedidos de exemplo ganham só os pedidos.
     await ensureSampleApprovals(db, raw);
     await ensureSampleInternalAgents(raw);
+    await ensureSampleImports(db, raw);
     return;
   }
 
@@ -254,6 +260,7 @@ export async function ensureDevSample(db: Db, raw: PGlite): Promise<void> {
   );
   await ensureSampleApprovals(db, raw);
   await ensureSampleInternalAgents(raw);
+  await ensureSampleImports(db, raw);
 }
 
 /**
@@ -408,6 +415,78 @@ async function ensureSampleInternalAgents(raw: PGlite): Promise<void> {
               config = config || '{"llm_price_in": 1, "llm_price_out": 2}'::jsonb
         where id = $1`,
       [agent.id, credentialId],
+    );
+  }
+}
+
+/**
+ * Duas importações de exemplo esperando a revisão do dono (D10), feitas pelo caminho real
+ * do importador (cliente, projeto em revisão, plano e o pedido import_review), para ver a
+ * aprovação em lote no Hoje. Só uma vez por banco local.
+ */
+async function ensureSampleImports(db: Db, raw: PGlite): Promise<void> {
+  const already = await raw.query(
+    `select 1 from ${S}.projects where code = 'IMPA'`,
+  );
+  if (already.rows.length > 0) return;
+  const row = (
+    await raw.query<{ ws: string; agent: string }>(
+      `select w.id as ws, ag.id as agent
+         from ${S}.workspaces w
+         join ${S}.agents ag on ag.workspace_id = w.id and ag.name = 'Kratos (exemplo)'
+        where w.slug = 'harmony'`,
+    )
+  ).rows[0];
+  if (!row) return;
+  const importer: AgentActor = {
+    type: "agent",
+    id: row.agent,
+    scope: "internal",
+    keyId: "00000000-0000-4000-8000-000000000001",
+    kind: "hermes",
+    scopes: ["workspace:*"],
+    projectIds: null,
+    roles: ["GP-01", "VP-05"],
+    workspaceId: row.ws,
+    name: "Kratos (exemplo)",
+  };
+  const ctx = {
+    db,
+    actor: importer,
+    source: "mcp" as const,
+    requestId: "dados-de-exemplo",
+  };
+  await inTx(ctx, (t) =>
+    importClient(t, { name: "Clínica Sorriso (exemplo)", segment: "Saúde" }),
+  );
+  const samples = [
+    {
+      code: "IMPA",
+      name: "Agendamento da clínica (importado)",
+      plan: "# Plano\n\n## M1 — Agendamento pelo WhatsApp\n\n### Conversa\n- [x] Mapear os horários — evidência: planilha da recepção\n- [ ] Escrever o roteiro de agendamento\n",
+    },
+    {
+      code: "IMPB",
+      name: "Site da clínica (importado)",
+      plan: "# Plano\n\n## M1 — Site no ar\n\n### Páginas\n- [ ] Escrever a página de tratamentos\n- [ ] Publicar o site\n",
+    },
+  ];
+  for (const sample of samples) {
+    await inTx(ctx, (t) =>
+      importProject(t, {
+        client: "Clínica Sorriso (exemplo)",
+        code: sample.code,
+        name: sample.name,
+        departments: ["sistemas"],
+      }),
+    );
+    await inTx(ctx, (t) =>
+      importProjectPlan(t, {
+        project: sample.code,
+        markdown: sample.plan,
+        summary:
+          "Exemplo do banco local: plano lido do repositório do projeto.",
+      }),
     );
   }
 }
