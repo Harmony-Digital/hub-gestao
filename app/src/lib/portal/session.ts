@@ -135,6 +135,49 @@ export async function endPortalSession(
   ]);
 }
 
+export type PortalCommentResult =
+  | {
+      status: "ok";
+      commentId: string;
+      projectId: string;
+      workspaceId: string;
+    }
+  | { status: "no_session" | "not_found" | "invalid" | "too_many" };
+
+/**
+ * O contato escreve no canal do projeto. Quem é o contato, se o projeto é dele, o tamanho
+ * do texto e o limite de mensagens por hora são conferidos no banco, a partir da sessão
+ * (função post_client_comment, migração 0017).
+ */
+export async function postPortalComment(
+  db: Db,
+  sessionHash: string,
+  projectCode: string,
+  body: string,
+): Promise<PortalCommentResult> {
+  const rows = await bare<{ result: Record<string, string> }>(
+    db,
+    `select proj_hub_gestao.post_client_comment($1, $2, $3) as result`,
+    [sessionHash, projectCode, body],
+  );
+  const r = rows[0]?.result;
+  if (r?.status === "ok") {
+    return {
+      status: "ok",
+      commentId: r.comment_id,
+      projectId: r.project_id,
+      workspaceId: r.workspace_id,
+    };
+  }
+  const status = r?.status;
+  return {
+    status:
+      status === "not_found" || status === "invalid" || status === "too_many"
+        ? status
+        : "no_session",
+  };
+}
+
 /** Opções do cookie da sessão: só o portal, sem JavaScript, por poucas horas. */
 export function portalCookieOptions(maxAgeSeconds: number) {
   return {

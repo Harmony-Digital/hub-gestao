@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { login, settle } from "./helpers";
 
 /**
@@ -16,6 +16,14 @@ async function violations(page: Page) {
     regra: v.id,
     onde: v.nodes.slice(0, 5).map((n) => n.target.join(" ")),
   }));
+}
+
+/** Depois de um envio: o botão de novo ativo, sem a transição, e o título da página no lugar. */
+async function settled(page: Page, button: Locator) {
+  await expect(button).toBeEnabled();
+  await expect(button).toHaveCSS("opacity", "1");
+  await expect(page).toHaveTitle(/\S/);
+  await page.waitForLoadState("networkidle");
 }
 
 test("o dono libera o acesso e o contato acompanha os projetos pelo portal", async ({
@@ -124,6 +132,49 @@ test("o dono libera o acesso e o contato acompanha os projetos pelo portal", asy
   }
   expect(text).not.toMatch(/\bHUB-\d+\b/);
   expect(await violations(client)).toEqual([]);
+
+  // Conversa com a equipe: o contato escreve, a equipe vê e responde.
+  const question = `Podemos testar na quinta? (${stamp})`;
+  const conversa = client.getByRole("region", {
+    name: "Conversa com a equipe",
+  });
+  await conversa.getByLabel("Escreva para a equipe").fill(question);
+  await conversa.getByRole("button", { name: "Enviar" }).click();
+  await expect(
+    conversa.getByText(
+      "Mensagem enviada. A equipe da Harmony recebeu o aviso.",
+    ),
+  ).toBeVisible();
+  await expect(conversa.getByText(question)).toBeVisible();
+  // O axe mede a tela assentada: o botão volta do estado de envio com uma transição.
+  await settled(client, conversa.getByRole("button", { name: "Enviar" }));
+  expect(await violations(client)).toEqual([]);
+
+  await page.goto("/projetos/EXE");
+  await settle(page);
+  const canal = page.getByRole("region", { name: "Canal do cliente" });
+  await expect(canal.getByText(question)).toBeVisible();
+  const answer = `Pode sim, às 10h. (${stamp})`;
+  await canal.getByLabel("Responder ao cliente").fill(answer);
+  await canal.getByRole("button", { name: "Enviar ao cliente" }).click();
+  await expect(
+    canal.getByText("Mensagem enviada: o cliente vê no portal."),
+  ).toBeVisible();
+  await expect(canal.getByText(answer)).toBeVisible();
+  await settled(page, canal.getByRole("button", { name: "Enviar ao cliente" }));
+  expect(await violations(page)).toEqual([]);
+  // O aviso chegou na caixa de entrada do dono.
+  await page.goto("/caixa-de-entrada");
+  await settle(page);
+  await expect(
+    page.getByText(`${name} escreveu no portal, em EXE`).first(),
+  ).toBeVisible();
+
+  await client.reload();
+  await expect(conversa.getByText(answer)).toBeVisible();
+  await expect(
+    conversa.getByRole("listitem").filter({ hasText: answer }),
+  ).toContainText("Equipe Harmony");
   // Projeto que não é do cliente: a mesma resposta de "não encontrado".
   await client.goto("/portal/clinica-exemplo/HUB");
   await expect(
@@ -146,7 +197,7 @@ test("o dono libera o acesso e o contato acompanha os projetos pelo portal", asy
   await context.close();
 
   // De volta à equipe: o contato entrou e aceitou; o dono revoga.
-  await page.reload();
+  await page.goto("/clientes/clinica-exemplo/portal");
   await settle(page);
   await expect(row.getByText("Com acesso", { exact: true })).toBeVisible();
   await expect(row.getByText(/Aceitou o uso dos dados em/)).toBeVisible();

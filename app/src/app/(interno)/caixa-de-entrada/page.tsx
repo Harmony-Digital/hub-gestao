@@ -7,6 +7,7 @@ import {
   Bell,
   CircleCheckBig,
   Cpu,
+  MessagesSquare,
   UserRoundCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -32,6 +33,7 @@ const ICON: Record<NotificationGroup, LucideIcon> = {
   approval: CircleCheckBig,
   blocked: Ban,
   agents: Cpu,
+  client: MessagesSquare,
 };
 
 export default function CaixaPage({
@@ -42,7 +44,7 @@ export default function CaixaPage({
       <PageHeader
         trail={[{ label: "Caixa de entrada" }]}
         title="Caixa de entrada"
-        description="Menções, tarefas passadas para você, aprovações e bloqueios. Abrir um aviso já marca como lido."
+        description="Menções, tarefas passadas para você, aprovações, bloqueios e mensagens dos clientes no portal. Abrir um aviso já marca como lido."
       />
       <main className="flex w-full max-w-4xl flex-col gap-6 px-4 py-6 sm:px-8">
         <Suspense

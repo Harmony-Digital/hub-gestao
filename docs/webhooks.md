@@ -46,6 +46,7 @@ O `data` de cada evento:
 | `agent.budget_exceeded` | `agent` (`id`, `name`), `scope` (`agent`: o orçamento do agente; `workspace`: o teto do workspace), `budget_usd_month`, `spent_usd_month`, `detail`. No máximo um por dia por agente |
 | `task.created` / `task.updated` / `task.completed` / `task.blocked` | `code`, `project_code` e os campos da mudança |
 | `workstream.updated`, `milestone.status_changed`, `report.published` | o item e o projeto |
+| `client.commented` | `project_code`, `author` (o nome do contato) e `excerpt` (o começo da mensagem, até 140 caracteres). Sai quando o contato escreve no portal ("Conversa com a equipe"); bom para o Telegram, pelo Hermes |
 | `webhook.test` | `message` (só pelo botão Enviar teste) |
 
 ## Conferir a assinatura

@@ -15,7 +15,8 @@ export type HubEvent =
   | "approval.decided"
   | "report.published"
   | "project.health_changed"
-  | "agent.budget_exceeded";
+  | "agent.budget_exceeded"
+  | "client.commented";
 
 export async function emitEvent(
   t: TxCtx,
