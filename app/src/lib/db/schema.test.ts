@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
 import { listMigrations, openLocalDatabase } from "./local";
 import { withActor, type Actor } from "./actor";
-import type { Db } from "./types";
+import type { Db, Queryable } from "./types";
 import { seedFixture, type Fixture } from "@/test/fixtures";
 
 const S = "proj_hub_gestao";
@@ -114,6 +114,7 @@ describe("migrations", () => {
       "hub_gestao_0011_attachment_contents.sql",
       "hub_gestao_0012_agent_denials.sql",
       "hub_gestao_0013_blocked_on.sql",
+      "hub_gestao_0014_evidence_on_complete.sql",
     ]);
     const tables = await raw.query<{ n: number }>(
       `select count(*)::int as n from pg_tables where schemaname = '${S}'`,
@@ -375,6 +376,51 @@ describe("tarefas", () => {
         ).rows[0],
     );
     expect(reopened.completed_at).toBeNull();
+  });
+
+  it("cobra a evidência ao concluir, sem travar a tarefa concluída antes da regra", async () => {
+    const t = await newTask(f.wsA, f.projectA, f.statusTodo);
+    const asOwner = <T>(fn: (tx: Queryable) => Promise<T>) =>
+      withActor(db, internal(f.wsA, f.owner), fn);
+    // Concluída sem evidência enquanto o projeto não exigia.
+    await raw.query(
+      `update ${S}.projects set require_evidence = false where id = $1`,
+      [f.projectA],
+    );
+    try {
+      await asOwner((tx) =>
+        tx.query(`update ${S}.tasks set status_id = $1 where id = $2`, [
+          f.statusDone,
+          t.id,
+        ]),
+      );
+    } finally {
+      await raw.query(
+        `update ${S}.projects set require_evidence = true where id = $1`,
+        [f.projectA],
+      );
+    }
+    // O projeto passou a exigir: a tarefa continua editável (título, posição, status da
+    // mesma categoria), sem pedir evidência de novo.
+    const renamed = await asOwner(
+      async (tx) =>
+        (
+          await tx.query<{ title: string; status_category: string }>(
+            `update ${S}.tasks set title = 'Renomeada', sort_key = sort_key + 1
+              where id = $1 returning title, status_category`,
+            [t.id],
+          )
+        ).rows[0],
+    );
+    expect(renamed).toEqual({ title: "Renomeada", status_category: "done" });
+    // Trocar a evidência por vazio continua recusado.
+    await expect(
+      asOwner((tx) =>
+        tx.query(`update ${S}.tasks set done_evidence = ' ' where id = $1`, [
+          t.id,
+        ]),
+      ),
+    ).rejects.toThrow(/evidência obrigatória/);
   });
 
   it("não aceita status de outro projeto", async () => {
