@@ -101,6 +101,10 @@ describe("visão do projeto em três camadas", () => {
     );
     expect(describeActivity("comment.created", null)).toBe("comentou em");
     expect(describeActivity("acao.nova", null)).toBe("acao.nova");
+    expect(describeActivity("project.created", null)).toBe("criou o projeto");
+    expect(describeActivity("project.updated", null)).toBe(
+      "atualizou o projeto",
+    );
   });
 });
 

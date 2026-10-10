@@ -2,8 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
-import { Ban, Check, Eye, EyeOff, ListChecks, Lock } from "lucide-react";
+import {
+  Ban,
+  Check,
+  Eye,
+  EyeOff,
+  ListChecks,
+  Lock,
+  Pencil,
+} from "lucide-react";
 import { Avatar, Pill, Progress } from "@/components/shell/pill";
+import { Button } from "@/components/ui/button";
+import { can } from "@/lib/authorize";
 import { HubError } from "@/lib/errors";
 import {
   formatDayMonth,
@@ -55,7 +65,7 @@ async function ProjectView({
   const { code } = await params;
   if (!PROJECT_CODE.test(code)) notFound();
   const query = await searchParams;
-  const { ctx } = await pageContext();
+  const { user, ctx } = await pageContext();
   let data: ProjectOverview;
   let options: Awaited<ReturnType<typeof taskFormOptions>>;
   try {
@@ -86,13 +96,23 @@ async function ProjectView({
           active="overview"
           showObjective
           actions={
-            <NewTaskButton
-              projectCode={code}
-              basePath={basePath}
-              workstream={null}
-              workstreams={options.workstreams}
-              assignees={options.assignees}
-            />
+            <>
+              {can(user.actor, "workspace.admin") ? (
+                <Button asChild variant="outline" size="lg">
+                  <Link href={`/projetos/${code}/editar`}>
+                    <Pencil aria-hidden="true" />
+                    Editar projeto
+                  </Link>
+                </Button>
+              ) : null}
+              <NewTaskButton
+                projectCode={code}
+                basePath={basePath}
+                workstream={null}
+                workstreams={options.workstreams}
+                assignees={options.assignees}
+              />
+            </>
           }
         />
 

@@ -1,0 +1,119 @@
+import { describe, expect, it } from "vitest";
+import { parseClientForm, parseProjectForm } from "./form";
+
+const ID = "4dc6721e-2ac8-463d-84cb-3b25ab170bbd";
+
+function form(values: Record<string, string | string[]>): FormData {
+  const data = new FormData();
+  for (const [key, value] of Object.entries(values)) {
+    for (const v of Array.isArray(value) ? value : [value]) data.append(key, v);
+  }
+  return data;
+}
+
+const base = {
+  mode: "create",
+  code: "cli2",
+  name: " Atendimento da clínica ",
+  client: ID,
+  phase: "validar",
+  status: "active",
+  objective_internal: "Agendar\r\nsem humano",
+  objective_client: "",
+  start_date: "2026-10-12",
+  target_date: "2026-12-18",
+  owner_profile_id: ID,
+  pm_agent_id: "",
+  repo_url: "https://github.com/Harmony-Digital/x",
+  plan_path: "PLAN.md",
+  require_evidence: "on",
+  department: ["sistemas", "design", "sistemas", "Mau Slug"],
+};
+
+describe("formulário de projeto", () => {
+  it("lê tudo, com código em maiúsculas e departamentos válidos sem repetir", () => {
+    const parsed = parseProjectForm(form(base));
+    expect(parsed).toEqual({
+      ok: true,
+      value: {
+        mode: "create",
+        code: "CLI2",
+        clientId: ID,
+        newClientName: null,
+        expectedUpdatedAt: null,
+        fields: {
+          name: "Atendimento da clínica",
+          phase: "validar",
+          status: "active",
+          objective_internal: "Agendar\nsem humano",
+          objective_client: null,
+          start_date: "2026-10-12",
+          target_date: "2026-12-18",
+          owner_profile_id: ID,
+          pm_agent_id: null,
+          repo_url: "https://github.com/Harmony-Digital/x",
+          plan_path: "PLAN.md",
+          require_evidence: true,
+          client_can_confirm_receipt: false,
+          departments: ["sistemas", "design"],
+        },
+      },
+    });
+  });
+
+  it("cliente novo pede o nome; edição traz a versão lida", () => {
+    const novo = parseProjectForm(
+      form({ ...base, client: "novo", new_client_name: "Ótica Central" }),
+    );
+    expect(novo.ok && novo.value.newClientName).toBe("Ótica Central");
+    expect(novo.ok && novo.value.clientId).toBeNull();
+    expect(parseProjectForm(form({ ...base, client: "novo" })).ok).toBe(false);
+
+    const edit = parseProjectForm(
+      form({ ...base, mode: "edit", updated_at: "2026-10-10T11:00:00.000Z" }),
+    );
+    expect(edit.ok && edit.value.expectedUpdatedAt).toBe(
+      "2026-10-10T11:00:00.000Z",
+    );
+  });
+
+  it("recusa código, cliente, fase, status, datas e repositório inválidos", () => {
+    const bad = (over: Record<string, string>) =>
+      parseProjectForm(form({ ...base, ...over }));
+    expect(bad({ code: "C" }).ok).toBe(false);
+    expect(bad({ code: "TOO-LONG1" }).ok).toBe(false);
+    expect(bad({ client: "" }).ok).toBe(false);
+    expect(bad({ phase: "concluir" }).ok).toBe(false);
+    expect(bad({ status: "archived" }).ok).toBe(false);
+    expect(bad({ status: "in_review" }).ok).toBe(false);
+    expect(bad({ start_date: "2026-12-30" })).toEqual({
+      ok: false,
+      message: "A previsão de entrega não pode ser antes do início.",
+    });
+    expect(bad({ repo_url: "http://inseguro.com" }).ok).toBe(false);
+    expect(bad({ name: "Linha\nquebrada" }).ok).toBe(false);
+    expect(bad({ owner_profile_id: "x" }).ok).toBe(false);
+  });
+});
+
+describe("formulário de cliente", () => {
+  it("cadastra sem id e edita com id", () => {
+    expect(
+      parseClientForm(
+        form({ name: " Clínica ", segment: " Saúde ", notes_internal: "" }),
+      ),
+    ).toEqual({
+      ok: true,
+      value: {
+        id: null,
+        name: "Clínica",
+        segment: "Saúde",
+        notes_internal: null,
+      },
+    });
+    const edit = parseClientForm(form({ id: ID, name: "Clínica" }));
+    expect(edit.ok && edit.value.id).toBe(ID);
+    expect(parseClientForm(form({ id: "x", name: "Clínica" })).ok).toBe(false);
+    expect(parseClientForm(form({ name: "  " })).ok).toBe(false);
+  });
+});

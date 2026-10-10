@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { Building2, Plus } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
 import { Pill, Progress } from "@/components/shell/pill";
 import { formatDayMonth } from "@/lib/format";
 import { HEALTH, PHASES, PROJECT_STATUS } from "@/lib/labels";
+import { Button } from "@/components/ui/button";
+import { can } from "@/lib/authorize";
 import { pageContext } from "@/lib/ui-context";
 import { inTx } from "@/modules/context";
 import {
@@ -29,12 +32,40 @@ export default function ProjetosPage({ searchParams }: PageProps<"/projetos">) {
         trail={[{ label: "Projetos" }]}
         title="Projetos"
         description="A saúde de cada projeto é calculada por regra, não por opinião: marco atrasado, bloqueios e aprovações paradas."
+        actions={
+          <Suspense fallback={null}>
+            <ProjectsActions />
+          </Suspense>
+        }
       />
       <main className="flex w-full flex-col gap-5 px-4 py-6 sm:px-8">
         <Suspense fallback={<BoardSkeleton />}>
           <ProjectsBoard searchParams={searchParams} />
         </Suspense>
       </main>
+    </>
+  );
+}
+
+/** Clientes para todos; Novo projeto só para quem administra o workspace. */
+async function ProjectsActions() {
+  const { user } = await pageContext();
+  return (
+    <>
+      <Button asChild variant="outline" size="lg">
+        <Link href="/clientes">
+          <Building2 aria-hidden="true" />
+          Clientes
+        </Link>
+      </Button>
+      {can(user.actor, "workspace.admin") ? (
+        <Button asChild size="lg">
+          <Link href="/projetos/novo">
+            <Plus aria-hidden="true" />
+            Novo projeto
+          </Link>
+        </Button>
+      ) : null}
     </>
   );
 }

@@ -104,6 +104,8 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
     "Escopo proibido para agentes: approvals:decide, portal:read, portal:write e agents:keys.",
   tasks_workspace_id_code_key: "Já existe uma tarefa com esse código.",
   projects_workspace_id_code_key: "Já existe um projeto com esse código.",
+  clients_workspace_id_slug_key:
+    "Outro cliente com nome parecido acabou de ser criado. Tente de novo.",
   approvals_one_pending_per_item:
     "Já existe um pedido pendente igual para este item.",
   status_reports_version_unique:
