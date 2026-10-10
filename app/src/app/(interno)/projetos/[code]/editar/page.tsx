@@ -9,9 +9,11 @@ import { inTx } from "@/modules/context";
 import { projectFormOptions } from "@/modules/projects/admin";
 import type { ProjectDetail } from "@/modules/projects/schemas";
 import { getProject } from "@/modules/projects/service";
+import { projectStatusesAdmin } from "@/modules/tasks/statuses";
 import { ArchiveButton } from "../../../_archive/archive-controls";
 import { ProjectForm } from "../../_admin/project-form";
 import { PROJECT_CODE } from "../_tasks/params";
+import { StatusEditor } from "./status-editor";
 
 export async function generateMetadata({
   params,
@@ -85,7 +87,10 @@ async function EditProject({
       </>
     );
   }
-  const options = await inTx(ctx, (t) => projectFormOptions(t));
+  const { options, statuses } = await inTx(ctx, async (t) => ({
+    options: await projectFormOptions(t),
+    statuses: await projectStatusesAdmin(t, project.code),
+  }));
   return (
     <>
       {header}
@@ -114,6 +119,7 @@ async function EditProject({
             updatedAt: project.updated_at,
           }}
         />
+        <StatusEditor projectCode={project.code} statuses={statuses} />
         <section
           aria-labelledby="arquivar-projeto"
           className="flex max-w-4xl flex-col items-start gap-3 rounded-2xl border border-line bg-card p-4 sm:p-5"
