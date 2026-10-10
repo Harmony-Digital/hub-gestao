@@ -4,3 +4,4 @@ coverage
 public
 package-lock.json
 next-env.d.ts
+src/modules/sync/fixtures

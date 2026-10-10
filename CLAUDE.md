@@ -12,7 +12,7 @@ Projeto: **Hub de Gestão da Harmony Digital**. Sistema de gestão de projetos, 
   - `/conta`: a própria pessoa define a senha;
   - agentes operam por MCP e REST em produção: o Claude Code concluiu a HUB-1 em 2026-10-10;
   - testes de ponta a ponta no CI (Playwright): a jornada principal, a revisão de acessibilidade com o axe (claro, escuro e celular) e a de identidade.
-- **Próximo:** a semana de uso real (GATE M3) começa quando o Fábio quiser. Os itens do M3 que cabem ao agente estão feitos (menos as entradas de menu de telas de marcos posteriores). Em paralelo, o M4: sincronização do `plan.md`, CLI `hub` e GitHub; depois o restante da lista do plano.
+- **Próximo:** a semana de uso real (GATE M3) começa quando o Fábio quiser. Os itens do M3 que cabem ao agente estão feitos (menos as entradas de menu de telas de marcos posteriores). Em paralelo, o M4: o parser byte-neutro do `plan.md` está pronto (PR #35, formato em `docs/plan-md.md`); seguem o push e o pull com os endpoints e a ferramenta MCP, a CLI `hub` e o GitHub; depois o restante da lista do plano.
 - **Aberto com o Fábio:** destino da cópia do backup fora da VPS (D8); se quiser, o texto do e-mail do link de acesso (hoje sai com o modelo do IA Posicionamento).
 - Detalhe de cada item, com evidência, em `PLAN.md` (seção "Onde estamos" e checklist). Este resumo não substitui o plano.
 
