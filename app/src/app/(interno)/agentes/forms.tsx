@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useId, useState } from "react";
 import {
   CircleAlert,
   CircleCheck,
@@ -9,6 +9,7 @@ import {
   LoaderCircle,
   Plus,
 } from "lucide-react";
+import { textareaClass, useSubmit } from "@/components/forms";
 import { Button } from "@/components/ui/button";
 import { criarAgente, criarChave, revogarChave } from "./actions";
 import {
@@ -39,36 +40,46 @@ function ErrorNote({ message }: { message: string }) {
   );
 }
 
-export function NovoAgenteForm() {
+export function NovoAgenteForm({
+  departments,
+}: {
+  departments: { slug: string; name: string }[];
+}) {
+  // Cada cadastro feito recomeça o formulário limpo; com erro, o que foi digitado fica.
+  const [round, setRound] = useState(0);
   const [state, action, pending] = useActionState(
-    criarAgente,
+    async (previous: Parameters<typeof criarAgente>[0], form: FormData) => {
+      const result = await criarAgente(previous, form);
+      if (result.status === "ok") setRound((r) => r + 1);
+      return result;
+    },
     INITIAL_AGENT_FORM,
   );
+  const submit = useSubmit(action);
+  const id = useId();
   return (
     <form
-      action={action}
+      key={round}
+      onSubmit={submit}
       className="flex flex-col gap-4 rounded-xl border border-line bg-card p-4"
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <label className="flex flex-1 flex-col gap-1.5 text-sm font-medium text-navy">
+      <fieldset
+        disabled={pending}
+        className="grid min-w-0 gap-3 sm:grid-cols-2"
+      >
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-navy">
           Nome do agente
           <input
             name="name"
             required
             maxLength={80}
             placeholder="Claude Code do Fábio"
-            disabled={pending}
             className={inputClass}
           />
         </label>
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-navy sm:w-72">
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-navy">
           Tipo
-          <select
-            name="kind"
-            defaultValue="session"
-            disabled={pending}
-            className={inputClass}
-          >
+          <select name="kind" defaultValue="session" className={inputClass}>
             {(Object.keys(KIND_LABELS) as AgentKind[]).map((kind) => (
               <option key={kind} value={kind}>
                 {KIND_LABELS[kind]}
@@ -76,7 +87,47 @@ export function NovoAgenteForm() {
             ))}
           </select>
         </label>
-        <Button type="submit" size="lg" disabled={pending} className="h-10">
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-navy">
+          Departamento
+          <select name="department" defaultValue="" className={inputClass}>
+            <option value="">Sem departamento</option>
+            {departments.map((d) => (
+              <option key={d.slug} value={d.slug}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor={`${id}-budget`}
+            className="text-sm font-medium text-navy"
+          >
+            Orçamento de IA por mês (US$)
+          </label>
+          <input
+            id={`${id}-budget`}
+            name="budget"
+            inputMode="decimal"
+            maxLength={9}
+            placeholder="Ex.: 20"
+            className={inputClass}
+          />
+          <p className="text-xs text-caption">Em branco: sem orçamento.</p>
+        </div>
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-navy sm:col-span-2">
+          Missão (opcional)
+          <textarea
+            name="mission"
+            rows={2}
+            maxLength={2000}
+            placeholder="O que este agente faz e o que não faz."
+            className={textareaClass}
+          />
+        </label>
+      </fieldset>
+      <div>
+        <Button type="submit" size="lg" disabled={pending}>
           {pending ? (
             <LoaderCircle aria-hidden="true" className="animate-spin" />
           ) : (

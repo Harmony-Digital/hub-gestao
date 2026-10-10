@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Bot } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
+import { Progress } from "@/components/shell/pill";
 import { pageContext } from "@/lib/ui-context";
 import {
   listAgentsConsole,
@@ -10,6 +11,7 @@ import {
 } from "@/modules/agents/service";
 import { inTx } from "@/modules/context";
 import { listProjects } from "@/modules/projects/service";
+import { EditarAgenteButton, PausarAgenteButton } from "./agent-controls";
 import { KIND_LABELS, SCOPE_LABELS, type KeyScope } from "./form";
 import { NovaChaveForm, NovoAgenteForm, RevogarChaveButton } from "./forms";
 
@@ -71,7 +73,9 @@ async function AgentsConsoleView() {
 
   return (
     <div className="flex flex-col gap-6">
-      {data.canManage ? <NovoAgenteForm /> : null}
+      {data.canManage ? (
+        <NovoAgenteForm departments={data.departments} />
+      ) : null}
 
       {data.agents.length === 0 ? (
         <p className="rounded-xl border border-dashed border-line p-6 text-center text-ink-2">
@@ -98,7 +102,33 @@ async function AgentsConsoleView() {
                   {KIND_LABELS[agent.kind]} · desde{" "}
                   {date.format(new Date(agent.createdAt))}
                 </span>
+                {data.canManage && agent.status !== "revoked" ? (
+                  <div className="ml-auto flex items-start gap-1">
+                    <EditarAgenteButton
+                      agent={{
+                        id: agent.id,
+                        name: agent.name,
+                        department: agent.department?.slug ?? null,
+                        mission: agent.mission,
+                        budgetUsdMonth: agent.budgetUsdMonth,
+                        owner: agent.owner?.id ?? null,
+                        ownerName: agent.owner?.name ?? null,
+                      }}
+                      options={{
+                        departments: data.departments,
+                        people: data.people,
+                      }}
+                    />
+                    <PausarAgenteButton
+                      agentId={agent.id}
+                      name={agent.name}
+                      status={agent.status}
+                    />
+                  </div>
+                ) : null}
               </div>
+
+              <AgentDetails agent={agent} />
 
               {data.canManageKeys ? (
                 <>
@@ -189,6 +219,57 @@ async function AgentsConsoleView() {
             </li>
           ))}
         </ul>
+      )}
+    </div>
+  );
+}
+
+const money = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "USD",
+});
+
+/** Departamento, responsável, missão e o gasto de IA do mês contra o orçamento. */
+function AgentDetails({ agent }: { agent: ConsoleAgent }) {
+  const spent = money.format(agent.spentUsdMonth);
+  const share =
+    agent.budgetUsdMonth > 0
+      ? (agent.spentUsdMonth / agent.budgetUsdMonth) * 100
+      : 0;
+  return (
+    <div className="flex flex-col gap-3">
+      <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+        <div className="flex gap-1.5">
+          <dt className="text-caption">Departamento:</dt>
+          <dd className="text-ink">{agent.department?.name ?? "nenhum"}</dd>
+        </div>
+        <div className="flex gap-1.5">
+          <dt className="text-caption">Responsável:</dt>
+          <dd className="text-ink">{agent.owner?.name ?? "ninguém"}</dd>
+        </div>
+      </dl>
+      {agent.mission ? (
+        <p className="max-w-3xl text-sm whitespace-pre-line text-ink-2">
+          {agent.mission}
+        </p>
+      ) : null}
+      {agent.budgetUsdMonth > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <span className="text-ink-2">
+            IA neste mês:{" "}
+            <span className="font-semibold text-navy">{spent}</span> de{" "}
+            {money.format(agent.budgetUsdMonth)}
+          </span>
+          <Progress
+            value={share}
+            label={`Orçamento de IA de ${agent.name} usado no mês`}
+          />
+        </div>
+      ) : (
+        <p className="text-sm text-caption">
+          Sem orçamento de IA definido
+          {agent.spentUsdMonth > 0 ? ` · gasto no mês: ${spent}` : ""}.
+        </p>
       )}
     </div>
   );
