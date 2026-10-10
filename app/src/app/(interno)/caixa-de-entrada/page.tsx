@@ -6,6 +6,7 @@ import {
   Ban,
   Bell,
   CircleCheckBig,
+  Cpu,
   UserRoundCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -30,6 +31,7 @@ const ICON: Record<NotificationGroup, LucideIcon> = {
   assignment: UserRoundCheck,
   approval: CircleCheckBig,
   blocked: Ban,
+  agents: Cpu,
 };
 
 export default function CaixaPage({

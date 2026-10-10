@@ -12,10 +12,13 @@ import {
   type LanguageModelUsage,
 } from "ai";
 import type { z } from "zod";
+import { audit } from "@/lib/audit";
 import { log } from "@/lib/log";
 import { inTx, maybeOne, S, type Ctx, type TxCtx } from "@/modules/context";
+import { emitEvent } from "@/modules/events";
 import { credentialSecret } from "@/modules/llm/credentials";
 import type { LlmProvider } from "@/modules/llm/providers";
+import { notifyOwners } from "@/modules/notifications";
 
 /**
  * Adaptador de IA do Hub (decisão D5): cada chamada lê do agente o provedor, o modelo, a
@@ -363,7 +366,17 @@ async function run(
   ({ ok: true; text: string; output: unknown } & Answered) | LlmFailure
 > {
   const ready = await inTx(ctx, (t) => prepare(t, request, deps));
-  if (!ready.ok) return ready;
+  if (!ready.ok) {
+    if (
+      ready.reason === "budget_exceeded" ||
+      ready.reason === "workspace_budget_exceeded"
+    ) {
+      await inTx(ctx, (t) =>
+        noteBudgetExceeded(t, request.agentId, ready.reason, ready.detail),
+      );
+    }
+    return ready;
+  }
   const { agentId, provider, model, price } = ready;
   const factory = deps.modelFor ?? (await devModelFactory()) ?? providerModel;
   const startedAt = new Date();
@@ -437,6 +450,60 @@ async function run(
     );
     return refuse("provider_error", detail);
   }
+}
+
+/**
+ * Orçamento estourado: avisa o dono (caixa de entrada) e os webhooks com o evento
+ * agent.budget_exceeded (que o Hermes leva ao Telegram), no máximo uma vez por dia por
+ * agente, para a recusa repetida não virar enxurrada de avisos.
+ */
+async function noteBudgetExceeded(
+  t: TxCtx,
+  agentId: string,
+  reason: LlmRefusal,
+  detail: string,
+): Promise<void> {
+  const agent = await maybeOne<{
+    id: string;
+    name: string;
+    budget: number;
+    spent: number;
+  }>(
+    t,
+    `select id, name, budget_usd_month::float8 as budget, spent_usd_month::float8 as spent
+       from ${S}.agents where id = $1`,
+    [agentId],
+  );
+  if (!agent) return;
+  const already = await maybeOne(
+    t,
+    `select 1 from ${S}.activity_log
+      where action = 'agent.budget_exceeded' and entity_id = $1
+        and created_at >= current_date
+      limit 1`,
+    [agent.id],
+  );
+  if (already) return;
+  const data = {
+    agent: { id: agent.id, name: agent.name },
+    scope: reason === "workspace_budget_exceeded" ? "workspace" : "agent",
+    budget_usd_month: agent.budget,
+    spent_usd_month: agent.spent,
+    detail,
+  };
+  await audit(t, {
+    action: "agent.budget_exceeded",
+    entityType: "agent",
+    entityId: agent.id,
+    after: data,
+  });
+  await emitEvent(t, "agent.budget_exceeded", data);
+  await notifyOwners(
+    t,
+    "agent.budget_exceeded",
+    { type: "agent", id: agent.id },
+    { agent_name: agent.name, scope: data.scope, detail },
+  );
 }
 
 function providerErrorDetail(err: unknown): string {
