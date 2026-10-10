@@ -44,3 +44,67 @@ jobs:
         run: npm test
       - name: Build de produção
         run: npm run build
+
+  imagem:
+    name: Imagem de produção e contêiner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      IMAGE: hub-gestao:${{ github.sha }}
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v5
+      - name: Construir a imagem sem segredos
+        run: |
+          docker build \
+            --file deploy/vps/Dockerfile \
+            --build-arg APP_VERSION="$GITHUB_SHA" \
+            --tag "$IMAGE" \
+            app
+      - name: Subir o contêiner com as restrições da VPS
+        run: |
+          docker run --detach --name hub-app-teste \
+            --user 1001:1001 --read-only \
+            --tmpfs /tmp:size=64m,mode=1777 \
+            --tmpfs /app/.next/cache:size=128m,uid=1001,gid=1001,mode=0750 \
+            --cap-drop ALL --security-opt no-new-privileges:true \
+            --pids-limit 256 --memory 2g \
+            --env HUB_API_KEY_PEPPER="$(openssl rand -hex 32)" \
+            --publish 127.0.0.1:3000:3000 \
+            "$IMAGE"
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:3000/api/health > /tmp/health.json; then
+              break
+            fi
+            sleep 2
+          done
+          test -s /tmp/health.json
+      - name: Conferir saúde, versão e recusa sem banco
+        run: |
+          node -e '
+            const health = JSON.parse(require("fs").readFileSync("/tmp/health.json", "utf8"));
+            if (health.ok !== true || health.service !== "hub-gestao" || health.version !== process.env.GITHUB_SHA) {
+              console.error("Saúde inesperada:", health);
+              process.exit(1);
+            }
+            console.log("Saúde:", JSON.stringify(health));
+          '
+          # Sem DATABASE_URL, a produção recusa (500) em vez de usar o banco local.
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/api/v1/me)"
+          test "$status" = "500" || { echo "Esperava 500 sem banco, veio $status"; exit 1; }
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/mcp)"
+          test "$status" = "405" || { echo "Esperava 405 no GET do MCP, veio $status"; exit 1; }
+          # Sem sessão, toda tela vai para o login; sem a chave do login no build, ele fica fechado.
+          gate="$(curl --silent --output /dev/null --write-out '%{http_code} %header{location}' 'http://127.0.0.1:3000/projetos?aba=plano')"
+          test "$gate" = "307 /login?next=%2Fprojetos%3Faba%3Dplano" || { echo "Esperava 307 para o login, veio $gate"; exit 1; }
+          curl --silent --fail http://127.0.0.1:3000/login | grep -q "O login ainda não foi configurado" \
+            || { echo "A tela de login não avisou que o login está sem configuração"; exit 1; }
+          test "$(docker exec hub-app-teste id -u)" = "1001"
+          docker exec hub-app-teste sh -c 'test ! -e /app/src && test ! -e /app/.data && ! ls -a /app | grep -q "^\.env"'
+          echo "Contêiner sem root, sem código-fonte, sem banco local e sem arquivos .env."
+      - name: Registro do contêiner em caso de falha
+        if: failure()
+        run: docker logs --tail 200 hub-app-teste || true
+      - name: Remover o contêiner de teste
+        if: always()
+        run: docker rm --force hub-app-teste || true

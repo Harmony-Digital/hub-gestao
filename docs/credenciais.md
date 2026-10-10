@@ -10,8 +10,8 @@ Nenhum valor secreto entra em chat, commit, log, comentário de tarefa ou docume
 |---|---|---|---|
 | `NEXT_PUBLIC_APP_URL` | Endereço público do Hub | local, produção e build | definida no M2 |
 | `APP_VERSION` | SHA publicado, exibido em `/api/health` | preenchida pelo pipeline | GitHub Actions |
-| `NEXT_PUBLIC_SUPABASE_URL` | API do Supabase compartilhado | local, produção e build | Fábio |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Chave pública do Supabase, sempre com RLS | local, produção e segredo do build | Fábio |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase compartilhado, usado pelo login da equipe (`https://supabase.harmonydigital.com.br`) | `.env.local` e build (entra na imagem, como toda `NEXT_PUBLIC_`) | fixo no workflow de publicação |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Chave pública (publishable) do Supabase, usada só pelo login; não é segredo, mas não vai para o repositório | `.env.local` e segredo do build `HUB_NEXT_PUBLIC_SUPABASE_ANON_KEY` | lida no MCP do Supabase; o Fábio cadastra o segredo |
 | `SUPABASE_SERVICE_ROLE_KEY` | Acesso total do servidor ao banco | só `.env.local` e `.env.production` | Fábio |
 | `HUB_API_KEY_PEPPER` | Tempero do hash das chaves de agente | só no servidor | gerado uma vez |
 | `HUB_ENCRYPTION_KEY` | Cifra das chaves de IA guardadas no banco (AES-256-GCM) | só no servidor | gerado uma vez; se perder, as chaves de IA precisam ser recadastradas |
@@ -22,6 +22,7 @@ Nenhum valor secreto entra em chat, commit, log, comentário de tarefa ou docume
 | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `XAI_API_KEY` | Alternativa só para desenvolvimento local | só `.env.local` | Fábio |
 | `DATABASE_URL` | Conexão do servidor com o banco (papel próprio do Hub, sem passe livre na RLS) | só `.env.production` | Fábio, no M2, depois de autorizar o papel de banco |
 | `HUB_DB_RUNTIME_ROLE` | Papel que o servidor assume em cada transação, se o login for diferente dele | só `.env.production` | definido no M2 |
+| `HUB_AUTH_MAGIC_LINK` | Liga o link de acesso por e-mail na tela de login (`on`). Desligado até o Fábio autorizar, no Supabase compartilhado, o endereço de retorno do Hub e o envio de e-mails | servidor | Fábio |
 | `HUB_WORKSPACE_SLUG` | Workspace usado pelo relógio dos jobs (padrão `harmony`) | servidor | fixo |
 | `HUB_RATE_LIMIT_PER_MIN` | Limite de pedidos por chave de agente (padrão 600) | servidor | opcional |
 | `LOG_LEVEL` | Nível do log estruturado (padrão `info`) | servidor | opcional |

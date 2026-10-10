@@ -110,6 +110,7 @@ describe("migrations", () => {
       "hub_gestao_0007_project_agents.sql",
       "hub_gestao_0008_jobs_webhooks.sql",
       "hub_gestao_0009_review_hardening.sql",
+      "hub_gestao_0010_auth_login.sql",
     ]);
     const tables = await raw.query<{ n: number }>(
       `select count(*)::int as n from pg_tables where schemaname = '${S}'`,

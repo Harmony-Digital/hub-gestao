@@ -1,0 +1,49 @@
+# Rota do Hub no Traefik do EasyPanel (provedor de arquivo).
+# Cópia ativa: /etc/easypanel/traefik/config/hub.yaml (root), instalada só com
+# autorização do Fábio, depois do registro DNS "hub" existir.
+http:
+  middlewares:
+    hub-rate-limit:
+      rateLimit:
+        average: 60
+        burst: 120
+        period: 1s
+    hub-security-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: strict-origin-when-cross-origin
+        customResponseHeaders:
+          X-Robots-Tag: "noindex, nofollow"
+  routers:
+    http-hub:
+      rule: "Host(`hub.harmonydigital.com.br`)"
+      entryPoints:
+        - http
+      middlewares:
+        - redirect-to-https
+      service: hub-gestao
+    https-hub:
+      rule: "Host(`hub.harmonydigital.com.br`)"
+      entryPoints:
+        - https
+      middlewares:
+        - hub-security-headers
+        - hub-rate-limit
+      service: hub-gestao
+      tls:
+        certResolver: letsencrypt
+        domains:
+          - main: hub.harmonydigital.com.br
+  services:
+    hub-gestao:
+      loadBalancer:
+        passHostHeader: true
+        healthCheck:
+          path: /api/health
+          interval: 20s
+          timeout: 5s
+        servers:
+          - url: "http://hub-app:3000/"

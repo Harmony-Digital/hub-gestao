@@ -1,0 +1,95 @@
+name: Publicação na VPS
+
+# Publica na VPS o commit da main que passou no CI (workflow "Qualidade").
+# Desligada até o Fábio autorizar e provisionar a VPS, o DNS e os segredos (M2):
+# só roda com a variável do repositório HUB_DEPLOY_ENABLED = true.
+on:
+  workflow_run:
+    workflows: [Qualidade]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hub-producao
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    name: Publicar o commit aprovado na VPS
+    if: >-
+      vars.HUB_DEPLOY_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - name: Baixar o commit aprovado
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+      - name: Construir a imagem sem segredos de runtime
+        env:
+          DEPLOY_URL: ${{ vars.HUB_DEPLOY_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.HUB_NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          test -n "$DEPLOY_URL"
+          test -n "$SUPABASE_ANON_KEY"
+          docker build \
+            --file deploy/vps/Dockerfile \
+            --build-arg APP_VERSION="$RELEASE_SHA" \
+            --build-arg NEXT_PUBLIC_APP_URL="$DEPLOY_URL" \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL=https://supabase.harmonydigital.com.br \
+            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
+            --tag "hub-gestao:$RELEASE_SHA" \
+            app
+      - name: Preparar o acesso restrito à VPS
+        env:
+          VPS_SSH_KEY: ${{ secrets.HUB_VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.HUB_VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/hub_deploy
+          chmod 600 ~/.ssh/hub_deploy
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Publicar no servidor
+        env:
+          VPS_HOST: ${{ secrets.HUB_VPS_HOST }}
+          VPS_USER: ${{ secrets.HUB_VPS_USER }}
+        run: |
+          set -o pipefail
+          docker save "hub-gestao:$RELEASE_SHA" \
+            | gzip -1 \
+            | ssh -i ~/.ssh/hub_deploy \
+                -o IdentitiesOnly=yes \
+                -o StrictHostKeyChecking=yes \
+                -o ConnectTimeout=20 \
+                -o ConnectionAttempts=3 \
+                -o ServerAliveInterval=15 \
+                -o ServerAliveCountMax=4 \
+                "$VPS_USER@$VPS_HOST" \
+                "load $RELEASE_SHA"
+      - name: Confirmar a versão publicada
+        env:
+          DEPLOY_URL: ${{ vars.HUB_DEPLOY_URL }}
+        run: |
+          set -o pipefail
+          curl --fail --silent --show-error --connect-timeout 15 --max-time 30 \
+            --retry 5 --retry-delay 5 "$DEPLOY_URL/api/health" \
+            | node -e '
+                let body = "";
+                process.stdin.on("data", (d) => (body += d)).on("end", () => {
+                  const health = JSON.parse(body);
+                  if (health.ok !== true || health.service !== "hub-gestao" || health.version !== process.env.RELEASE_SHA) {
+                    console.error("O endereço não está servindo a versão esperada.");
+                    process.exit(1);
+                  }
+                  console.log(JSON.stringify(health));
+                });
+              '

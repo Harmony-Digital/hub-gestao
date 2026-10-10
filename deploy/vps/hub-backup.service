@@ -1,0 +1,10 @@
+[Unit]
+Description=Hub de Gestão - backup diário do schema proj_hub_gestao
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/hub-gestao/bin/hub-backup.sh
+TimeoutStartSec=30min

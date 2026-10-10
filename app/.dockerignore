@@ -1,0 +1,10 @@
+# Nada de segredo, banco local ou artefato de máquina entra na imagem.
+node_modules
+.next
+.data
+.env*
+coverage
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+.DS_Store
