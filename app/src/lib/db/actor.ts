@@ -27,6 +27,8 @@ export type AgentActor = Base & {
   id: string;
   scope: "internal";
   keyId: string;
+  /** Prefixo público da chave (hub_ak_…), para registros; o segredo nunca. */
+  keyPrefix?: string;
   kind: "hermes" | "internal" | "session" | "integration";
   scopes: string[];
   /** null = todos os projetos do workspace (só com o escopo workspace:*). */

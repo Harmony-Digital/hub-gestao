@@ -22,6 +22,12 @@ import {
 import { log } from "@/lib/log";
 import { RateLimiter } from "@/lib/rate-limit";
 import {
+  denialWhoOf,
+  recordDenial,
+  RECORDED_DENIALS,
+  type DenialWho,
+} from "@/modules/agents/denials";
+import {
   authenticateAgent,
   claimKeyTouch,
   touchKey,
@@ -145,6 +151,29 @@ export async function readJsonBody(req: Request): Promise<unknown> {
   }
 }
 
+/** Quem é o agente, para registrar recusas (denials.ts). */
+export function denialWhoFor(actor: Actor): DenialWho | null {
+  return actor.type === "agent"
+    ? {
+        workspaceId: actor.workspaceId,
+        agentId: actor.id,
+        keyPrefix: actor.keyPrefix ?? null,
+      }
+    : null;
+}
+
+/** Registra a recusa de acesso, se for uma das que a Sala de Controle mostra. */
+export async function noteDenial(
+  who: DenialWho | null,
+  source: "api" | "mcp",
+  action: string,
+  raw: unknown,
+): Promise<void> {
+  const target = who ?? denialWhoOf(raw);
+  if (!target || !RECORDED_DENIALS.has(toHubError(raw).status)) return;
+  await recordDenial(await getDb(), target, source, action, raw);
+}
+
 /** Autentica o agente pela chave Bearer, aplica limite e o papel declarado. */
 export async function authenticateRequest(
   req: Request,
@@ -217,8 +246,10 @@ export function apiRoute<
   ): Promise<Response> => {
     const requestId = requestIdOf(req);
     const url = new URL(req.url);
+    let who: DenialWho | null = null;
     try {
       const { actor, ctxBase } = await authenticateRequest(req);
+      who = denialWhoFor(actor);
       const params = routeContext ? await routeContext.params : ({} as P);
       const ctx: Ctx = { ...ctxBase, actor, source: "api", requestId };
       const ifMatch = parseIfMatch(req.headers.get("if-match"));
@@ -268,6 +299,7 @@ export function apiRoute<
     } catch (raw) {
       const err = toHubError(raw);
       logFailure(err, raw, requestId, url.pathname);
+      await noteDenial(who, "api", `${req.method} ${url.pathname}`, raw);
       return problemResponse(err, url.pathname, requestId);
     }
   };
