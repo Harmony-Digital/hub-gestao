@@ -107,14 +107,24 @@ async function ClientsView() {
                       </p>
                     ) : null}
                     {admin ? <ClientForm client={c} /> : null}
-                    {c.project_count > 0 ? (
-                      <Link
-                        href="/projetos"
-                        className="self-start text-sm font-semibold text-brand-strong hover:text-navy"
-                      >
-                        Ver os projetos
-                      </Link>
-                    ) : null}
+                    <div className="flex flex-wrap gap-x-5 gap-y-2">
+                      {c.project_count > 0 ? (
+                        <Link
+                          href="/projetos"
+                          className="text-sm font-semibold text-brand-strong hover:text-navy"
+                        >
+                          Ver os projetos
+                        </Link>
+                      ) : null}
+                      {admin ? (
+                        <Link
+                          href={`/clientes/${c.slug}/portal`}
+                          className="text-sm font-semibold text-brand-strong hover:text-navy"
+                        >
+                          Contatos e portal
+                        </Link>
+                      ) : null}
+                    </div>
                     {admin ? (
                       <div className="flex flex-col items-start gap-2 border-t border-line pt-3">
                         {c.project_count > 0 ? (

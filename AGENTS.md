@@ -84,6 +84,8 @@ hub-gestao/
 │   │   └── projetos/[code]/           # Visão geral (page.tsx), lista/, quadro/, _tasks/ (cabeçalho com
 │   │                                  #   abas, painel da tarefa, formulários, ações, Kanban, filtro) e
 │   │                                  #   _plan/ (janelas de marco e de frente)
+│   ├── src/app/(interno)/clientes/[slug]/portal/  # contatos do cliente e acesso ao portal (equipe)
+│   ├── src/app/portal/                # portal do cliente: entrar pelo link, aceite LGPD, projetos, sair
 │   ├── src/app/login/ · auth/         # login (Supabase Auth) e retorno do link de acesso
 │   ├── src/app/api/v1/…               # REST para agentes e integrações (OpenAPI 3.1)
 │   ├── src/app/api/health/ · api/internal/cron/   # saúde e relógio dos jobs
@@ -92,18 +94,19 @@ hub-gestao/
 │   ├── src/modules/                   # casos de uso por domínio: projects, tasks, milestones, workstreams,
 │   │                                  #   archive, comments, approvals, agents (com os prompts versionados
 │   │                                  #   em agents/prompts), llm (chaves e modelo de IA), concierge (CO-10),
-│   │                                  #   planner (PL-11),
+│   │                                  #   planner (PL-11), portal (contatos, acesso e leituras do cliente),
 │   │                                  #   sync (plan.md), github, reports, time, today, search, health,
 │   │                                  #   jobs, mcp, shell
 │   ├── src/lib/                       # authorize, audit, idempotency, auth, db (pg e PGlite), errors,
-│   │                                  #   format, labels, links, ui-context e llm (adaptador de IA)
+│   │                                  #   format, labels, links, ui-context, llm (adaptador de IA) e
+│   │                                  #   portal (link de uso único e sessão do cliente)
 │   ├── src/components/                # shell (barra lateral, cabeçalho, selos), forms e form-dialog
 │   │                                  #   (peças de formulário e janela) e ui (shadcn)
 │   ├── src/test/hub.ts                # ambiente de teste: PGlite com migrations, seed, projeto VIT,
 │   │                                  #   agentes e chaves criados pelo caminho real
 │   ├── e2e/                           # testes de ponta a ponta (Playwright) e playwright.config.ts
 │   └── scripts/cron-tick.mjs          # relógio dos jobs, chamado pelo timer da VPS
-├── supabase/migrations/ · seeds/      # hub_gestao_0001 a 0014 e o seed da Harmony
+├── supabase/migrations/ · seeds/      # hub_gestao_0001 a 0015 e o seed da Harmony
 ├── deploy/vps/                        # Dockerfile, compose, rota do Traefik, timers, publicação,
 │                                      #   backup e provisionamento (README com o passo a passo)
 ├── scripts/                           # conectar o Claude Code à produção e teste MCP de produção
@@ -111,11 +114,12 @@ hub-gestao/
 ├── agents/skills/                     # skills versionadas dos agentes que operam o Hub
 │                                      #   (importar-projetos-no-hub: o agente importador, D10)
 ├── docs/                              # credenciais, conexão dos agentes, contratos da API e do MCP,
-│                                      #   formato do plan.md (plan-md.md) e a CLI (cli.md)
+│                                      #   formato do plan.md (plan-md.md), a CLI (cli.md), os
+│                                      #   webhooks (webhooks.md) e o portal do cliente (portal.md)
 └── .github/workflows/                 # ci.yml ("Qualidade") e deploy-vps.yml ("Publicação na VPS")
 ```
 
-Ainda não existem: portal do cliente (`src/app/portal/`, M6) e as skills de gestão do Kratos versionadas (`agents/hermes/`, M5); a skill do importador já está em `agents/skills/`. Os testes de unidade e integração ficam ao lado do código (`*.test.ts`), não numa pasta `tests/`; os de ponta a ponta ficam em `app/e2e/`.
+As skills de gestão do Kratos ficam em `agents/hermes/` (cópia de referência; a instalação no Kratos é do Fábio) e a do importador em `agents/skills/`. O portal do cliente tem, por enquanto, o acesso por convite e a lista de projetos (M6, `docs/portal.md`). Os testes de unidade e integração ficam ao lado do código (`*.test.ts`), não numa pasta `tests/`; os de ponta a ponta ficam em `app/e2e/`.
 
 ### 5.2 Convenções
 
@@ -131,7 +135,7 @@ Ainda não existem: portal do cliente (`src/app/portal/`, M6) e as skills de ges
 - **Textos para cliente** vivem em campos próprios (`title_client`, `description_client`, `summary_client`). Nunca derivar automaticamente do texto interno.
 - **UI**: shadcn/ui + Tailwind v4 com tokens Harmony (`PRD.md` §14). Sem emojis. Ícones `lucide-react`. Texto PT-BR. Acessível: foco visível, contraste AA, `lang="pt-BR"`, rótulos e avisos em PT-BR para leitor de tela.
 - **Telas que mudam dados**: cada ação de formulário lê o `FormData` com um parser puro e testado, roda o caso de uso numa transação e atualiza a tela; mudança concorrente (versão velha da tarefa, 412) atualiza a tela e avisa. Mensagens de erro para pessoas mostram o nome do campo em PT-BR. Detalhes e regras do Next.js 16 em `app/AGENTS.md`.
-- **Testes**: Vitest (unidade e integração) com banco local PGlite (o mesmo Postgres 17), RLS com dois workspaces e papel cliente, e contratos de API e MCP (snapshot do OpenAPI e da lista de tools). Playwright (`app/e2e/`, `npm run e2e`) para os fluxos críticos no navegador: a jornada criar tarefa → mover no Quadro → concluir com evidência → aprovar no Hoje, a revisão de acessibilidade com o axe (WCAG 2.1 A e AA, temas claro e escuro, celular) e a de identidade (fontes, cores, sem emojis) rodam no CI; o portal do cliente entra no M6. Previsto e ainda não feito: Testing Library (componentes).
+- **Testes**: Vitest (unidade e integração) com banco local PGlite (o mesmo Postgres 17), RLS com dois workspaces e papel cliente, e contratos de API e MCP (snapshot do OpenAPI e da lista de tools). Playwright (`app/e2e/`, `npm run e2e`) para os fluxos críticos no navegador: a jornada criar tarefa → mover no Quadro → concluir com evidência → aprovar no Hoje, a revisão de acessibilidade com o axe (WCAG 2.1 A e AA, temas claro e escuro, celular), a de identidade (fontes, cores, sem emojis) e o acesso ao portal do cliente (liberar, entrar, aceitar, sair, revogar) rodam no CI. Previsto e ainda não feito: Testing Library (componentes).
 - **Commits**: PT-BR, imperativo, descritivos. Exemplo: `Adiciona rollup de progresso por marco (HUB-57)`.
 
 ## 6. Segurança e acessos
@@ -160,6 +164,8 @@ Ainda não existem: portal do cliente (`src/app/portal/`, M6) e as skills de ges
 ### 6.3 Dados de clientes (LGPD)
 
 Contatos e conteúdos de clientes ficam no schema do Hub com RLS por `workspace_id` e `project_members`. Exportação e exclusão por cliente são requisitos (PRD §12). Nenhum dado pessoal em logs, prompts de LLM além do necessário ou repositório.
+
+Portal do cliente (D9, `docs/portal.md`): o contato nasce sem acesso e só o dono libera (`portal.manage`), por um link de uso único do Hub que aparece uma vez. No banco ficam só os hashes do link e da sessão; o histórico nunca guarda o link. O contato aceita o uso dos dados no primeiro acesso (`consent_at`). Agente nunca libera, gera link nem revoga, e nunca manda o link a ninguém: quem manda é o dono.
 
 ### 6.4 Desenvolvimento local e dados de exemplo
 

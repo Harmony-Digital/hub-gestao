@@ -183,14 +183,23 @@ describe("onde a porta não roda", () => {
     "/favicon.ico",
     "/brand/harmony-logo-branco.png",
     "/cli/hub.mjs",
-  ])("fica fora: %s (API e MCP exigem chave de agente)", (path) => {
-    expect(matcher.test(path)).toBe(false);
-  });
-
-  it.each(["/", "/login", "/auth/confirmar", "/projetos/HUB", "/clientes"])(
-    "passa pela porta: %s",
+    "/portal/clinica-exemplo",
+    "/portal/entrar/abc",
+  ])(
+    "fica fora: %s (API e MCP exigem chave de agente; o portal tem sessão própria)",
     (path) => {
-      expect(matcher.test(path)).toBe(true);
+      expect(matcher.test(path)).toBe(false);
     },
   );
+
+  it.each([
+    "/",
+    "/login",
+    "/auth/confirmar",
+    "/projetos/HUB",
+    "/clientes",
+    "/clientes/clinica-exemplo/portal",
+  ])("passa pela porta: %s", (path) => {
+    expect(matcher.test(path)).toBe(true);
+  });
 });

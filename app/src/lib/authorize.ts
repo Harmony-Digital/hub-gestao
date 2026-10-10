@@ -41,6 +41,7 @@ export type Action =
   | "sync.plan"
   | "search"
   | "webhook.manage"
+  | "portal.manage"
   | "workspace.admin";
 
 export type ProjectRole =
@@ -85,6 +86,7 @@ const HUMAN_ONLY: ReadonlySet<Action> = new Set<Action>([
   "agent.manage",
   "agent.keys",
   "webhook.manage",
+  "portal.manage",
   "workspace.admin",
 ]);
 
@@ -107,6 +109,8 @@ const OWNER_ONLY: ReadonlySet<Action> = new Set<Action>([
   "approval.decide",
   "agent.keys",
   "webhook.manage",
+  // D9: liberar, renovar e revogar o acesso de um contato ao portal é do dono.
+  "portal.manage",
 ]);
 
 /** O que um member pode fazer, sempre dentro dos projetos de que participa. */
