@@ -26,7 +26,7 @@ export function Sidebar() {
             alt="Harmony Digital"
             width={120}
             height={34}
-            priority
+            loading="eager"
             className="h-[30px] w-auto"
           />
         </Link>

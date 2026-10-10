@@ -249,7 +249,13 @@ export function CommandPalette() {
                           {item.label}
                         </span>
                         {item.hint ? (
-                          <span className="shrink-0 font-mono text-xs text-caption">
+                          // Na opção escolhida, o cinza fica mais forte para manter o
+                          // contraste sobre o laranja (tema escuro).
+                          <span
+                            className={`shrink-0 font-mono text-xs ${
+                              selected ? "text-ink-2" : "text-caption"
+                            }`}
+                          >
                             {item.hint}
                           </span>
                         ) : null}

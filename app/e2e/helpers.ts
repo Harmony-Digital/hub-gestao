@@ -1,5 +1,21 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
+/** Telas internas que as revisões de acessibilidade e de identidade percorrem. */
+export const SCREENS = [
+  "/",
+  "/minhas-tarefas",
+  "/aprovacoes",
+  "/caixa-de-entrada",
+  "/clientes",
+  "/projetos",
+  "/projetos/EXE",
+  "/projetos/EXE/lista",
+  "/projetos/EXE/quadro",
+  "/projetos/EXE/editar",
+  "/agentes",
+  "/conta",
+];
+
 /** Entra com o login de teste (só no banco local) e chega no Hoje. */
 export async function login(page: Page) {
   await page.goto("/login");
@@ -25,4 +41,10 @@ export async function openDialog(
     await expect(dialog).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 60_000 });
   return dialog;
+}
+
+/** Espera a tela terminar de chegar (conteúdo em streaming incluído). */
+export async function settle(page: Page) {
+  await expect(page.locator("#conteudo")).toBeVisible();
+  await page.waitForLoadState("networkidle");
 }
