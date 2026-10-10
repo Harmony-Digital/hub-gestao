@@ -44,6 +44,7 @@ const asClient = (): Ctx => ({
 
 /** O que o cliente pode ler pela RLS (cada uma com a conferência das linhas abaixo). */
 const CLIENT_READABLE = [
+  "attachment_contents",
   "attachments",
   "client_contacts",
   "clients",
@@ -128,14 +129,22 @@ beforeAll(async () => {
             ($1, $2, 'project', $2, 'O atendimento entra no ar na sexta.', 'client', 'user', $3, 'Fábio')`,
     [h.ws, h.vit, h.owner],
   );
-  await h.raw.query(
+  const files = await h.raw.query<{ id: string }>(
     `insert into ${S}.attachments
        (workspace_id, project_id, entity_type, entity_id, storage_path, filename, visibility,
         uploaded_by_type, uploaded_by_id)
-     values ($1, $2, 'project', $2, 'interno/a.pdf', 'Planilha ${MARK}.pdf', 'internal', 'user', $3),
-            ($1, $2, 'project', $2, 'cliente/b.pdf', 'Manual do atendimento.pdf', 'client', 'user', $3)`,
+     values ($1, $2, 'project', $2, 'db', 'Planilha ${MARK}.pdf', 'internal', 'user', $3),
+            ($1, $2, 'project', $2, 'db', 'Manual do atendimento.pdf', 'client', 'user', $3)
+     returning id`,
     [h.ws, h.vit, h.owner],
   );
+  for (const f of files.rows) {
+    await h.raw.query(
+      `insert into ${S}.attachment_contents (attachment_id, workspace_id, sha256, content)
+       values ($1, $2, repeat('a', 64), '\\x25504446'::bytea)`,
+      [f.id, h.ws],
+    );
+  }
   // Relatórios pelo caminho real: interno publicado, do cliente publicado e um rascunho.
   const kratos = ctxFor(h, await agentActor(h, h.keys.kratos), "mcp");
   const period = { period_start: "2026-10-05", period_end: "2026-10-09" };
@@ -239,6 +248,10 @@ describe("vazamento no portal", () => {
         attachments: await col(
           `select visibility::text as v from ${S}.attachments`,
         ),
+        contents: await col(
+          `select a.filename as v from ${S}.attachment_contents c
+             join ${S}.attachments a on a.id = c.attachment_id`,
+        ),
         reports: await col(
           `select audience::text || ':' || (published_at is not null)::text as v
              from ${S}.status_reports`,
@@ -259,6 +272,7 @@ describe("vazamento no portal", () => {
     expect(seen.workstreams).toEqual(["Integração com a agenda"]);
     expect(seen.comments).toEqual(["client"]);
     expect(seen.attachments).toEqual(["client"]);
+    expect(seen.contents).toEqual(["Manual do atendimento.pdf"]);
     expect(seen.reports).toEqual(["client:true"]);
     expect(seen.clients).toEqual([clientId]);
     expect(seen.contacts).toEqual(["ana@clinica.com.br"]);
@@ -269,6 +283,7 @@ describe("vazamento no portal", () => {
       "tasks",
       "comments",
       "attachments",
+      "attachment_contents",
       "status_reports",
       "milestone_date_history",
       "approvals",

@@ -68,6 +68,14 @@ describe("authorize: pessoas", () => {
       expect(can(user("admin"), action)).toBe(false);
     expect(can(user("admin"), "milestone.write")).toBe(true);
     expect(can(user("admin"), "agent.manage")).toBe(true);
+    // Mandar algo ao cliente (mensagem ou arquivo) é de quem decide: dono e administração.
+    expect(can(user("admin"), "attachment.write_client")).toBe(true);
+    expect(
+      can(user("member"), "attachment.write_client", {
+        projectId: projectA,
+        projectRole: "lead",
+      }),
+    ).toBe(false);
   });
 
   it("member atua só nos projetos de que participa", () => {
@@ -122,6 +130,7 @@ describe("authorize: agentes", () => {
       "milestone.write",
       "workstream.visibility",
       "comment.write_client",
+      "attachment.write_client",
       "report.publish",
     ] as Action[]) {
       expect(can(all, action, { projectId: projectA })).toBe(false);

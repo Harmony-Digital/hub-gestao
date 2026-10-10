@@ -2,7 +2,7 @@
 
 O portal é onde o contato de um cliente acompanha os projetos dele com a Harmony. Ele vê a camada estratégica (e a tática, quando o item estiver marcado para o cliente), com os textos escritos para ele. Nunca vê tarefas, textos internos, agentes nem projetos em revisão ou arquivados.
 
-Estado em 2026-10-10 (M6): acesso por convite e a lista de projetos do cliente (PR #51); a página de cada projeto, com as entregas, as frentes e os relatórios publicados, e o teste automático de vazamento (PR #52); a conversa do projeto entre o cliente e a equipe (PR #53). Os arquivos entregues e o confirmar recebimento vêm nos próximos passos do M6.
+Estado em 2026-10-10 (M6): acesso por convite e a lista de projetos do cliente (PR #51); a página de cada projeto, com as entregas, as frentes e os relatórios publicados, e o teste automático de vazamento (PR #52); a conversa do projeto entre o cliente e a equipe (PR #53); os arquivos entregues (PR #54). O confirmar recebimento vem no próximo passo do M6.
 
 ## O que o contato vê hoje
 
@@ -17,6 +17,7 @@ Em `/portal/<cliente>/<código do projeto>`, a página do projeto:
 - as **entregas** (marcos marcados para o cliente e com o título para ele), em ordem: o estado para o cliente (Prevista, Em andamento, Entregue ou Concluída; o aceite continua do dono, D9), a data vigente e quantas vezes ela foi revista, nunca o motivo (RF-11), ou o dia da entrega;
 - em cada entrega, as **frentes de trabalho** marcadas para o cliente, com o título e a descrição para ele e o andamento (sem o estado interno da frente, como pede o PRD §9); frente para o cliente sem um marco que ele veja aparece em "Outras frentes de trabalho";
 - os **relatórios de andamento** publicados para o cliente (rascunho do agente aprovado pelo dono), do mais novo para o mais antigo;
+- os **arquivos entregues** pela equipe, com o tamanho e a data, para abrir (imagem e PDF) ou baixar;
 - a **conversa com a equipe** (o canal do cliente no projeto): as mensagens dos dois lados e o campo "Escreva para a equipe".
 
 Marco sem o título para o cliente não aparece (o texto interno nunca entra no lugar). Projeto em revisão (importação ainda não aprovada), arquivado ou de outro cliente responde "Projeto não encontrado". O texto interno também não aparece: as leituras do portal escolhem os campos um a um (`app/src/modules/portal/views.ts`), e a RLS só devolve o que é do cliente. A contagem de revisões de data vem de uma função própria do banco (migração 0016), porque o histórico de datas, com o motivo, é só da equipe.
@@ -54,6 +55,12 @@ A tela mostra, para cada contato: a situação (Sem acesso; Link enviado, ainda 
 - Conversa interna e comentários de tarefa nunca aparecem no canal: o canal mostra só as mensagens marcadas para o cliente, no projeto.
 - O cliente ainda não recebe e-mail quando a equipe responde: vê a resposta ao entrar no portal. O aviso por e-mail depende do Resend (Fábio).
 
+## Arquivos entregues
+
+- **A equipe entrega** na Visão geral do projeto, na seção "Arquivos entregues ao cliente" (aparece quando o cliente tem o portal ligado ou já há arquivos). Entregar e tirar é do dono ou da administração (ação `attachment.write_client`; a equipe comum vê e abre); agente não entrega (o banco recusa). Mesmas regras dos anexos das tarefas: até 10 MB, só tipos comuns de trabalho (imagem, PDF, texto, CSV, planilha, documento, zip), conferidos pelos primeiros bytes; até 50 arquivos por projeto.
+- **O cliente baixa** pela página do projeto, por um endereço do próprio portal (`/portal/<cliente>/<código>/arquivos/<id>`), que exige a sessão do cliente e lê com o ator de cliente: a RLS só entrega o conteúdo dos arquivos marcados para ele. Imagem e PDF abrem no navegador; o resto baixa; nada é interpretado como página (`nosniff`, `no-store`).
+- Tirar o arquivo tira do portal na hora; o histórico guarda quem entregou e quem tirou, com o nome do arquivo.
+
 ## Teste de vazamento (PRD §5.2 e §9)
 
 Roda no `npm test` e no CI, com a sessão de verdade de um contato:
@@ -64,13 +71,13 @@ Roda no `npm test` e no CI, com a sessão de verdade de um contato:
 
 ## Ainda não (próximos passos)
 
-- Os arquivos entregues e o confirmar recebimento de marco (quando o projeto ligar a opção).
+- O confirmar recebimento de marco (quando o projeto ligar a opção).
 - O convite por e-mail pelo próprio Hub, e o contato pedir um link novo sozinho pelo e-mail: dependem do envio de e-mail (Resend), que o Fábio configura.
 - A identidade do portal com a cor de destaque do cliente.
 
 ## Onde está no código
 
 - Banco: `supabase/migrations/hub_gestao_0015_portal_access.sql` (acesso), `hub_gestao_0016_portal_milestone_revisions.sql` (contagem de revisões de data) e `hub_gestao_0017_portal_client_channel.sql` (o cliente escreve no canal).
-- Núcleo: `app/src/modules/portal/access.ts` (contatos, liberar, gerar link, revogar) e `views.ts` (leituras do portal); sessão em `app/src/lib/portal/session.ts` e `token.ts`; o canal em `app/src/modules/comments/client-channel.ts` (leitura e resposta da equipe e o aviso).
+- Núcleo: `app/src/modules/portal/access.ts` (contatos, liberar, gerar link, revogar) e `views.ts` (leituras do portal); sessão em `app/src/lib/portal/session.ts` e `token.ts`; o canal em `app/src/modules/comments/client-channel.ts` (leitura e resposta da equipe e o aviso); os arquivos em `app/src/modules/attachments/client-files.ts`.
 - Telas: `app/src/app/portal/` (entrar, aceite, projetos, a página de cada projeto em `[cliente]/[codigo]`, sair, sem acesso; as peças comuns em `_ui/`) e `app/src/app/(interno)/clientes/[slug]/portal/` (a tela da equipe).
 - Testes: `app/src/modules/portal/portal.test.ts` (o caminho completo do acesso no banco), `leak.test.ts` (o teste de vazamento), `form.test.ts` da tela da equipe e `app/e2e/portal.spec.ts` (o dono libera, o contato entra num navegador sem a sessão da equipe, aceita, vê os projetos e a página do projeto sem nada interno, sai; o link não vale de novo; o dono revoga; com a revisão de acessibilidade das páginas do portal).

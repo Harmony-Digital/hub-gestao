@@ -28,6 +28,7 @@ export type Action =
   | "comment.read"
   | "comment.write"
   | "comment.write_client"
+  | "attachment.write_client"
   | "time.write"
   | "approval.read"
   | "approval.request"
@@ -81,6 +82,7 @@ const HUMAN_ONLY: ReadonlySet<Action> = new Set<Action>([
   "milestone.accept",
   "workstream.visibility",
   "comment.write_client",
+  "attachment.write_client",
   "approval.decide",
   "report.publish",
   "agent.manage",
@@ -97,6 +99,7 @@ const DECISIONS: ReadonlySet<Action> = new Set<Action>([
   "report.publish",
   "agent.keys",
   "comment.write_client",
+  "attachment.write_client",
   "workstream.visibility",
 ]);
 

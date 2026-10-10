@@ -163,6 +163,26 @@ test("o dono libera o acesso e o contato acompanha os projetos pelo portal", asy
   await expect(canal.getByText(answer)).toBeVisible();
   await settled(page, canal.getByRole("button", { name: "Enviar ao cliente" }));
   expect(await violations(page)).toEqual([]);
+
+  // Arquivo entregue: a equipe manda, o cliente baixa pelo portal.
+  const delivered = `Entrega ${stamp}.pdf`;
+  const arquivos = page.getByRole("region", {
+    name: "Arquivos entregues ao cliente",
+  });
+  await arquivos.getByLabel("Arquivo para o cliente").setInputFiles({
+    name: delivered,
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4\nEntrega de teste\n"),
+  });
+  await arquivos.getByRole("button", { name: "Entregar ao cliente" }).click();
+  await expect(
+    arquivos.getByText(`${delivered} entregue: o cliente vê no portal.`),
+  ).toBeVisible();
+  await settled(
+    page,
+    arquivos.getByRole("button", { name: "Entregar ao cliente" }),
+  );
+  expect(await violations(page)).toEqual([]);
   // O aviso chegou na caixa de entrada do dono.
   await page.goto("/caixa-de-entrada");
   await settle(page);
@@ -175,6 +195,19 @@ test("o dono libera o acesso e o contato acompanha os projetos pelo portal", asy
   await expect(
     conversa.getByRole("listitem").filter({ hasText: answer }),
   ).toContainText("Equipe Harmony");
+  const fileLink = client
+    .getByRole("region", { name: "Arquivos entregues" })
+    .getByRole("link", { name: delivered });
+  await expect(fileLink).toBeVisible();
+  const download = await client
+    .context()
+    .request.get(
+      new URL((await fileLink.getAttribute("href"))!, client.url()).toString(),
+    );
+  expect(download.status()).toBe(200);
+  expect(download.headers()["content-type"]).toBe("application/pdf");
+  expect((await download.body()).toString()).toContain("Entrega de teste");
+  expect(await violations(client)).toEqual([]);
   // Projeto que não é do cliente: a mesma resposta de "não encontrado".
   await client.goto("/portal/clinica-exemplo/HUB");
   await expect(
