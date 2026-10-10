@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, type ChangeEvent } from "react";
+import { useActionState, useEffect, useState, type ChangeEvent } from "react";
 import { CircleAlert, LoaderCircle } from "lucide-react";
 import type { AssigneeOption, StatusOption } from "@/modules/tasks/board";
 import { editarNaLista } from "./actions";
@@ -24,18 +24,36 @@ function Cell({
   version,
   field,
   label,
+  value,
   children,
 }: Base & {
   field: string;
   label: string;
+  /** Valor gravado; o campo começa com ele e o acompanha quando muda por fora. */
+  value: string;
   children: (
     submit: (event: ChangeEvent<Field>) => void,
     pending: boolean,
   ) => React.ReactNode;
 }) {
   const [state, action, pending] = useActionState(editarNaLista, IDLE);
+  // O formulário fica em estado, não em ref, como no FormDialog: o efeito abaixo o usa
+  // e a regra do React não deixa ler ref durante a renderização.
+  const [form, setForm] = useState<HTMLFormElement | null>(null);
+  // Mudança feita por outra pessoa ou agente (a tela se atualiza sozinha): o campo passa
+  // a mostrar o valor novo, a menos que esteja em uso agora.
+  useEffect(() => {
+    const input = form?.elements.namedItem("value");
+    if (!(
+      input instanceof HTMLSelectElement || input instanceof HTMLInputElement
+    )) {
+      return;
+    }
+    if (document.activeElement !== input) input.value = value;
+  }, [form, value]);
   return (
     <form
+      ref={setForm}
       action={action}
       className="flex min-w-0 items-center gap-1"
       aria-label={label}
@@ -64,7 +82,12 @@ export function PriorityCell({
   ...base
 }: Base & { priority: string }) {
   return (
-    <Cell {...base} field="priority" label={`Prioridade de ${base.code}`}>
+    <Cell
+      {...base}
+      field="priority"
+      label={`Prioridade de ${base.code}`}
+      value={priority}
+    >
       {(submit, pending) => (
         <select
           name="value"
@@ -91,7 +114,12 @@ export function AssigneeCell({
 }: Base & { assignee: string; options: AssigneeOption[] }) {
   const known = options.some((a) => `${a.type}:${a.id}` === assignee);
   return (
-    <Cell {...base} field="assignee" label={`Responsável por ${base.code}`}>
+    <Cell
+      {...base}
+      field="assignee"
+      label={`Responsável por ${base.code}`}
+      value={assignee}
+    >
       {(submit, pending) => (
         <select
           name="value"
@@ -123,7 +151,12 @@ export function DueCell({
   ...base
 }: Base & { due: string | null; late: boolean }) {
   return (
-    <Cell {...base} field="due_date" label={`Prazo de ${base.code}`}>
+    <Cell
+      {...base}
+      field="due_date"
+      label={`Prazo de ${base.code}`}
+      value={due ?? ""}
+    >
       {(submit, pending) => (
         <input
           type="date"
@@ -151,7 +184,12 @@ export function StatusCell({
 }: Base & { statusId: string; statuses: StatusOption[]; panelHref: string }) {
   const router = useRouter();
   return (
-    <Cell {...base} field="status" label={`Status de ${base.code}`}>
+    <Cell
+      {...base}
+      field="status"
+      label={`Status de ${base.code}`}
+      value={statusId}
+    >
       {(submit, pending) => (
         <select
           name="value"
