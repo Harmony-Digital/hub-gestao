@@ -12,6 +12,7 @@ import {
 } from "@/modules/context";
 import { refreshAllHealth } from "@/modules/health/service";
 import { businessDaysBetween } from "@/modules/health/rule";
+import { refreshAgentSpend } from "@/lib/llm";
 import { attempt } from "@/modules/attempt";
 import { notifyOwners, notifyProfile } from "@/modules/notifications";
 import { reopenTask } from "@/modules/tasks/service";
@@ -26,6 +27,7 @@ export type JobType =
   | "health-rollup"
   | "approval-aging"
   | "evidence-check"
+  | "agent-spend"
   | "webhook-dispatch"
   | "idempotency-cleanup";
 
@@ -34,6 +36,7 @@ export const PERIODIC_JOBS: { type: JobType; everyMinutes: number }[] = [
   { type: "health-rollup", everyMinutes: 15 },
   { type: "approval-aging", everyMinutes: 60 },
   { type: "evidence-check", everyMinutes: 60 },
+  { type: "agent-spend", everyMinutes: 60 },
   { type: "webhook-dispatch", everyMinutes: 1 },
   { type: "idempotency-cleanup", everyMinutes: 60 },
 ];
@@ -101,6 +104,8 @@ async function runJob(
       return inTx(ctx, (t) => approvalAging(t, now));
     case "evidence-check":
       return inTx(ctx, (t) => evidenceCheck(t));
+    case "agent-spend":
+      return inTx(ctx, async (t) => ({ agents: await refreshAgentSpend(t) }));
     case "idempotency-cleanup":
       return inTx(ctx, async (t) => {
         const rows = await many(
