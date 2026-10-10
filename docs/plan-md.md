@@ -63,7 +63,7 @@ Pelo MCP (`hub_sync_plan`) ou pela REST (`POST /api/v1/sync/plan`), sempre com o
 
 **Push** (o que mudou no arquivo vem para o Hub):
 
-- item sem código vira tarefa (origem `plan_md`) e ganha o código no arquivo devolvido; subitem vira subtarefa; frente nova dentro de um marco que existe é criada;
+- item sem código vira tarefa (origem `plan_md`) e ganha o código no arquivo devolvido; subitem vira subtarefa; frente nova dentro de um marco que existe é criada. Se já existe no Hub uma tarefa com o mesmo título, na mesma frente (ou sob a mesma tarefa-pai), que o arquivo não cita, o item é **ligado** a ela em vez de virar outra: é o caso de um push anterior cujo arquivo não voltou ao repositório (a GitHub Action não regrava o plano);
 - caixa marcada conclui a tarefa com a evidência escrita no item (`— evidência: ...`) ou, se o push trouxer `commit_sha`, com "plan.md marcado no commit ...". Sem nenhuma das duas, a tarefa não é concluída: vira conflito e comentário na tarefa (uma vez só);
 - item riscado não vira tarefa;
 - **marco novo não é criado** (marco é decisão de pessoa): o conflito pede para criar pela tela e sincronizar de novo, e os itens dele ficam de fora;

@@ -1,0 +1,62 @@
+name: Plano no Hub (reutilizável)
+
+# Workflow reutilizável: depois de um push, manda o plan.md do repositório para o Hub de
+# Gestão com a CLI hub, baixada do próprio Hub. A versão anterior do plano é a do commit
+# anterior (github.event.before). Não grava nada no repositório: os códigos das tarefas
+# novas entram no arquivo no próximo "hub plan pull" de uma sessão, e o push seguinte liga
+# os itens às tarefas que já existem (mesmo título, na mesma frente), sem duplicar.
+#
+# Uso, num repositório com .hub.json na raiz:
+#   jobs:
+#     plano:
+#       uses: Harmony-Digital/hub-gestao/.github/workflows/hub-sync.yml@main
+#       secrets:
+#         HUB_API_KEY: ${{ secrets.HUB_API_KEY }}
+# Detalhes em docs/cli.md.
+on:
+  workflow_call:
+    inputs:
+      hub-url:
+        description: Endereço do Hub.
+        type: string
+        default: https://hub.harmonydigital.com.br
+    secrets:
+      HUB_API_KEY:
+        description: Chave do agente de sincronização (sync:plan, tasks:read, tasks:write, tasks:complete).
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  push:
+    name: hub plan push
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Preparar Node.js 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Baixar a CLI hub do Hub
+        env:
+          HUB_URL: ${{ inputs.hub-url }}
+        run: curl --fail --silent --show-error --location "$HUB_URL/cli/hub.mjs" --output "$RUNNER_TEMP/hub.mjs"
+      - name: Enviar o plan.md ao Hub
+        env:
+          HUB_URL: ${{ inputs.hub-url }}
+          HUB_API_KEY: ${{ secrets.HUB_API_KEY }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          base=()
+          # Commit anterior conhecido (não é o primeiro push do ramo): vira a versão base.
+          if [ -n "${BEFORE:-}" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+            && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            base=(--base-ref "$BEFORE")
+          fi
+          node "$RUNNER_TEMP/hub.mjs" plan push --commit "$GITHUB_SHA" "${base[@]}"

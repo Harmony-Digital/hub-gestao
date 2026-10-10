@@ -169,6 +169,7 @@ function describe(result, out) {
   const s = result.summary;
   const parts = [
     [s.created, "criada(s)"],
+    [s.linked, "ligada(s) a tarefa(s) que já existiam"],
     [s.completed, "concluída(s)"],
     [s.reopened, "reaberta(s)"],
     [s.renamed, "renomeada(s)"],

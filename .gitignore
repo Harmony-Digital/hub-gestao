@@ -23,3 +23,6 @@ next-env.d.ts
 
 # Banco local de desenvolvimento (PGlite)
 .data/
+
+# Versão sincronizada do plan.md (CLI hub), local
+.hub/

@@ -95,6 +95,12 @@ export type SyncConflict = z.infer<typeof SyncConflict>;
 
 export const SyncSummary = z.object({
   created: z.number().int(),
+  linked: z
+    .number()
+    .int()
+    .describe(
+      "Itens sem código ligados a uma tarefa que já existia (mesmo título, mesma frente).",
+    ),
   completed: z.number().int(),
   reopened: z.number().int(),
   renamed: z.number().int(),
@@ -175,6 +181,7 @@ async function recordRun(
 
 const emptySummary = (): SyncSummary => ({
   created: 0,
+  linked: 0,
   completed: 0,
   reopened: 0,
   renamed: 0,
@@ -289,6 +296,47 @@ async function push(
   const changes: ItemChange[] = [];
   const codeOfItem = new Map<number, string>();
   const seen = new Set<string>();
+  // Tarefas de primeiro nível por frente (null: sem frente) e por código.
+  type HubTask = (typeof plan.unplanned.tasks)[number];
+  const byWorkstream = new Map<string | null, HubTask[]>([
+    [null, plan.unplanned.tasks],
+  ]);
+  const topTasks = new Map<string, HubTask>();
+  for (const w of [
+    ...plan.milestones.flatMap((m) => m.workstreams),
+    ...plan.unplanned.workstreams,
+  ]) {
+    byWorkstream.set(w.id, w.tasks);
+  }
+  for (const list of byWorkstream.values())
+    for (const task of list) topTasks.set(task.code, task);
+  const referenced = new Set(
+    file.items.filter((i) => i.code).map((i) => i.code as string),
+  );
+
+  /**
+   * Tarefa do Hub com o mesmo título, na mesma frente (ou sob a mesma tarefa-pai), que o
+   * arquivo não cita: é o item de um push anterior cujo arquivo não voltou ao repositório
+   * (a Action não regrava o plano). Ligar em vez de criar de novo.
+   */
+  const twinOf = (
+    item: PlanItem,
+    workstreamId: string | null,
+    parentCode?: string,
+  ) => {
+    const pool = parentCode
+      ? (topTasks.get(parentCode)?.subtasks ?? [])
+      : (byWorkstream.get(workstreamId) ?? []);
+    const title = normalizeTitle(item.title);
+    return (
+      pool.find(
+        (task) =>
+          normalizeTitle(task.title) === title &&
+          !referenced.has(task.code) &&
+          !seen.has(task.code),
+      ) ?? null
+    );
+  };
   const missingMilestone = new Set<number>();
   const createdWorkstream = new Map<string, string>(); // chave → id da frente
 
@@ -380,6 +428,56 @@ async function push(
     return { id: created.value.id };
   };
 
+  /** Item com tarefa conhecida no Hub: caixa (e o título, com a versão anterior). */
+  const reconcile = async (
+    item: PlanItem,
+    code: string,
+    hub: { title: string; status_category: string },
+  ) => {
+    const before = baseByCode.get(code);
+    const hubDone = hub.status_category === "done";
+    if (item.checked && !hubDone) {
+      if (before?.checked) {
+        conflicts.push({
+          kind: "hub_wins",
+          line: lineOf(item),
+          code,
+          detail: `${code} foi reaberta no Hub depois da última sincronização; o Hub vence e o arquivo volta a ficar desmarcado.`,
+        });
+      } else {
+        await complete(item, code);
+      }
+    } else if (!item.checked && hubDone) {
+      if (before?.checked) {
+        const reopened = await attempt(t, () =>
+          reopenTask(t, code, { reason: "Desmarcada no plan.md." }),
+        );
+        if (reopened.ok) summary.reopened += 1;
+        else refuse(item, code, reopened.error);
+      } else {
+        conflicts.push({
+          kind: "hub_wins",
+          line: lineOf(item),
+          code,
+          detail: `${code} está concluída no Hub e desmarcada no arquivo; o Hub vence e o arquivo volta a ficar marcado.`,
+        });
+      }
+    }
+    // Título: só com a versão anterior, e se o Hub ainda tem o título antigo.
+    if (
+      before &&
+      item.title &&
+      before.title !== item.title &&
+      normalizeTitle(hub.title) === normalizeTitle(before.title)
+    ) {
+      const renamed = await attempt(t, () =>
+        updateTask(t, code, { title: item.title }),
+      );
+      if (renamed.ok) summary.renamed += 1;
+      else refuse(item, code, renamed.error);
+    }
+  };
+
   for (const [index, item] of file.items.entries()) {
     if (item.kind === "criterion") continue;
 
@@ -406,48 +504,7 @@ async function push(
         });
         continue;
       }
-      const before = baseByCode.get(code);
-      const hubDone = hub.status_category === "done";
-      if (item.checked && !hubDone) {
-        if (before?.checked) {
-          conflicts.push({
-            kind: "hub_wins",
-            line: lineOf(item),
-            code,
-            detail: `${code} foi reaberta no Hub depois da última sincronização; o Hub vence e o arquivo volta a ficar desmarcado.`,
-          });
-        } else {
-          await complete(item, code);
-        }
-      } else if (!item.checked && hubDone) {
-        if (before?.checked) {
-          const reopened = await attempt(t, () =>
-            reopenTask(t, code, { reason: "Desmarcada no plan.md." }),
-          );
-          if (reopened.ok) summary.reopened += 1;
-          else refuse(item, code, reopened.error);
-        } else {
-          conflicts.push({
-            kind: "hub_wins",
-            line: lineOf(item),
-            code,
-            detail: `${code} está concluída no Hub e desmarcada no arquivo; o Hub vence e o arquivo volta a ficar marcado.`,
-          });
-        }
-      }
-      // Título: só com a versão anterior, e se o Hub ainda tem o título antigo.
-      if (
-        before &&
-        item.title &&
-        before.title !== item.title &&
-        normalizeTitle(hub.title) === normalizeTitle(before.title)
-      ) {
-        const renamed = await attempt(t, () =>
-          updateTask(t, code, { title: item.title }),
-        );
-        if (renamed.ok) summary.renamed += 1;
-        else refuse(item, code, renamed.error);
-      }
+      await reconcile(item, code, hub);
       continue;
     }
 
@@ -458,6 +515,15 @@ async function push(
     if (item.parent !== null && !parentCode) continue; // pai ficou de fora
     const workstream = parentCode ? { id: null } : await workstreamFor(item);
     if (!workstream) continue;
+    const twin = twinOf(item, workstream.id, parentCode);
+    if (twin) {
+      seen.add(twin.code);
+      codeOfItem.set(index, twin.code);
+      changes.push({ item: index, code: twin.code });
+      summary.linked += 1;
+      await reconcile(item, twin.code, twin);
+      continue;
+    }
     const note =
       item.note && !item.evidence ? item.note.slice(0, 20000) : undefined;
     const created = await attempt(t, () =>

@@ -5,7 +5,8 @@ import { loginPath } from "@/lib/auth/next-path";
 
 /**
  * Porta das telas do Hub. Renova a sessão do Supabase Auth a cada visita e manda para o
- * login quem não tem sessão válida. API e MCP ficam fora (exigem chave de agente).
+ * login quem não tem sessão válida. API e MCP ficam fora (exigem chave de agente), e
+ * também a CLI hub em /cli/hub.mjs (arquivo público, sem segredo, para as Actions).
  * É só a primeira barreira: cada tela confere o acesso de novo (src/lib/auth/current-user.ts).
  */
 const PUBLIC_PAGES = /^\/(?:login|auth)(?:\/|$)/;
@@ -71,6 +72,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!api|mcp|_next/static|_next/image|favicon.ico|brand/|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|txt|xml)$).*)",
+    "/((?!api|mcp|_next/static|_next/image|favicon.ico|brand/|cli/|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|txt|xml)$).*)",
   ],
 };
