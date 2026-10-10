@@ -63,3 +63,12 @@ export function signWebhook(
     createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex")
   );
 }
+
+/**
+ * Assinatura no padrão do GitHub (`X-Hub-Signature-256`): HMAC-SHA256 só do corpo. Vai
+ * junto com a do Hub (que inclui o horário) para quem recebe e só sabe conferir este
+ * formato, como o receptor de webhooks do Hermes e o n8n.
+ */
+export function signWebhookBody(secret: string, body: string): string {
+  return "sha256=" + createHmac("sha256", secret).update(body).digest("hex");
+}

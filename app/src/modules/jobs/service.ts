@@ -1,4 +1,4 @@
-import { decryptSecret, signWebhook } from "@/lib/crypto";
+import { decryptSecret, signWebhook, signWebhookBody } from "@/lib/crypto";
 import type { SystemActor } from "@/lib/db/actor";
 import type { Db } from "@/lib/db/types";
 import {
@@ -253,6 +253,7 @@ async function dispatchWebhooks(
           "Hub-Delivery": d.id,
           "Hub-Timestamp": timestamp,
           "Hub-Signature": signWebhook(secret, timestamp, body),
+          "X-Hub-Signature-256": signWebhookBody(secret, body),
         },
         body,
         signal: AbortSignal.timeout(10_000),
