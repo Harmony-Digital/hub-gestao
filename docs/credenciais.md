@@ -19,7 +19,7 @@ Nenhum valor secreto entra em chat, commit, log, comentário de tarefa ou docume
 | `RESEND_API_KEY` | E-mails do portal do cliente | só no servidor | Fábio, no M6 |
 | `GITHUB_WEBHOOK_SECRET` | Valida a assinatura dos eventos do GitHub (`/api/internal/webhooks/github`); 32 caracteres ou mais; sem ele, o webhook recusa tudo | `.env.production` e o campo Secret do webhook em cada repositório (`docs/github-webhook.md`) | Fábio gera e grava (passo do M4) |
 | `LLM_MONTHLY_BUDGET_USD` | Teto global de gasto com IA | servidor | 30, decisão D5 |
-| `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `XAI_API_KEY` | Alternativa só para desenvolvimento local | só `.env.local` | Fábio |
+| `HUB_DEV_FAKE_LLM` | Modelo de IA simulado (`on`): no computador, as telas de IA respondem sem chamar provedor (`src/lib/llm/dev-fake.ts`); o build de produção remove esse código | só `.env.local` e testes de ponta a ponta | opcional; nunca existe em produção |
 | `DATABASE_URL` | Conexão do servidor com o banco (papel próprio do Hub, sem passe livre na RLS) | só `.env.production` | Fábio, no M2, depois de autorizar o papel de banco |
 | `HUB_DB_RUNTIME_ROLE` | Papel que o servidor assume em cada transação, se o login for diferente dele | só `.env.production` | definido no M2 |
 | `HUB_AUTH_MAGIC_LINK` | Liga o link de acesso por e-mail na tela de login (`on`). Desligado até o Fábio autorizar, no Supabase compartilhado, o endereço de retorno do Hub e o envio de e-mails | servidor | Fábio |

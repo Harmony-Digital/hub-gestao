@@ -2,9 +2,18 @@ import "server-only";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createXai } from "@ai-sdk/xai";
-import { generateText, type LanguageModel } from "ai";
+import {
+  generateText,
+  NoObjectGeneratedError,
+  NoOutputGeneratedError,
+  Output,
+  type Instructions,
+  type LanguageModel,
+  type LanguageModelUsage,
+} from "ai";
+import type { z } from "zod";
 import { log } from "@/lib/log";
-import { maybeOne, S, type TxCtx } from "@/modules/context";
+import { inTx, maybeOne, S, type Ctx, type TxCtx } from "@/modules/context";
 import { credentialSecret } from "@/modules/llm/credentials";
 import type { LlmProvider } from "@/modules/llm/providers";
 
@@ -20,11 +29,19 @@ import type { LlmProvider } from "@/modules/llm/providers";
  * no orçamento do mês do agente e no teto do workspace (LLM_MONTHLY_BUDGET_USD); depois,
  * o custo real fica em `agent_runs` e no gasto do mês. Prompt e chave nunca vão para o
  * log nem para o histórico.
+ *
+ * Recebe o contexto (não uma transação aberta): a leitura da configuração e o registro da
+ * execução usam transações curtas próprias, e a chamada ao provedor acontece fora delas.
+ * Assim o banco não fica preso esperando o provedor, e o custo fica registrado mesmo que
+ * quem chamou falhe depois.
  */
 
 export type LlmRequest = {
   agentId: string;
-  /** Para que é a chamada (ex.: "CO-10 interpretação"): vai para o registro. */
+  /**
+   * Para que é a chamada, com o prompt e a versão (ex.: "Concierge · CO-10/interpretar@1"):
+   * vai para o registro da execução.
+   */
   purpose: string;
   instructions: string;
   prompt: string;
@@ -39,18 +56,25 @@ export type LlmRefusal =
   | "no_price"
   | "budget_exceeded"
   | "workspace_budget_exceeded"
-  | "provider_error";
+  | "provider_error"
+  | "invalid_output";
 
-export type LlmResult =
-  | {
-      ok: true;
-      text: string;
-      provider: LlmProvider;
-      model: string;
-      usage: { inputTokens: number; outputTokens: number };
-      costUsd: number;
-    }
-  | { ok: false; reason: LlmRefusal; detail: string };
+type Usage = { inputTokens: number; outputTokens: number };
+
+/** O que toda chamada respondida devolve, além do texto ou do objeto. */
+type Answered = {
+  provider: LlmProvider;
+  model: string;
+  usage: Usage;
+  costUsd: number;
+};
+
+export type LlmFailure = { ok: false; reason: LlmRefusal; detail: string };
+
+export type LlmResult = ({ ok: true; text: string } & Answered) | LlmFailure;
+
+export type LlmObjectResult<T> =
+  ({ ok: true; object: T } & Answered) | LlmFailure;
 
 export type ModelFactory = (
   provider: LlmProvider,
@@ -100,7 +124,7 @@ function workspaceBudget(deps: LlmDeps): number | null {
   return Number.isFinite(value) && value > 0 ? value : null;
 }
 
-const refuse = (reason: LlmRefusal, detail: string): LlmResult => ({
+const refuse = (reason: LlmRefusal, detail: string): LlmFailure => ({
   ok: false,
   reason,
   detail,
@@ -113,6 +137,11 @@ export function costOf(
 ): number {
   return (usage.inputTokens * price.in + usage.outputTokens * price.out) / 1e6;
 }
+
+const tokens = (usage: LanguageModelUsage | undefined): Usage => ({
+  inputTokens: usage?.inputTokens ?? 0,
+  outputTokens: usage?.outputTokens ?? 0,
+});
 
 /**
  * Recalcula o gasto do mês a partir das execuções: de um agente, depois de cada chamada,
@@ -135,11 +164,90 @@ export async function refreshAgentSpend(
   return rows.rows.length;
 }
 
+/** Texto livre: a resposta do modelo. */
 export async function generate(
-  t: TxCtx,
+  ctx: Ctx,
   request: LlmRequest,
   deps: LlmDeps = {},
 ): Promise<LlmResult> {
+  const result = await run(ctx, request, deps, async (options) => {
+    const answer = await generateText(options);
+    return { text: answer.text, output: undefined, usage: answer.usage };
+  });
+  if (!result.ok) return result;
+  return {
+    ok: true,
+    text: result.text,
+    provider: result.provider,
+    model: result.model,
+    usage: result.usage,
+    costUsd: result.costUsd,
+  };
+}
+
+/**
+ * Resposta estruturada, conferida pelo esquema (zod). Se o modelo responder fora do
+ * formato, volta a recusa `invalid_output`, com a chamada registrada pelo que gastou.
+ * Esquemas com campos obrigatórios e `null` para "não se aplica" funcionam nos três
+ * provedores (o modo estrito da OpenAI não aceita campo opcional).
+ */
+export async function generateObject<T>(
+  ctx: Ctx,
+  request: LlmRequest & {
+    schema: z.ZodType<T>;
+    /** Nome e descrição do objeto, que alguns provedores usam como guia. */
+    schemaName?: string;
+    schemaDescription?: string;
+  },
+  deps: LlmDeps = {},
+): Promise<LlmObjectResult<T>> {
+  const result = await run(ctx, request, deps, async (options) => {
+    const answer = await generateText({
+      ...options,
+      output: Output.object({
+        schema: request.schema,
+        name: request.schemaName,
+        description: request.schemaDescription,
+      }),
+    });
+    // Ler `output` confere o formato (e lança o erro do formato, tratado em run).
+    return { text: answer.text, output: answer.output, usage: answer.usage };
+  });
+  if (!result.ok) return result;
+  return {
+    ok: true,
+    object: result.output as T,
+    provider: result.provider,
+    model: result.model,
+    usage: result.usage,
+    costUsd: result.costUsd,
+  };
+}
+
+type CallOptions = {
+  model: LanguageModel;
+  instructions: Instructions;
+  prompt: string;
+  maxOutputTokens: number;
+  abortSignal: AbortSignal;
+};
+
+type Ready = {
+  ok: true;
+  agentId: string;
+  provider: LlmProvider;
+  model: string;
+  key: string;
+  price: { in: number; out: number };
+  maxOutputTokens: number;
+};
+
+/** Confere agente, modelo, chave, preço e saldo (transação curta, antes da chamada). */
+async function prepare(
+  t: TxCtx,
+  request: LlmRequest,
+  deps: LlmDeps,
+): Promise<Ready | LlmFailure> {
   const agent = await maybeOne<AgentRow>(
     t,
     `select a.id, a.name, a.status::text as status, a.llm_provider::text as llm_provider,
@@ -216,13 +324,56 @@ export async function generate(
       `A chave de IA de ${agent.name} foi revogada ou não é do provedor escolhido.`,
     );
   }
+  return {
+    ok: true,
+    agentId: agent.id,
+    provider: agent.llm_provider,
+    model: agent.llm_model,
+    key: secret.key,
+    price,
+    maxOutputTokens,
+  };
+}
 
-  const provider = agent.llm_provider;
-  const model = agent.llm_model;
+/**
+ * Modelo simulado, só no computador (HUB_DEV_FAKE_LLM=on): as telas e os testes de ponta
+ * a ponta funcionam sem chamar provedor. O ramo some do build de produção.
+ */
+async function devModelFactory(): Promise<ModelFactory | null> {
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.HUB_DEV_FAKE_LLM === "on"
+  ) {
+    return (await import("./dev-fake")).fakeModel;
+  }
+  return null;
+}
+
+const INVALID_OUTPUT =
+  "A IA respondeu fora do formato esperado: tente de novo ou diga o pedido de outro jeito.";
+
+async function run(
+  ctx: Ctx,
+  request: LlmRequest,
+  deps: LlmDeps,
+  call: (
+    options: CallOptions,
+  ) => Promise<{ text: string; output: unknown; usage: LanguageModelUsage }>,
+): Promise<
+  ({ ok: true; text: string; output: unknown } & Answered) | LlmFailure
+> {
+  const ready = await inTx(ctx, (t) => prepare(t, request, deps));
+  if (!ready.ok) return ready;
+  const { agentId, provider, model, price } = ready;
+  const factory = deps.modelFor ?? (await devModelFactory()) ?? providerModel;
   const startedAt = new Date();
+  const record = (costUsd: number, error: string | null) =>
+    inTx(ctx, (t) =>
+      recordRun(t, agentId, request.purpose, startedAt, costUsd, error),
+    );
   try {
-    const result = await generateText({
-      model: (deps.modelFor ?? providerModel)(provider, secret.key, model),
+    const answer = await call({
+      model: factory(provider, ready.key, model),
       // Na Anthropic, as instruções (que se repetem) ficam em cache.
       instructions:
         provider === "anthropic"
@@ -235,18 +386,15 @@ export async function generate(
             }
           : request.instructions,
       prompt: request.prompt,
-      maxOutputTokens,
+      maxOutputTokens: ready.maxOutputTokens,
       abortSignal: AbortSignal.timeout(deps.timeoutMs ?? 60_000),
     });
-    const usage = {
-      inputTokens: result.usage.inputTokens ?? 0,
-      outputTokens: result.usage.outputTokens ?? 0,
-    };
+    const usage = tokens(answer.usage);
     const costUsd = costOf(usage, price);
-    await recordRun(t, agent.id, request.purpose, startedAt, costUsd, null);
+    await record(costUsd, null);
     log.info(
       {
-        agent_id: agent.id,
+        agent_id: agentId,
         provider,
         model,
         input_tokens: usage.inputTokens,
@@ -255,13 +403,36 @@ export async function generate(
       },
       "chamada de IA",
     );
-    return { ok: true, text: result.text, provider, model, usage, costUsd };
+    return {
+      ok: true,
+      text: answer.text,
+      output: answer.output,
+      provider,
+      model,
+      usage,
+      costUsd,
+    };
   } catch (err) {
+    if (
+      NoObjectGeneratedError.isInstance(err) ||
+      NoOutputGeneratedError.isInstance(err)
+    ) {
+      // O modelo respondeu (e cobrou), mas fora do formato pedido.
+      const usage = NoObjectGeneratedError.isInstance(err)
+        ? tokens(err.usage)
+        : tokens(undefined);
+      await record(costOf(usage, price), INVALID_OUTPUT);
+      log.warn(
+        { agent_id: agentId, provider, model, error: "invalid_output" },
+        "IA respondeu fora do formato",
+      );
+      return refuse("invalid_output", INVALID_OUTPUT);
+    }
     // A mensagem do provedor pode citar a chave; para o registro, só o tipo do erro.
     const detail = providerErrorDetail(err);
-    await recordRun(t, agent.id, request.purpose, startedAt, 0, detail);
+    await record(0, detail);
     log.warn(
-      { agent_id: agent.id, provider, model, error: detail },
+      { agent_id: agentId, provider, model, error: detail },
       "IA falhou",
     );
     return refuse("provider_error", detail);
