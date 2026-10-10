@@ -13,7 +13,7 @@ Nenhum valor secreto entra em chat, commit, log, comentário de tarefa ou docume
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase compartilhado, usado pelo login da equipe (`https://supabase.harmonydigital.com.br`) | `.env.local` e build (entra na imagem, como toda `NEXT_PUBLIC_`) | fixo no workflow de publicação |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Chave pública (publishable) do Supabase, usada só pelo login; não é segredo, mas não vai para o repositório | `.env.local` e segredo do build `HUB_NEXT_PUBLIC_SUPABASE_ANON_KEY` | lida no MCP do Supabase; o Fábio cadastra o segredo |
 | `SUPABASE_SERVICE_ROLE_KEY` | Não é usada pelo servidor do Hub: o banco é acessado pelo `DATABASE_URL`, com o papel próprio e sem passe livre na RLS. Fica no modelo só como referência | — | — |
-| `HUB_API_KEY_PEPPER` | Tempero do hash das chaves de agente | só no servidor | gerado uma vez |
+| `HUB_API_KEY_PEPPER` | Tempero do hash das chaves de agente e dos links e sessões do portal do cliente (trocar invalida todos) | só no servidor | gerado uma vez |
 | `HUB_ENCRYPTION_KEY` | Cifra das chaves de IA guardadas no banco (AES-256-GCM, tela Chaves de IA da Sala de Controle) e dos segredos de webhook; 32 bytes em base64 ou 64 caracteres hexadecimais (por exemplo, `openssl rand -base64 32`). Sem ela, o Hub recusa guardar chave de IA | só no servidor | gerado uma vez, na VPS; se perder, as chaves de IA precisam ser recadastradas |
 | `CRON_SECRET` | Protege as rotas internas do agendador | servidor e timer da VPS | gerado |
 | `RESEND_API_KEY` | E-mails do portal do cliente | só no servidor | Fábio, no M6 |

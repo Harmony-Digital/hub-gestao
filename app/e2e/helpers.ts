@@ -7,6 +7,7 @@ export const SCREENS = [
   "/aprovacoes",
   "/caixa-de-entrada",
   "/clientes",
+  "/clientes/clinica-exemplo/portal",
   "/projetos",
   "/projetos/EXE",
   "/projetos/EXE/lista",
