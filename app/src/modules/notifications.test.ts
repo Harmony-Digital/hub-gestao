@@ -178,6 +178,20 @@ describe("caixa de entrada", () => {
 });
 
 describe("textos dos avisos", () => {
+  it("tarefa reaberta pela verificação de evidência", () => {
+    expect(
+      describeNotification("task.reopened", {
+        task_code: "HUB-7",
+        project_code: "VIT",
+        title: "Publicar o fluxo",
+      }),
+    ).toEqual({
+      text: "HUB-7 foi reaberta: concluída sem evidência em VIT",
+      detail: "Publicar o fluxo",
+      href: "/projetos/VIT?tarefa=HUB-7",
+    });
+  });
+
   it("aprovações e trecho do comentário", () => {
     expect(
       describeNotification("approval.decided", {

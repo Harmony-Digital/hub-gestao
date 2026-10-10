@@ -12,6 +12,7 @@ import {
   PROJECT_STATUS,
   type Tone,
 } from "@/lib/labels";
+import { businessDaysBetween } from "@/modules/health/rule";
 
 /** O que a tela precisa de um pedido (o ApprovalDto, sem depender do servidor). */
 export type ApprovalLike = {
@@ -46,10 +47,15 @@ export type DecisionItem = {
   /** Prazo pedido para a decisão, se houver ("até 12/10"). */
   due: string | null;
   late: boolean;
+  /** Pedido parado há mais de 3 dias úteis: quantos (senão, null). */
+  stalledDays: number | null;
   /** O que acontece ao aprovar, numa frase que começa em minúscula. */
   effect: string;
   details: { label: string; value: string }[];
 };
+
+/** Mesma regra do aviso automático (job approval-aging): mais de 3 dias úteis. */
+const STALLED_AFTER = 3;
 
 const NOTHING_AUTOMATIC =
   "nada muda sozinho: a decisão fica registrada e quem pediu segue a partir dela.";
@@ -139,6 +145,13 @@ export function approvalDetails(
   return out;
 }
 
+/** Dias úteis desde o pedido, quando passam de 3 e o pedido ainda espera decisão. */
+function stalled(a: ApprovalLike, now: Date): number | null {
+  if (a.status !== "pending") return null;
+  const days = businessDaysBetween(new Date(a.created_at), now);
+  return days > STALLED_AFTER ? days : null;
+}
+
 export function decisionView(a: ApprovalLike, now: Date): DecisionItem {
   const type = Object.hasOwn(APPROVAL_TYPE, a.type)
     ? APPROVAL_TYPE[a.type]
@@ -161,6 +174,7 @@ export function decisionView(a: ApprovalLike, now: Date): DecisionItem {
     age: formatAge(a.created_at, now),
     due: a.due_at ? `até ${formatTimestampDay(a.due_at)}` : null,
     late: Number.isFinite(dueTime) && dueTime < now.getTime(),
+    stalledDays: stalled(a, now),
     effect: approvalEffect(a.type, a.payload),
     details: approvalDetails(a.payload),
   };

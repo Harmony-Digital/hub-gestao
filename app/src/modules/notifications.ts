@@ -25,7 +25,7 @@ export const GROUP_LABEL: Record<NotificationGroup, string> = {
 
 export function groupOf(type: string): NotificationGroup | null {
   if (type === "mention") return "mention";
-  if (type === "task.assigned") return "assignment";
+  if (type === "task.assigned" || type === "task.reopened") return "assignment";
   if (type === "task.blocked") return "blocked";
   if (type.startsWith("approval.") || type.startsWith("report.")) {
     return "approval";
@@ -139,6 +139,12 @@ export function describeNotification(
     case "task.assigned":
       return {
         text: `${who} passou ${task ?? "uma tarefa"} para você`,
+        detail: str(payload.title),
+        href: taskHref,
+      };
+    case "task.reopened":
+      return {
+        text: `${task ?? "Uma tarefa"} foi reaberta: concluída sem evidência${project ? ` em ${project}` : ""}`,
         detail: str(payload.title),
         href: taskHref,
       };

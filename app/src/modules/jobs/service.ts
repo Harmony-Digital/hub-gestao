@@ -12,7 +12,9 @@ import {
 } from "@/modules/context";
 import { refreshAllHealth } from "@/modules/health/service";
 import { businessDaysBetween } from "@/modules/health/rule";
-import { notifyOwners } from "@/modules/notifications";
+import { attempt } from "@/modules/attempt";
+import { notifyOwners, notifyProfile } from "@/modules/notifications";
+import { reopenTask } from "@/modules/tasks/service";
 
 /**
  * Fila de jobs no Postgres (PRD ADR 7: sem Redis na v1). O systemd timer da VPS chama
@@ -23,6 +25,7 @@ import { notifyOwners } from "@/modules/notifications";
 export type JobType =
   | "health-rollup"
   | "approval-aging"
+  | "evidence-check"
   | "webhook-dispatch"
   | "idempotency-cleanup";
 
@@ -30,6 +33,7 @@ export type JobType =
 export const PERIODIC_JOBS: { type: JobType; everyMinutes: number }[] = [
   { type: "health-rollup", everyMinutes: 15 },
   { type: "approval-aging", everyMinutes: 60 },
+  { type: "evidence-check", everyMinutes: 60 },
   { type: "webhook-dispatch", everyMinutes: 1 },
   { type: "idempotency-cleanup", everyMinutes: 60 },
 ];
@@ -95,6 +99,8 @@ async function runJob(
       return inTx(ctx, (t) => refreshAllHealth(t, now));
     case "approval-aging":
       return inTx(ctx, (t) => approvalAging(t, now));
+    case "evidence-check":
+      return inTx(ctx, (t) => evidenceCheck(t));
     case "idempotency-cleanup":
       return inTx(ctx, async (t) => {
         const rows = await many(
@@ -108,6 +114,52 @@ async function runJob(
     default:
       throw new Error(`Tipo de job desconhecido: ${job.type}`);
   }
+}
+
+/**
+ * Conclusão sem evidência em projeto que exige evidência (base determinística do Guardião
+ * da Qualidade, QA-04): a tarefa é reaberta, com o motivo no comentário, e quem cuida dela
+ * recebe aviso (a pessoa responsável; se for de agente ou de ninguém, o dono).
+ */
+async function evidenceCheck(t: TxCtx): Promise<{ reopened: string[] }> {
+  const rows = await many<{
+    code: string;
+    title: string;
+    project_code: string;
+    assignee_type: string | null;
+    assignee_id: string | null;
+  }>(
+    t,
+    `select k.code, k.title, p.code as project_code, k.assignee_type, k.assignee_id
+       from ${S}.tasks k join ${S}.projects p on p.id = k.project_id
+      where k.status_category = 'done' and k.archived_at is null
+        and p.require_evidence and p.archived_at is null
+        and coalesce(btrim(k.done_evidence), '') = ''
+      order by k.code`,
+  );
+  const reopened: string[] = [];
+  for (const row of rows) {
+    const done = await attempt(t, () =>
+      reopenTask(t, row.code, {
+        reason:
+          "concluída sem evidência num projeto que exige evidência. Conclua de novo com a evidência (SHA, URL, arquivo ou teste).",
+      }),
+    );
+    if (!done.ok) continue;
+    reopened.push(row.code);
+    const entity = { type: "task", id: done.value.id };
+    const payload = {
+      task_code: row.code,
+      project_code: row.project_code,
+      title: row.title,
+    };
+    if (row.assignee_type === "user" && row.assignee_id) {
+      await notifyProfile(t, row.assignee_id, "task.reopened", entity, payload);
+    } else {
+      await notifyOwners(t, "task.reopened", entity, payload);
+    }
+  }
+  return { reopened };
 }
 
 /** Aprovação parada há mais de 3 dias úteis: avisa o owner, no máximo uma vez por dia. */

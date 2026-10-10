@@ -28,6 +28,7 @@ describe("fila de jobs", () => {
     expect(first.enqueued.sort()).toEqual(
       [
         "approval-aging",
+        "evidence-check",
         "health-rollup",
         "idempotency-cleanup",
         "webhook-dispatch",
@@ -37,6 +38,56 @@ describe("fila de jobs", () => {
     const second = await tick(h.db, h.ws, { encryptionKey: key });
     expect(second.enqueued).toEqual([]);
     expect(second.ran).toEqual([]);
+  });
+
+  it("conclusão sem evidência em projeto que exige é reaberta, com comentário e aviso", async () => {
+    // Concluída quando o projeto ainda não exigia evidência; depois passou a exigir.
+    const owner = ctxFor(h, h.owner_actor, "ui");
+    const task = await inTx(owner, (t) =>
+      createTask(t, { project: "VIT", title: "Concluída sem prova" }),
+    );
+    await h.raw.query(
+      `update ${S}.projects set require_evidence = false where id = $1`,
+      [h.vit],
+    );
+    await h.raw.query(
+      `update ${S}.tasks set status_id = (
+         select id from ${S}.task_statuses where project_id = $1 and category = 'done' limit 1)
+        where code = $2`,
+      [h.vit, task.code],
+    );
+    await h.raw.query(
+      `update ${S}.projects set require_evidence = true where id = $1`,
+      [h.vit],
+    );
+    await h.raw.query(
+      `delete from ${S}.jobs where type = 'evidence-check' and status = 'done'`,
+    );
+    const result = await tick(h.db, h.ws, { encryptionKey: key });
+    const check = result.ran.find((r) => r.type === "evidence-check");
+    expect(check?.result).toEqual({ reopened: [task.code] });
+    const row = await h.raw.query<{ status_category: string }>(
+      `select status_category from ${S}.tasks where code = $1`,
+      [task.code],
+    );
+    expect(row.rows[0].status_category).toBe("todo");
+    expect(
+      await count(
+        h,
+        `select count(*)::int as n from ${S}.comments c join ${S}.tasks k on k.id = c.entity_id
+          where k.code = $1 and c.body_md like 'Reaberta: concluída sem evidência%'`,
+        [task.code],
+      ),
+    ).toBe(1);
+    // Sem responsável: o aviso vai para o dono.
+    expect(
+      await count(
+        h,
+        `select count(*)::int as n from ${S}.notifications
+          where type = 'task.reopened' and profile_id = $1 and payload ->> 'task_code' = $2`,
+        [h.owner, task.code],
+      ),
+    ).toBe(1);
   });
 
   it("saúde muda quando muitas tarefas ficam bloqueadas, com registro e evento", async () => {

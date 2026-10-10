@@ -238,3 +238,30 @@ describe("histórico de decisões", () => {
     ).toBe("o projeto sai de Em revisão e fica como Ativo.");
   });
 });
+
+describe("pedido parado", () => {
+  it("marca o pedido que espera há mais de 3 dias úteis", () => {
+    // Sexta, 2 de outubro de 2026; sexta seguinte, 9 de outubro: 5 dias úteis.
+    const friday = "2026-10-02T12:00:00Z";
+    expect(
+      decisionView(
+        approval({ created_at: friday }),
+        new Date("2026-10-09T12:00:00Z"),
+      ).stalledDays,
+    ).toBe(5);
+    // Terça seguinte: 2 dias úteis, ainda não.
+    expect(
+      decisionView(
+        approval({ created_at: friday }),
+        new Date("2026-10-06T12:00:00Z"),
+      ).stalledDays,
+    ).toBeNull();
+    // Já decidido: nunca.
+    expect(
+      decisionView(
+        approval({ created_at: friday, status: "approved" }),
+        new Date("2026-10-30T12:00:00Z"),
+      ).stalledDays,
+    ).toBeNull();
+  });
+});
