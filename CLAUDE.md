@@ -11,7 +11,7 @@ Projeto: **Hub de Gestão da Harmony Digital**. Sistema de gestão de projetos, 
   - `/agentes` (Sala de Controle): números do dia, feed ao vivo do que os agentes fazem (filtros por agente e projeto), recusas de acesso (401, 403 e 423, tabela `agent_denials`) e custo de IA do mês; cadastro completo de agentes (departamento, missão, orçamento de IA, responsável), Editar, Pausar e Reativar, e chaves com exibição única;
   - `/conta`: a própria pessoa define a senha;
   - agentes operam por MCP e REST em produção: o Claude Code concluiu a HUB-1 em 2026-10-10.
-- **Próximo:** a semana de uso real (GATE M3) começa quando o Fábio quiser. Em paralelo, o restante do M3: testes Playwright e revisão de acessibilidade; depois o restante da lista do plano.
+- **Próximo:** a semana de uso real (GATE M3) começa quando o Fábio quiser. Em paralelo, o restante do M3: revisão de acessibilidade (axe) e de identidade; depois o restante da lista do plano.
 - **Aberto com o Fábio:** destino da cópia do backup fora da VPS (D8); se quiser, o texto do e-mail do link de acesso (hoje sai com o modelo do IA Posicionamento).
 - Detalhe de cada item, com evidência, em `PLAN.md` (seção "Onde estamos" e checklist). Este resumo não substitui o plano.
 
@@ -47,6 +47,7 @@ npm run typecheck # next typegen + tsc --noEmit
 npm test          # Vitest (banco local PGlite com as migrations e o seed)
 npm run build     # produção
 npm run check     # formato + lint + tipos + testes + build (obrigatório antes de marcar [x])
+npm run e2e       # Playwright (app/e2e); no computador, usa o servidor que já estiver na porta 3100
 ```
 
 Nenhum trabalho é "pronto" sem `npm run check` verde, verificação real (navegador, banco ou chamada de API) e evidência registrada no `PLAN.md`.
@@ -57,7 +58,7 @@ Nenhum trabalho é "pronto" sem `npm run check` verde, verificação real (naveg
 
 ## Entrega de uma mudança
 
-Ramo `feat/…`, `fix/…` ou `docs/…` a partir de `origin/main` → `npm run check` → conferência real → PR (o corpo termina com a linha do Claude Code) → CI verde nos dois jobs → squash merge → acompanhar a publicação → `/api/health` com o SHA → `PLAN.md` com a evidência. **Todo merge na `main` vai para produção.** O painel de PR do app Claude não acompanha este repositório (é subpasta da pasta da sessão): acompanhar o CI pelo `gh run watch`.
+Ramo `feat/…`, `fix/…` ou `docs/…` a partir de `origin/main` → `npm run check` → conferência real → PR (o corpo termina com a linha do Claude Code) → CI verde nos três jobs → squash merge → acompanhar a publicação → `/api/health` com o SHA → `PLAN.md` com a evidência. **Todo merge na `main` vai para produção.** O painel de PR do app Claude não acompanha este repositório (é subpasta da pasta da sessão): acompanhar o CI pelo `gh run watch`.
 
 ## Acessos (preflight fail-closed, antes de qualquer escrita)
 

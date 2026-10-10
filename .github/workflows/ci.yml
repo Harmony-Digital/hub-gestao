@@ -45,6 +45,42 @@ jobs:
       - name: Build de produção
         run: npm run build
 
+  ponta-a-ponta:
+    name: Ponta a ponta (Playwright)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v5
+      - name: Preparar Node.js 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Instalar dependências
+        run: npm ci
+      - name: Instalar o Chromium do Playwright
+        run: npx playwright install --with-deps chromium
+      # Sobe o `next dev` com um banco local novo, o login de teste e o projeto EXE
+      # (configuração em app/playwright.config.ts).
+      - name: Testes de ponta a ponta
+        run: npm run e2e
+      - name: Relatório dos testes em caso de falha
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: relatorio-playwright
+          path: |
+            app/playwright-report
+            app/test-results
+          retention-days: 7
+
   imagem:
     name: Imagem de produção e contêiner
     runs-on: ubuntu-24.04

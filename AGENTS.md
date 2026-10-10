@@ -98,8 +98,9 @@ hub-gestao/
 │   │                                  #   (peças de formulário e janela) e ui (shadcn)
 │   ├── src/test/hub.ts                # ambiente de teste: PGlite com migrations, seed, projeto VIT,
 │   │                                  #   agentes e chaves criados pelo caminho real
+│   ├── e2e/                           # testes de ponta a ponta (Playwright) e playwright.config.ts
 │   └── scripts/cron-tick.mjs          # relógio dos jobs, chamado pelo timer da VPS
-├── supabase/migrations/ · seeds/      # hub_gestao_0001 a 0010 e o seed da Harmony
+├── supabase/migrations/ · seeds/      # hub_gestao_0001 a 0014 e o seed da Harmony
 ├── deploy/vps/                        # Dockerfile, compose, rota do Traefik, timers, publicação,
 │                                      #   backup e provisionamento (README com o passo a passo)
 ├── scripts/                           # conectar o Claude Code à produção e teste MCP de produção
@@ -107,7 +108,7 @@ hub-gestao/
 └── .github/workflows/                 # ci.yml ("Qualidade") e deploy-vps.yml ("Publicação na VPS")
 ```
 
-Ainda não existem: portal do cliente (`src/app/portal/`, M6), CLI `hub` (`packages/cli/`, M4), skills do Kratos versionadas (`agents/hermes/`, M5) e testes Playwright (M3). Os testes ficam ao lado do código (`*.test.ts`), não numa pasta `tests/`.
+Ainda não existem: portal do cliente (`src/app/portal/`, M6), CLI `hub` (`packages/cli/`, M4) e skills do Kratos versionadas (`agents/hermes/`, M5). Os testes de unidade e integração ficam ao lado do código (`*.test.ts`), não numa pasta `tests/`; os de ponta a ponta ficam em `app/e2e/`.
 
 ### 5.2 Convenções
 
@@ -123,7 +124,7 @@ Ainda não existem: portal do cliente (`src/app/portal/`, M6), CLI `hub` (`packa
 - **Textos para cliente** vivem em campos próprios (`title_client`, `description_client`, `summary_client`). Nunca derivar automaticamente do texto interno.
 - **UI**: shadcn/ui + Tailwind v4 com tokens Harmony (`PRD.md` §14). Sem emojis. Ícones `lucide-react`. Texto PT-BR. Acessível: foco visível, contraste AA, `lang="pt-BR"`, rótulos e avisos em PT-BR para leitor de tela.
 - **Telas que mudam dados**: cada ação de formulário lê o `FormData` com um parser puro e testado, roda o caso de uso numa transação e atualiza a tela; mudança concorrente (versão velha da tarefa, 412) atualiza a tela e avisa. Mensagens de erro para pessoas mostram o nome do campo em PT-BR. Detalhes e regras do Next.js 16 em `app/AGENTS.md`.
-- **Testes**: Vitest (unidade e integração) com banco local PGlite (o mesmo Postgres 17), RLS com dois workspaces e papel cliente, e contratos de API e MCP (snapshot do OpenAPI e da lista de tools). Previstos e ainda não feitos: Testing Library (componentes) e Playwright (fluxos críticos: criar tarefa, mover no quadro, concluir com evidência, aprovação, portal do cliente).
+- **Testes**: Vitest (unidade e integração) com banco local PGlite (o mesmo Postgres 17), RLS com dois workspaces e papel cliente, e contratos de API e MCP (snapshot do OpenAPI e da lista de tools). Playwright (`app/e2e/`, `npm run e2e`) para os fluxos críticos no navegador: a jornada criar tarefa → mover no Quadro → concluir com evidência → aprovar no Hoje já roda no CI; o portal do cliente entra no M6. Previsto e ainda não feito: Testing Library (componentes).
 - **Commits**: PT-BR, imperativo, descritivos. Exemplo: `Adiciona rollup de progresso por marco (HUB-57)`.
 
 ## 6. Segurança e acessos
@@ -176,7 +177,7 @@ Contatos e conteúdos de clientes ficam no schema do Hub com RLS por `workspace_
 
 ## 8. Deploy e operação (resumo; detalhes no `PRD.md` §13 e em `deploy/vps/README.md`)
 
-- Merge na `main` → CI **"Qualidade"**: formato, lint, tipos, testes e build, mais a imagem de produção testada com as restrições da VPS (inclusive a recusa do login de teste) → **"Publicação na VPS"** (só com a variável `HUB_DEPLOY_ENABLED=true`): imagem sem segredos enviada por SSH restrito (usuário `hubdeploy`, só o comando `load <sha>`) → troca do contêiner → saúde em `/api/health` com o SHA → volta à versão anterior se falhar. Mesmo padrão do Certato, com nomes `hub-*`.
+- Merge na `main` → CI **"Qualidade"**: formato, lint, tipos, testes e build, os testes de ponta a ponta (Playwright, no `next dev` com banco local novo), mais a imagem de produção testada com as restrições da VPS (inclusive a recusa do login de teste) → **"Publicação na VPS"** (só com a variável `HUB_DEPLOY_ENABLED=true`): imagem sem segredos enviada por SSH restrito (usuário `hubdeploy`, só o comando `load <sha>`) → troca do contêiner → saúde em `/api/health` com o SHA → volta à versão anterior se falhar. Mesmo padrão do Certato, com nomes `hub-*`.
 - Contêiner `hub-app`: usuário 1001, sistema de arquivos somente leitura, sem capabilities, limites de 1,5 CPU e 2 GB, redes `hub_proxy` (Traefik) e `supabase_default` (banco). Rota do Traefik em `/etc/easypanel/traefik/config/hub.yaml`, com Let's Encrypt e cabeçalhos de segurança.
 - Jobs determinísticos: timer `hub-cron` a cada 5 minutos chama o relógio de dentro do contêiner (`app/scripts/cron-tick.mjs`). Raciocínio de agentes fica no Hermes.
 - Backup (D8): timer `hub-backup` diário às 06:00 UTC, `pg_dump` do schema com 14 dias de retenção em `/opt/hub-gestao/backups`. A cópia fora da VPS espera o destino escolhido pelo Fábio.
