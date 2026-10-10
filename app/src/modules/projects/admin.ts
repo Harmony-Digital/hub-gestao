@@ -512,3 +512,16 @@ export async function updateProject(
   });
   return getProject(t, ref.code);
 }
+
+/** Departamentos do workspace, para os formulários (frente, projeto). */
+export async function departmentOptions(
+  t: TxCtx,
+): Promise<ProjectFormOptions["departments"]> {
+  authorize(t.actor, "project.read");
+  return many(
+    t,
+    `select slug, name, color from ${S}.departments
+      where workspace_id = $1 order by sort_order, name`,
+    [t.actor.workspaceId],
+  );
+}

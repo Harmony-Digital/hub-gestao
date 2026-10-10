@@ -40,13 +40,16 @@ As instruções canônicas do projeto estão em `../AGENTS.md` e valem integralm
   - `kanban.tsx` e `board-state.ts`: quadro, com `@dnd-kit/core` 6.3.1 em versão fixa;
   - `workstream-filter.tsx` e `params.ts`: filtro por frente e leitura do endereço;
   - `actions.ts` e `form.ts`: ações de formulário e leitura do `FormData`.
+- Marcos e frentes da Visão geral: pasta privada `_plan/` (`milestone-dialog.tsx`, `workstream-dialog.tsx`, `actions.ts` e `form.ts`).
 - Dados das telas vêm de funções de leitura em `src/modules` (ex.: `modules/tasks/board.ts`, `modules/projects/overview.ts`). Mudanças passam sempre pelos casos de uso, com autorização, auditoria e `source = ui`.
 - Ação de formulário:
   - `actionContext()` fica fora do `try`: sem sessão, o redirecionamento para o login não pode ser engolido como erro comum;
   - parser puro e testado do `FormData` (`form.ts`) e caso de uso dentro de `inTx`;
   - `refresh()` no sucesso; erro para a tela por `actionErrorMessage()`, que usa `screenMessage()` (nome do campo em PT-BR);
   - versão velha da tarefa (412) atualiza a tela e avisa.
-- Formulário com texto digitado usa `useSubmit` (`onSubmit` + `startTransition`), porque o `<form action>` do React 19 apaga os campos mesmo quando a ação devolve erro. `useSubmit`, `ErrorNote` e as classes dos campos ficam em `src/components/forms.tsx`; o tipo `ActionState` e o `IDLE`, em `src/lib/action-state.ts`.
+- Formulário com texto digitado usa `useSubmit` (`onSubmit` + `startTransition`), porque o `<form action>` do React 19 apaga os campos mesmo quando a ação devolve erro. `useSubmit`, `ErrorNote`, `Field` e as classes dos campos ficam em `src/components/forms.tsx`; o tipo `ActionState` e o `IDLE`, em `src/lib/action-state.ts`.
+- Formulário em janela: `FormDialog` (`src/components/form-dialog.tsx`), com `<dialog>` nativo. O formulário só é montado na primeira abertura e recomeça limpo a cada abertura; clicar fora não fecha (Esc e Cancelar fecham). A janela fica em estado, não em ref: a função de fechar vai para o formulário durante a renderização, e a regra do React não deixa usar ref nesse momento.
+- Texto só para leitor de tela (`sr-only`, de posição absoluta) dentro de área com rolagem horizontal: a área leva `relative`, senão o texto escondido alarga a página no celular.
 - Pedidos de aprovação: `src/app/(interno)/_approvals/` (cartões de decisão, textos de cada tipo e a ação `decidirPedido`), usados pela tela Hoje e pela de Aprovações.
 - Texto livre com links (descrição, comentário, evidência): `Linkified`, que só transforma http e https em link.
 - O jsonb do Postgres não guarda a ordem das chaves: texto montado a partir de `before` e `after` do histórico usa ordem fixa (ver `describeTaskEvent`).

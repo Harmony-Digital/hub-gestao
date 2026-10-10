@@ -81,8 +81,9 @@ hub-gestao/
 ├── AGENTS.md · CLAUDE.md · PRD.md · AGENTES.md · PLAN.md · README.md
 ├── app/                               # Next.js 16.4: telas, API REST v1 e MCP
 │   ├── src/app/(interno)/             # telas da equipe: Hoje (/), projetos, agentes, conta
-│   │   └── projetos/[code]/           # Visão geral (page.tsx), lista/, quadro/ e _tasks/ (cabeçalho com
-│   │                                  #   abas, painel da tarefa, formulários, ações, Kanban, filtro)
+│   │   └── projetos/[code]/           # Visão geral (page.tsx), lista/, quadro/, _tasks/ (cabeçalho com
+│   │                                  #   abas, painel da tarefa, formulários, ações, Kanban, filtro) e
+│   │                                  #   _plan/ (janelas de marco e de frente)
 │   ├── src/app/login/ · auth/         # login (Supabase Auth) e retorno do link de acesso
 │   ├── src/app/api/v1/…               # REST para agentes e integrações (OpenAPI 3.1)
 │   ├── src/app/api/health/ · api/internal/cron/   # saúde e relógio dos jobs
@@ -93,7 +94,8 @@ hub-gestao/
 │   │                                  #   health, jobs, mcp, shell
 │   ├── src/lib/                       # authorize, audit, idempotency, auth, db (pg e PGlite), errors,
 │   │                                  #   format, labels, links, ui-context
-│   ├── src/components/                # shell (barra lateral, cabeçalho, selos) e ui (shadcn)
+│   ├── src/components/                # shell (barra lateral, cabeçalho, selos), forms e form-dialog
+│   │                                  #   (peças de formulário e janela) e ui (shadcn)
 │   ├── src/test/hub.ts                # ambiente de teste: PGlite com migrations, seed, projeto VIT,
 │   │                                  #   agentes e chaves criados pelo caminho real
 │   └── scripts/cron-tick.mjs          # relógio dos jobs, chamado pelo timer da VPS

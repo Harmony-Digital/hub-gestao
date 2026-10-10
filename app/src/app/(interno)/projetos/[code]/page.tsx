@@ -29,12 +29,28 @@ import {
 } from "@/lib/labels";
 import { pageContext } from "@/lib/ui-context";
 import { inTx } from "@/modules/context";
+import { pendingAcceptances } from "@/modules/milestones/admin";
+import { departmentOptions } from "@/modules/projects/admin";
 import {
   projectOverview,
   type ProjectOverview,
 } from "@/modules/projects/overview";
-import type { TaskSummary } from "@/modules/projects/schemas";
+import type {
+  MilestoneDto,
+  TaskSummary,
+  WorkstreamDto,
+} from "@/modules/projects/schemas";
 import { taskFormOptions } from "@/modules/tasks/board";
+import {
+  MilestoneButton,
+  RequestAcceptanceButton,
+  type MilestoneInitial,
+} from "./_plan/milestone-dialog";
+import {
+  WorkstreamButton,
+  type WorkstreamFormOptions,
+  type WorkstreamInitial,
+} from "./_plan/workstream-dialog";
 import { NewTaskButton } from "./_tasks/new-task";
 import { openTaskParam, PROJECT_CODE } from "./_tasks/params";
 import { ProjectHeader } from "./_tasks/project-header";
@@ -68,12 +84,16 @@ async function ProjectView({
   const { user, ctx } = await pageContext();
   let data: ProjectOverview;
   let options: Awaited<ReturnType<typeof taskFormOptions>>;
+  let departments: Awaited<ReturnType<typeof departmentOptions>>;
+  let pending: string[];
   try {
-    ({ data, options } = await inTx(ctx, async (t) => {
+    ({ data, options, departments, pending } = await inTx(ctx, async (t) => {
       const overview = await projectOverview(t, code);
       return {
         data: overview,
         options: await taskFormOptions(t, overview.project.id),
+        departments: await departmentOptions(t),
+        pending: await pendingAcceptances(t, overview.project.id),
       };
     }));
   } catch (err) {
@@ -86,6 +106,14 @@ async function ProjectView({
   const basePath = `/projetos/${code}`;
   const open = openTaskParam(query.tarefa);
   const hrefFor = (task: string) => taskHref(basePath, {}, task);
+  const canWriteMilestones = can(user.actor, "milestone.write");
+  const canWriteWorkstreams = can(user.actor, "workstream.write");
+  const workstreamOptions: WorkstreamFormOptions = {
+    milestones: data.milestones.map((m) => ({ code: m.code, title: m.title })),
+    departments,
+    assignees: options.assignees,
+    canShowClient: can(user.actor, "workstream.visibility"),
+  };
 
   return (
     <>
@@ -121,10 +149,19 @@ async function ProjectView({
             n={1}
             title="Estratégica"
             heading="Marcos e entregas"
-            note="O cliente vê sempre"
+            note="O cliente vê, exceto os internos"
             icon={<Eye aria-hidden="true" className="size-3.5" />}
+            action={
+              canWriteMilestones ? <MilestoneButton projectCode={code} /> : null
+            }
           >
-            <Milestones data={data} />
+            <Milestones
+              data={data}
+              projectCode={code}
+              canWrite={canWriteMilestones}
+              canRequest={can(user.actor, "approval.request")}
+              pending={pending}
+            />
           </Layer>
 
           <Layer
@@ -133,8 +170,21 @@ async function ProjectView({
             heading="Frentes por departamento"
             note="O cliente vê só as frentes marcadas"
             icon={<Eye aria-hidden="true" className="size-3.5" />}
+            action={
+              canWriteWorkstreams ? (
+                <WorkstreamButton
+                  projectCode={code}
+                  options={workstreamOptions}
+                />
+              ) : null
+            }
           >
-            <Workstreams data={data} />
+            <Workstreams
+              data={data}
+              projectCode={code}
+              canWrite={canWriteWorkstreams}
+              options={workstreamOptions}
+            />
           </Layer>
 
           <Layer
@@ -167,6 +217,7 @@ function Layer({
   heading,
   note,
   icon,
+  action,
   children,
 }: {
   n: number;
@@ -174,6 +225,8 @@ function Layer({
   heading: string;
   note: string;
   icon: ReactNode;
+  /** Botão da camada (ex.: Novo marco), só para quem pode. */
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -193,10 +246,13 @@ function Layer({
             {heading}
           </h2>
         </div>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-off-2 px-2.5 py-1 text-xs text-ink-2">
-          {icon}
-          {note}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-off-2 px-2.5 py-1 text-xs text-ink-2">
+            {icon}
+            {note}
+          </span>
+          {action}
+        </div>
       </div>
       {children}
     </section>
@@ -211,7 +267,37 @@ function Empty({ children }: { children: ReactNode }) {
   );
 }
 
-function Milestones({ data }: { data: ProjectOverview }) {
+/** O marco no formato do formulário de edição; aceito não se edita mais. */
+function milestoneInitial(m: MilestoneDto): MilestoneInitial | null {
+  const status = m.status;
+  if (status === "accepted") return null;
+  return {
+    id: m.id,
+    code: m.code,
+    title: m.title,
+    title_client: m.title_client,
+    description_client: m.description_client,
+    due_date: m.due_date,
+    status,
+    visibility: m.visibility,
+    acceptance_criteria: m.acceptance_criteria,
+  };
+}
+
+function Milestones({
+  data,
+  projectCode,
+  canWrite,
+  canRequest,
+  pending,
+}: {
+  data: ProjectOverview;
+  projectCode: string;
+  canWrite: boolean;
+  canRequest: boolean;
+  /** Marcos com pedido de aceite esperando decisão. */
+  pending: string[];
+}) {
   if (data.milestones.length === 0) {
     return (
       <Empty>
@@ -225,6 +311,8 @@ function Milestones({ data }: { data: ProjectOverview }) {
       {data.milestones.map((m) => {
         const status = MILESTONE_STATUS[m.status];
         const criteriaDone = m.acceptance_criteria.filter((c) => c.done).length;
+        const initial = milestoneInitial(m);
+        const requested = pending.includes(m.id);
         return (
           <li
             key={m.id}
@@ -251,6 +339,36 @@ function Milestones({ data }: { data: ProjectOverview }) {
               {m.late && !m.accepted_at ? "Atrasado" : status.label}
             </Pill>
             <Progress value={m.progress_pct} label={`Progresso de ${m.code}`} />
+            {/* Ações em coluna de largura fixa: as barras de progresso ficam alinhadas. */}
+            {canWrite || canRequest ? (
+              <span className="flex items-center justify-end gap-1 sm:w-44">
+                {initial && requested ? (
+                  <Link
+                    href="/aprovacoes"
+                    aria-label={`Aceite pedido do ${m.code}: abrir Aprovações`}
+                    className="rounded-full focus-visible:ring-3 focus-visible:ring-brand/30 focus-visible:outline-none"
+                  >
+                    <Pill tone="review">Aceite pedido</Pill>
+                  </Link>
+                ) : initial?.status === "delivered" && canRequest ? (
+                  <RequestAcceptanceButton
+                    milestone={{
+                      id: m.id,
+                      code: m.code,
+                      title: m.title,
+                      criteriaDone,
+                      criteriaTotal: m.acceptance_criteria.length,
+                    }}
+                  />
+                ) : null}
+                {initial && canWrite ? (
+                  <MilestoneButton
+                    projectCode={projectCode}
+                    milestone={initial}
+                  />
+                ) : null}
+              </span>
+            ) : null}
           </li>
         );
       })}
@@ -258,7 +376,33 @@ function Milestones({ data }: { data: ProjectOverview }) {
   );
 }
 
-function Workstreams({ data }: { data: ProjectOverview }) {
+function workstreamInitial(w: WorkstreamDto): WorkstreamInitial {
+  return {
+    id: w.id,
+    title: w.title,
+    milestone: w.milestone?.code ?? null,
+    department: w.department?.slug ?? null,
+    status: w.status,
+    description_internal: w.description_internal,
+    assignee: w.assignee ? `${w.assignee.type}:${w.assignee.id}` : null,
+    assigneeName: w.assignee?.name ?? null,
+    visibility: w.visibility,
+    title_client: w.title_client,
+    description_client: w.description_client,
+  };
+}
+
+function Workstreams({
+  data,
+  projectCode,
+  canWrite,
+  options,
+}: {
+  data: ProjectOverview;
+  projectCode: string;
+  canWrite: boolean;
+  options: WorkstreamFormOptions;
+}) {
   if (data.workstreams.length === 0) {
     return (
       <Empty>
@@ -268,7 +412,7 @@ function Workstreams({ data }: { data: ProjectOverview }) {
     );
   }
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full min-w-[720px] text-left text-sm">
         <caption className="sr-only">Frentes do projeto</caption>
         <thead className="text-xs text-caption">
@@ -278,7 +422,12 @@ function Workstreams({ data }: { data: ProjectOverview }) {
             <th className="py-2 pr-3 font-medium">Responsável</th>
             <th className="py-2 pr-3 font-medium">Progresso</th>
             <th className="py-2 pr-3 font-medium">Status</th>
-            <th className="py-2 font-medium">No portal</th>
+            <th className="py-2 pr-3 font-medium">No portal</th>
+            {canWrite ? (
+              <th className="py-2 font-medium">
+                <span className="sr-only">Ações</span>
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
@@ -335,7 +484,7 @@ function Workstreams({ data }: { data: ProjectOverview }) {
                 <td className="py-2.5 pr-3">
                   <Pill tone={status.tone}>{status.label}</Pill>
                 </td>
-                <td className="py-2.5">
+                <td className="py-2.5 pr-3">
                   {w.visibility === "client" ? (
                     <span className="inline-flex items-center gap-1 text-ok-fg">
                       <Eye aria-hidden="true" className="size-4" /> Visível
@@ -346,6 +495,15 @@ function Workstreams({ data }: { data: ProjectOverview }) {
                     </span>
                   )}
                 </td>
+                {canWrite ? (
+                  <td className="py-1.5 text-right">
+                    <WorkstreamButton
+                      projectCode={projectCode}
+                      workstream={workstreamInitial(w)}
+                      options={options}
+                    />
+                  </td>
+                ) : null}
               </tr>
             );
           })}
