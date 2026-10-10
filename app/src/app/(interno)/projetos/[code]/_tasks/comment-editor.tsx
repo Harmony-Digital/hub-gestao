@@ -40,7 +40,10 @@ const TOOLS: { kind: ToolKind; label: string; icon: typeof Bold }[] = [
 
 /** "Fábio" e "fabio" se acham: sem acento e sem caixa. */
 function fold(value: string): string {
-  return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 /** O @ que está sendo digitado antes do cursor (sem quebra de linha, até 30 letras). */

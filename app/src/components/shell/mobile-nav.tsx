@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRef, type ReactNode } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, Search, X } from "lucide-react";
+import { openSearch } from "./command-palette";
 
 /**
  * Celular e telas estreitas: barra no topo com o botão do menu, que abre a mesma barra
@@ -24,21 +25,35 @@ export function MobileNav({ children }: { children: ReactNode }) {
           className="h-7 w-auto"
         />
       </Link>
-      <button
-        type="button"
-        onClick={() => dialog.current?.showModal()}
-        className="inline-flex size-11 items-center justify-center rounded-lg text-mist hover:bg-navy-2 hover:text-off"
-      >
-        <Menu aria-hidden="true" className="size-5" />
-        <span className="sr-only">Abrir o menu</span>
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={openSearch}
+          className="inline-flex size-11 items-center justify-center rounded-lg text-mist hover:bg-navy-2 hover:text-off"
+        >
+          <Search aria-hidden="true" className="size-5" />
+          <span className="sr-only">Buscar no Hub</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => dialog.current?.showModal()}
+          className="inline-flex size-11 items-center justify-center rounded-lg text-mist hover:bg-navy-2 hover:text-off"
+        >
+          <Menu aria-hidden="true" className="size-5" />
+          <span className="sr-only">Abrir o menu</span>
+        </button>
+      </div>
       <dialog
         ref={dialog}
         aria-label="Menu"
         onClick={(event) => {
-          // Fecha ao tocar fora da gaveta ou ao escolher um link (a tela muda em seguida).
+          // Fecha ao tocar fora da gaveta, ao escolher um link (a tela muda em seguida) ou
+          // um botão que abre outra janela (Buscar, Nova tarefa).
           const target = event.target as HTMLElement;
-          if (target === dialog.current || target.closest("a")) {
+          if (
+            target === dialog.current ||
+            target.closest("a, [data-fecha-menu]")
+          ) {
             dialog.current?.close();
           }
         }}

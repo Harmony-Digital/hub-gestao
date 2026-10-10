@@ -7,6 +7,7 @@ import { initials } from "@/lib/format";
 import { HEALTH, ROLE_LABEL } from "@/lib/labels";
 import { getShell } from "@/lib/ui-context";
 import { NAV_ITEMS, NAV_LINK_CLASS, NAV_LINK_IDLE } from "./nav-items";
+import { ShellActions } from "./shell-actions";
 import { SidebarNav } from "./sidebar-nav";
 
 /**
@@ -32,6 +33,8 @@ export function Sidebar() {
           Hub
         </span>
       </div>
+
+      <ShellActions />
 
       <Suspense fallback={<NavPlaceholder />}>
         <NavWithCounts />
