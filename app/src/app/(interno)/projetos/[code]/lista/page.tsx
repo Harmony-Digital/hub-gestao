@@ -17,6 +17,8 @@ import {
 } from "@/modules/tasks/board";
 import type { TaskDto } from "@/modules/tasks/schemas";
 import { listSavedViews, type SavedViewDto } from "@/modules/views/service";
+import { projectChangeMarker } from "@/modules/live";
+import { LiveRefresh } from "../../../_live/live-refresh";
 import {
   AssigneeCell,
   DueCell,
@@ -85,12 +87,14 @@ async function ListView({
   const { user, ctx } = await pageContext();
   let data: ProjectTaskList;
   let views: SavedViewDto[];
+  let marker: string;
   try {
-    ({ data, views } = await inTx(ctx, async (t) => {
+    ({ data, views, marker } = await inTx(ctx, async (t) => {
       const list = await projectTaskList(t, code, toTaskFilter(state));
       return {
         data: list,
         views: await listSavedViews(t, list.project.id, "list"),
+        marker: await projectChangeMarker(t, code),
       };
     }));
   } catch (err) {
@@ -148,6 +152,7 @@ async function ListView({
           }
         />
         <main className="flex w-full flex-col gap-4 px-4 py-6 sm:px-8">
+          <LiveRefresh src={`/projetos/${code}/mudancas`} marker={marker} />
           <SavedViews
             projectCode={code}
             type="list"

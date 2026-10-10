@@ -46,6 +46,7 @@ import {
 } from "./board-state";
 import { IDLE, type ActionState } from "./form";
 import { ErrorNote, textareaClass } from "@/components/forms";
+import { holdLive } from "../../../_live/hold";
 
 /**
  * Alvos de soltar: a coluna (fim dela) ou um cartão (antes dele). Ids com "|" porque o
@@ -159,6 +160,9 @@ export function KanbanBoard({
   const [noteError, setNoteError] = useState<string | null>(null);
   // Soltar o cartão no mesmo lugar não pode virar clique (abrir o painel).
   const justDragged = useRef(false);
+  // Durante o arraste, a atualização ao vivo espera (a tela não muda debaixo do cartão).
+  const liveHold = useRef<(() => void) | null>(null);
+  useEffect(() => () => liveHold.current?.(), []);
   const activeLane = active && laneBy ? laneOf(active, laneBy) : null;
 
   const sensors = useSensors(
@@ -225,24 +229,34 @@ export function KanbanBoard({
     );
     return new Promise((resolve) => {
       startSaving(async () => {
-        applyPlace({ code: card.code, statusId: column.id, before });
-        if (card.statusId !== column.id) {
-          const form = new FormData();
-          form.set("code", card.code);
-          form.set("version", String(card.version));
-          form.set("status_id", column.id);
-          if (text) {
-            form.set(column.category === "done" ? "evidence" : "reason", text);
+        const done = holdLive();
+        try {
+          applyPlace({ code: card.code, statusId: column.id, before });
+          if (card.statusId !== column.id) {
+            const form = new FormData();
+            form.set("code", card.code);
+            form.set("version", String(card.version));
+            form.set("status_id", column.id);
+            if (text) {
+              form.set(
+                column.category === "done" ? "evidence" : "reason",
+                text,
+              );
+            }
+            const moved = await mudarStatus(IDLE, form);
+            if (moved.status === "error") return resolve(moved);
           }
-          const moved = await mudarStatus(IDLE, form);
-          if (moved.status === "error") return resolve(moved);
+          resolve(await saveOrder(codes));
+        } finally {
+          done();
         }
-        resolve(await saveOrder(codes));
       });
     });
   }
 
   function release() {
+    liveHold.current?.();
+    liveHold.current = null;
     setActive(null);
     setTimeout(() => {
       justDragged.current = false;
@@ -250,6 +264,8 @@ export function KanbanBoard({
   }
 
   function onDragStart(event: DragStartEvent) {
+    liveHold.current?.();
+    liveHold.current = holdLive();
     justDragged.current = true;
     setError(null);
     setActive(cards.find((c) => c.code === event.active.id) ?? null);

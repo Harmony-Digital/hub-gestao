@@ -33,6 +33,7 @@ import {
   type ArchivedInProject,
 } from "@/modules/archive/service";
 import { inTx } from "@/modules/context";
+import { projectChangeMarker } from "@/modules/live";
 import { pendingAcceptances } from "@/modules/milestones/admin";
 import { departmentOptions } from "@/modules/projects/admin";
 import {
@@ -55,6 +56,7 @@ import {
   type WorkstreamFormOptions,
   type WorkstreamInitial,
 } from "./_plan/workstream-dialog";
+import { LiveRefresh } from "../../_live/live-refresh";
 import { RestoreButton } from "../../_archive/archive-controls";
 import { ArchivedSection, archivedWhen } from "../../_archive/archived-section";
 import { NewTaskButton } from "./_tasks/new-task";
@@ -93,8 +95,9 @@ async function ProjectView({
   let departments: Awaited<ReturnType<typeof departmentOptions>>;
   let pending: string[];
   let archived: ArchivedInProject;
+  let marker: string;
   try {
-    ({ data, options, departments, pending, archived } = await inTx(
+    ({ data, options, departments, pending, archived, marker } = await inTx(
       ctx,
       async (t) => {
         const overview = await projectOverview(t, code);
@@ -104,6 +107,7 @@ async function ProjectView({
           departments: await departmentOptions(t),
           pending: await pendingAcceptances(t, overview.project.id),
           archived: await archivedInProject(t, overview.project.id),
+          marker: await projectChangeMarker(t, code),
         };
       },
     ));
@@ -163,6 +167,7 @@ async function ProjectView({
         />
 
         <main className="flex w-full flex-col gap-6 px-4 py-6 sm:px-8">
+          <LiveRefresh src={`/projetos/${code}/mudancas`} marker={marker} />
           <Layer
             n={1}
             title="Estratégica"
