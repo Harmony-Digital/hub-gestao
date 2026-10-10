@@ -1,36 +1,26 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { AppHeader } from "@/components/app-header";
+import { PageHeader } from "@/components/shell/page-header";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { ROLE_LABEL } from "@/lib/labels";
 import { SenhaForm } from "./senha-form";
 
 export const metadata: Metadata = { title: "Minha conta" };
 
-const ROLE_LABEL = {
-  owner: "Dono",
-  admin: "Administração",
-  member: "Equipe",
-} as const;
-
 export default function ContaPage() {
   return (
-    <div className="flex flex-1 flex-col bg-background">
-      <AppHeader />
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6">
-        <section className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight text-navy">
-            Minha conta
-          </h1>
-          <p className="leading-relaxed text-ink-2">
-            Seus dados de acesso ao Hub. O login é o mesmo dos outros sistemas
-            da Harmony que usam o Supabase compartilhado.
-          </p>
-        </section>
+    <>
+      <PageHeader
+        trail={[{ label: "Minha conta" }]}
+        title="Minha conta"
+        description="Seus dados de acesso ao Hub. O login é o mesmo dos outros sistemas da Harmony que usam o Supabase compartilhado."
+      />
+      <main className="flex w-full max-w-2xl flex-col gap-8 px-4 py-8 sm:px-8">
         <Suspense fallback={<div className="h-64 rounded-xl bg-off-2" />}>
           <ContaView />
         </Suspense>
       </main>
-    </div>
+    </>
   );
 }
 
