@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/shell/page-header";
@@ -120,6 +121,28 @@ async function EditProject({
           }}
         />
         <StatusEditor projectCode={project.code} statuses={statuses} />
+        <section
+          aria-labelledby="importar-plano"
+          className="flex max-w-4xl flex-col items-start gap-3 rounded-2xl border border-line bg-card p-4 sm:p-5"
+        >
+          <h2
+            id="importar-plano"
+            className="font-heading text-base font-semibold text-navy"
+          >
+            Importar o plan.md
+          </h2>
+          <p className="text-sm text-ink-2">
+            Traz para o Hub os marcos, as frentes e as tarefas do plano do
+            repositório, com o código e a ordem do arquivo. Antes de gravar,
+            você vê o que entra.
+          </p>
+          <Link
+            href={`${back}/importar`}
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-line px-4 text-sm font-medium text-ink hover:bg-off-2"
+          >
+            Importar o plan.md
+          </Link>
+        </section>
         <section
           aria-labelledby="arquivar-projeto"
           className="flex max-w-4xl flex-col items-start gap-3 rounded-2xl border border-line bg-card p-4 sm:p-5"

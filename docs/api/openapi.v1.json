@@ -8142,6 +8142,12 @@
                 "minimum": -9007199254740991,
                 "maximum": 9007199254740991
               },
+              "milestones_created": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Marcos criados (só na importação feita por pessoa)."
+              },
               "updated_in_file": {
                 "type": "integer",
                 "minimum": -9007199254740991,
@@ -8161,6 +8167,7 @@
               "renamed",
               "archived",
               "workstreams_created",
+              "milestones_created",
               "updated_in_file",
               "inserted_in_file"
             ],

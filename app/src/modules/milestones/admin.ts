@@ -72,6 +72,8 @@ export async function createMilestone(
   t: TxCtx,
   projectCode: string,
   input: CreateMilestoneInput,
+  /** Importação do plan.md: o código do arquivo (se estiver livre) e a posição dele. */
+  extra: { code?: string; sortOrder?: number } = {},
 ): Promise<MilestoneDto> {
   const project = await resolveProject(t, projectCode, "milestone.write");
   guardText(input);
@@ -86,7 +88,16 @@ export async function createMilestone(
        from ${S}.milestones where project_id = $1`,
     [project.id],
   );
-  const code = `M${next!.n}`;
+  const wanted =
+    extra.code && /^M[0-9]{1,3}$/.test(extra.code) ? extra.code : null;
+  const taken = wanted
+    ? await maybeOne(
+        t,
+        `select 1 from ${S}.milestones where project_id = $1 and code = $2`,
+        [project.id, wanted],
+      )
+    : null;
+  const code = wanted && !taken ? wanted : `M${next!.n}`;
   const row = await maybeOne<{ id: string }>(
     t,
     `insert into ${S}.milestones
@@ -103,7 +114,7 @@ export async function createMilestone(
       input.title_client,
       input.description_client || null,
       input.due_date,
-      next!.sort,
+      extra.sortOrder ?? next!.sort,
       input.status,
       input.visibility,
       json(input.acceptance_criteria),
