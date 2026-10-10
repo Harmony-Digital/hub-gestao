@@ -7,7 +7,12 @@ import { pageContext } from "@/lib/ui-context";
 import { inTx } from "@/modules/context";
 import { projectTaskList, type ProjectTaskList } from "@/modules/tasks/board";
 import { listSavedViews, type SavedViewDto } from "@/modules/views/service";
-import { boardColumns, toBoardCard } from "../_tasks/board-state";
+import {
+  boardColumns,
+  boardLanes,
+  sortForBoard,
+  toBoardCard,
+} from "../_tasks/board-state";
 import { KanbanBoard } from "../_tasks/kanban";
 import { ListToolbar } from "../_tasks/list-toolbar";
 import {
@@ -78,9 +83,20 @@ async function BoardView({
   const keep = Object.fromEntries(current);
   const open = openTaskParam(query.tarefa);
   const columns = boardColumns(data.statuses, data.tasks, data.doneTotal);
-  const cards = data.tasks.map((task) =>
-    toBoardCard(task, data.today, taskHref(basePath, keep, task.code)),
+  const cards = sortForBoard(
+    data.tasks.map((task) =>
+      toBoardCard(task, data.today, taskHref(basePath, keep, task.code)),
+    ),
   );
+  // Raias só quando há cartão; sem nenhum, o quadro único mostra as colunas vazias.
+  const laneBy = state.raia === "nenhuma" ? null : state.raia;
+  const lanes = laneBy
+    ? boardLanes(
+        cards,
+        laneBy,
+        data.workstreams.map((w) => w.id),
+      )
+    : [];
 
   return (
     <>
@@ -124,11 +140,18 @@ async function BoardView({
             </p>
           ) : null}
           <p className="text-sm text-caption">
-            Arraste as tarefas entre as colunas (no celular, toque e segure
-            antes de arrastar). Concluir pede a evidência e bloquear pede o
-            motivo. Toque na tarefa para ver tudo dela.
+            Arraste as tarefas entre as colunas ou solte uma sobre outra para
+            mudar a ordem (no celular, toque e segure antes de arrastar).
+            Concluir pede a evidência e bloquear pede o motivo. Toque na tarefa
+            para ver tudo dela.
           </p>
-          <KanbanBoard columns={columns} cards={cards} />
+          <KanbanBoard
+            projectCode={code}
+            columns={columns}
+            cards={cards}
+            lanes={lanes.length ? lanes : null}
+            laneBy={lanes.length ? laneBy : null}
+          />
         </main>
       </div>
       {open ? (

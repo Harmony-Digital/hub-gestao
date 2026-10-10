@@ -1,7 +1,13 @@
 import { audit } from "@/lib/audit";
 import { badRequest, conflict, notFound, unprocessable } from "@/lib/errors";
 import { assertNoSecrets } from "@/lib/text-guards";
-import { authorizeProjectId, Line, TaskCode, Uuid } from "@/modules/common";
+import {
+  authorizeProjectId,
+  Line,
+  resolveProject,
+  TaskCode,
+  Uuid,
+} from "@/modules/common";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
 import type { TaskDto } from "./schemas";
 import { lockTask } from "./service";
@@ -306,4 +312,58 @@ export async function removeDependency(
     projectId: task.project_id,
     after: { blocked_by: blocker.code },
   });
+}
+
+// Ordem no quadro ---------------------------------------------------------------------
+
+/**
+ * Grava a ordem de uma coluna do quadro: as tarefas recebem posições 1024, 2048… na
+ * ordem dada. Só as que mudam de lugar são gravadas, e o projeto ganha um registro só.
+ */
+export async function reorderTasks(
+  t: TxCtx,
+  projectCode: string,
+  codes: string[],
+): Promise<number> {
+  const project = await resolveProject(t, projectCode, "task.write");
+  if (codes.length === 0 || codes.length > 300) {
+    throw badRequest("Envie de 1 a 300 tarefas na ordem nova.");
+  }
+  if (new Set(codes).size !== codes.length) {
+    throw badRequest("A ordem nova repete alguma tarefa.");
+  }
+  const rows = await many<{ id: string; code: string; sort_key: number }>(
+    t,
+    `select id, code, sort_key from ${S}.tasks
+      where project_id = $1 and code = any($2::text[]) and archived_at is null
+      for update`,
+    [project.id, codes],
+  );
+  if (rows.length !== codes.length) {
+    throw unprocessable(
+      "Alguma tarefa saiu do projeto ou foi arquivada. Recarregue o quadro.",
+    );
+  }
+  const byCode = new Map(rows.map((r) => [r.code, r]));
+  let changed = 0;
+  for (const [i, code] of codes.entries()) {
+    const row = byCode.get(code)!;
+    const key = (i + 1) * 1024;
+    if (Number(row.sort_key) === key) continue;
+    await t.tx.query(`update ${S}.tasks set sort_key = $2 where id = $1`, [
+      row.id,
+      key,
+    ]);
+    changed += 1;
+  }
+  if (changed > 0) {
+    await audit(t, {
+      action: "tasks.reordered",
+      entityType: "project",
+      entityId: project.id,
+      projectId: project.id,
+      after: { codes },
+    });
+  }
+  return changed;
 }

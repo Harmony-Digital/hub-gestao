@@ -38,7 +38,7 @@ As instruções canônicas do projeto estão em `../AGENTS.md` e valem integralm
   - `project-header.tsx`: cabeçalho com as abas;
   - `task-panel.tsx` e `panel-frame.tsx`: painel da tarefa (`?tarefa=HUB-n`);
   - `task-forms.tsx` e `new-task.tsx`: formulários e Nova tarefa;
-  - `kanban.tsx` e `board-state.ts`: quadro, com `@dnd-kit/core` 6.3.1 em versão fixa;
+  - `kanban.tsx` e `board-state.ts`: quadro, com `@dnd-kit/core` 6.3.1 em versão fixa. Alvos de soltar com prefixo: `col|<raia>|<status>` (fim da coluna) e `card|<código>` (antes do cartão); a ordem vai inteira para `reordenarColuna`. O `DndContext` leva `id="quadro"`: sem ele, o contador interno do dnd-kit difere entre servidor e navegador e quebra a hidratação;
   - `params.ts`, `list-state.ts`, `list-toolbar.tsx`, `saved-views.tsx` e `inline-edit.tsx`: leitura do endereço, filtros combináveis (Lista e Quadro), visões salvas e edição na linha da Lista;
   - `actions.ts` e `form.ts`: ações de formulário e leitura do `FormData`.
 - Marcos e frentes da Visão geral: pasta privada `_plan/` (`milestone-dialog.tsx`, `workstream-dialog.tsx`, `actions.ts` e `form.ts`).

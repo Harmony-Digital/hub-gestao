@@ -474,3 +474,20 @@ export function parseViewForm(form: FormData): Parsed<{
   }
   return { ok: true, value: { project, type, name, query } };
 }
+
+/** Ordem nova de uma coluna do quadro: códigos separados por vírgula. */
+export function parseReorderForm(
+  form: FormData,
+): Parsed<{ project: string; codes: string[] }> {
+  const project = text(form, "project");
+  const codes = text(form, "codes").split(",").filter(Boolean);
+  if (
+    !PROJECT_CODE.test(project) ||
+    codes.length === 0 ||
+    codes.length > 300 ||
+    !codes.every((c) => TASK_CODE.test(c))
+  ) {
+    return { ok: false, message: RELOAD };
+  }
+  return { ok: true, value: { project, codes } };
+}

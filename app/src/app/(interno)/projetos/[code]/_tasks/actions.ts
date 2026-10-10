@@ -12,6 +12,7 @@ import {
   addDependency,
   removeChecklistItem,
   removeDependency,
+  reorderTasks,
   updateChecklistItem,
 } from "@/modules/tasks/extras";
 import { CreateTaskInput, UpdateTaskInput } from "@/modules/tasks/schemas";
@@ -28,6 +29,7 @@ import {
   parseCommentForm,
   parseDependencyForm,
   parseInlineEdit,
+  parseReorderForm,
   parseViewForm,
   parseMoveForm,
   parseNewTaskForm,
@@ -281,6 +283,25 @@ export async function apagarVisao(
   }
   try {
     await inTx(ctx, (t) => deleteView(t, id));
+    refresh();
+    return { status: "ok" };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+/** Grava a ordem de uma coluna do quadro (depois de soltar um cartão). */
+export async function reordenarColuna(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseReorderForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  try {
+    await inTx(ctx, (t) =>
+      reorderTasks(t, parsed.value.project, parsed.value.codes),
+    );
     refresh();
     return { status: "ok" };
   } catch (err) {

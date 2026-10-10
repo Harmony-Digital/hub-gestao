@@ -39,6 +39,10 @@ export type Column = (typeof COLUMNS)[number];
 export const DUE = ["atrasadas", "semana", "sem"] as const;
 export type Due = (typeof DUE)[number];
 
+/** Raias do Quadro: por frente ou por responsável. */
+export const LANES = ["nenhuma", "frente", "responsavel"] as const;
+export type Lane = (typeof LANES)[number];
+
 export type ListState = {
   /** "none" (sem frente) ou o id de uma frente. */
   frente: string | null;
@@ -50,6 +54,7 @@ export type ListState = {
   agrupar: Group;
   ordem: Order;
   colunas: Column[];
+  raia: Lane;
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -104,6 +109,7 @@ export function readListState(query: Query): ListState {
     busca: busca && busca.length <= 80 && !CONTROL.test(busca) ? busca : null,
     agrupar: pick(GROUPS, one(query.agrupar), "status"),
     ordem: pick(ORDERS, one(query.ordem), "padrao"),
+    raia: pick(LANES, one(query.raia), "nenhuma"),
     // Sem o parâmetro, todas as colunas; com ele, só as marcadas (o marcador "titulo"
     // mantém o parâmetro mesmo quando nenhuma coluna extra fica marcada).
     colunas:
@@ -124,6 +130,7 @@ export function listQuery(state: ListState): URLSearchParams {
   if (state.busca) q.set("busca", state.busca);
   if (state.agrupar !== "status") q.set("agrupar", state.agrupar);
   if (state.ordem !== "padrao") q.set("ordem", state.ordem);
+  if (state.raia !== "nenhuma") q.set("raia", state.raia);
   if (
     state.colunas.length !== COLUMNS.length ||
     !COLUMNS.every((c) => state.colunas.includes(c))
