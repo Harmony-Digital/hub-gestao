@@ -7,6 +7,7 @@ import { blockTask, createTask, updateTask } from "@/modules/tasks/service";
 import { ctxFor, openTestHub, type TestHub } from "@/test/hub";
 import {
   describeNotification,
+  groupOf,
   inbox,
   markRead,
   notificationPrefs,
@@ -190,6 +191,29 @@ describe("textos dos avisos", () => {
       detail: "Publicar o fluxo",
       href: "/projetos/VIT?tarefa=HUB-7",
     });
+  });
+
+  it("orçamento de IA: do agente ou o teto do workspace, no grupo próprio", () => {
+    expect(
+      describeNotification("agent.budget_exceeded", {
+        agent_name: "Concierge",
+        scope: "agent",
+        detail:
+          "O orçamento de IA de Concierge no mês não comporta esta chamada.",
+      }),
+    ).toEqual({
+      text: "Concierge parou de usar IA: o orçamento do mês acabou",
+      detail:
+        "O orçamento de IA de Concierge no mês não comporta esta chamada.",
+      href: "/agentes",
+    });
+    expect(
+      describeNotification("agent.budget_exceeded", { scope: "workspace" })
+        .text,
+    ).toBe(
+      "O teto de IA do workspace no mês acabou: os agentes pararam de usar IA",
+    );
+    expect(groupOf("agent.budget_exceeded")).toBe("agents");
   });
 
   it("aprovações e trecho do comentário", () => {

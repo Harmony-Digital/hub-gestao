@@ -40,6 +40,7 @@ export type Action =
   | "agent.keys"
   | "sync.plan"
   | "search"
+  | "webhook.manage"
   | "workspace.admin";
 
 export type ProjectRole =
@@ -83,6 +84,7 @@ const HUMAN_ONLY: ReadonlySet<Action> = new Set<Action>([
   "report.publish",
   "agent.manage",
   "agent.keys",
+  "webhook.manage",
   "workspace.admin",
 ]);
 
@@ -96,11 +98,15 @@ const DECISIONS: ReadonlySet<Action> = new Set<Action>([
   "workstream.visibility",
 ]);
 
-/** O que o owner reserva para si por padrão (D9: o aceite é do Fábio). */
+/**
+ * O que o owner reserva para si por padrão (D9: o aceite é do Fábio). Webhooks de saída
+ * também: é o Hub mandando dados para fora, com segredo.
+ */
 const OWNER_ONLY: ReadonlySet<Action> = new Set<Action>([
   "milestone.accept",
   "approval.decide",
   "agent.keys",
+  "webhook.manage",
 ]);
 
 /** O que um member pode fazer, sempre dentro dos projetos de que participa. */

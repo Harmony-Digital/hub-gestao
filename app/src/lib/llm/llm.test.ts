@@ -3,6 +3,7 @@ import { MockLanguageModelV4 } from "ai/test";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { inTx } from "@/modules/context";
+import { systemActor } from "@/modules/jobs/service";
 import { createCredential, revokeCredential } from "@/modules/llm/credentials";
 import type { LlmProvider } from "@/modules/llm/providers";
 import { count, ctxFor, openTestHub, type TestHub } from "@/test/hub";
@@ -319,5 +320,65 @@ describe("adaptador de IA", () => {
         output: Output.object({ schema: Intent }),
       }),
     ).rejects.toThrow();
+  });
+  it("orçamento estourado avisa o dono e os webhooks, uma vez por dia por agente", async () => {
+    await h.raw.query(
+      `insert into ${S}.webhooks (workspace_id, url, events, secret_ciphertext)
+       values ($1, 'https://hermes.exemplo.com.br/hub', array['agent.budget_exceeded'], 'cifrado')`,
+      [h.ws],
+    );
+    // O Executor, com um teto que não comporta nem uma chamada.
+    await h.raw.query(
+      `update ${S}.agents
+          set llm_provider = 'openai', llm_model = 'modelo-openai', llm_credential_id = $2,
+              budget_usd_month = 0.01, status = 'active',
+              config = '{"llm_price_in": 3, "llm_price_out": 15}'::jsonb
+        where id = $1`,
+      [h.agents.executor, credentials.openai],
+    );
+    const calls: { provider: string; key: string; model: string }[] = [];
+    const { factory } = mock(calls);
+    // Como rotina do sistema: quem dispara a ação não recebe o aviso dela.
+    const routine = {
+      db: h.db,
+      actor: systemActor(h.ws),
+      source: "cron" as const,
+      requestId: "teste-orcamento",
+    };
+    for (let i = 0; i < 2; i++) {
+      expect(
+        await generate(
+          routine,
+          { ...request, agentId: h.agents.executor },
+          { modelFor: factory },
+        ),
+      ).toMatchObject({ ok: false, reason: "budget_exceeded" });
+    }
+    expect(calls).toEqual([]);
+    const counted = async (sql: string) => count(h, sql, [h.agents.executor]);
+    expect(
+      await counted(
+        `select count(*)::int as n from ${S}.activity_log
+          where action = 'agent.budget_exceeded' and entity_id = $1`,
+      ),
+    ).toBe(1);
+    expect(
+      await counted(
+        `select count(*)::int as n from ${S}.notifications
+          where type = 'agent.budget_exceeded' and entity_id = $1`,
+      ),
+    ).toBe(1);
+    const delivery = await h.raw.query<{ payload: Record<string, unknown> }>(
+      `select payload from ${S}.webhook_deliveries where event = 'agent.budget_exceeded'`,
+    );
+    expect(delivery.rows).toHaveLength(1);
+    expect(delivery.rows[0].payload).toMatchObject({
+      event: "agent.budget_exceeded",
+      data: {
+        agent: { id: h.agents.executor, name: "Executor" },
+        scope: "agent",
+        budget_usd_month: 0.01,
+      },
+    });
   });
 });

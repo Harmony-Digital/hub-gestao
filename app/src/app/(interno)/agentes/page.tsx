@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Bot } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
-import { Progress } from "@/components/shell/pill";
+import { Pill, Progress } from "@/components/shell/pill";
 import { can } from "@/lib/authorize";
 import { pageContext } from "@/lib/ui-context";
 import {
@@ -22,6 +22,8 @@ import {
   type CredentialItem,
 } from "@/modules/llm/credentials";
 import { listProjects } from "@/modules/projects/service";
+import { EVENT_LABEL } from "@/modules/webhooks/events";
+import { listWebhooks, type WebhookItem } from "@/modules/webhooks/service";
 import { LiveRefresh } from "../_live/live-refresh";
 import { EditarAgenteButton, PausarAgenteButton } from "./agent-controls";
 import { ControlRoomView } from "./control-room-view";
@@ -33,6 +35,7 @@ import {
   type CredentialOption,
 } from "./agent-model";
 import { NovaChaveForm, NovoAgenteForm, RevogarChaveButton } from "./forms";
+import { NovoWebhookForm, WebhookControls } from "./webhooks";
 
 export const metadata: Metadata = { title: "Sala de Controle" };
 
@@ -79,7 +82,8 @@ async function AgentsConsoleView({
   const { ctx } = await pageContext();
   const now = new Date();
   const canSeeAiKeys = can(ctx.actor, "agent.manage");
-  const { data, projects, room, marker, aiKeys } = await inTx(
+  const canManageWebhooks = can(ctx.actor, "webhook.manage");
+  const { data, projects, room, marker, aiKeys, webhooks } = await inTx(
     ctx,
     async (t) => ({
       data: await listAgentsConsole(t),
@@ -90,6 +94,7 @@ async function AgentsConsoleView({
       room: await controlRoom(t, filter),
       marker: await controlRoomMarker(t),
       aiKeys: canSeeAiKeys ? await listCredentials(t) : [],
+      webhooks: canManageWebhooks ? await listWebhooks(t) : [],
     }),
   );
   const credentialOptions: CredentialOption[] = aiKeys
@@ -298,7 +303,99 @@ async function AgentsConsoleView({
           date={date}
         />
       ) : null}
+
+      {canManageWebhooks ? (
+        <WebhooksSection hooks={webhooks} dateTime={dateTime} />
+      ) : null}
     </div>
+  );
+}
+
+function deliveryText(d: WebhookItem["recent"][number]): string {
+  if (d.deliveredAt) return `entregue (${d.statusCode ?? "ok"})`;
+  if (d.attempts === 0) return "na fila";
+  return `falhou ${d.attempts === 1 ? "1 vez" : `${d.attempts} vezes`}${d.lastError ? ` (${d.lastError})` : ""}`;
+}
+
+/** Webhooks de saída (PRD §8.6): o Hub avisando o Hermes (Telegram) ou o n8n. Só o dono. */
+function WebhooksSection({
+  hooks,
+  dateTime,
+}: {
+  hooks: WebhookItem[];
+  dateTime: Intl.DateTimeFormat;
+}) {
+  return (
+    <section aria-labelledby="webhooks-titulo" className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1">
+        <h2
+          id="webhooks-titulo"
+          className="font-heading text-xl font-semibold text-navy"
+        >
+          Webhooks de saída
+        </h2>
+        <p className="max-w-3xl text-sm text-ink-2">
+          O Hub avisa outros sistemas quando algo acontece: o Hermes, que leva
+          os avisos ao seu Telegram, ou o n8n. Cada aviso vai assinado com o
+          segredo do webhook, e quem recebe confere a assinatura (formato em
+          docs/webhooks.md, no repositório do Hub). Só o dono cadastra.
+        </p>
+      </div>
+      {hooks.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-line p-4 text-sm text-ink-2">
+          Nenhum webhook cadastrado.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {hooks.map((h) => (
+            <li
+              key={h.id}
+              className="flex flex-col gap-3 rounded-xl border border-line bg-card p-4"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <code className="min-w-0 font-mono text-sm break-all text-ink">
+                  {h.url}
+                </code>
+                <Pill tone={h.active ? "ok" : "neutral"}>
+                  {h.active ? "Ativo" : "Pausado"}
+                </Pill>
+              </div>
+              <p className="text-sm text-ink-2">
+                Eventos:{" "}
+                {h.events
+                  .map((e) => EVENT_LABEL[e as keyof typeof EVENT_LABEL] ?? e)
+                  .join(", ")}
+                .
+              </p>
+              {h.recent.length ? (
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs font-medium text-caption">
+                    Últimos avisos
+                    {h.pending ? ` · ${h.pending} na fila` : ""}
+                  </p>
+                  <ul className="flex flex-col gap-0.5 text-xs text-ink-2">
+                    {h.recent.map((d) => (
+                      <li key={d.id}>
+                        {EVENT_LABEL[d.event as keyof typeof EVENT_LABEL] ??
+                          d.event}{" "}
+                        · {dateTime.format(new Date(d.createdAt))} ·{" "}
+                        {deliveryText(d)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="text-xs text-caption">
+                  Nenhum aviso enviado ainda.
+                </p>
+              )}
+              <WebhookControls id={h.id} url={h.url} active={h.active} />
+            </li>
+          ))}
+        </ul>
+      )}
+      <NovoWebhookForm />
+    </section>
   );
 }
 
