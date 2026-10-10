@@ -90,3 +90,7 @@ Para trazer um `plan.md` inteiro para um projeto, inclusive os marcos, há a tel
 - Depois dos marcos, vale o push normal (frentes, tarefas, subtarefas). Item marcado sem evidência escrita entra concluído com a nota "Já estava concluída no plan.md quando ele foi importado".
 - A tela devolve o arquivo com os códigos (botão para baixar). Grave no repositório no lugar do plano: os itens passam a levar os códigos e o pull e o push seguintes casam tudo pelo código. Importar de novo o arquivo devolvido não cria nada.
 - A execução fica em `plan_sync_runs` com a direção `import`.
+
+### Proposta do Planejador (PL-11)
+
+Na mesma tela, o cartão **Propor com o Planejador** transforma um documento (PRD, brief ou transcrição) numa proposta neste formato: marcos numerados depois dos que o projeto já tem (`## M3 — ...`), frentes (`### ...`), tarefas e subtarefas, os critérios de aceite no GATE de cada marco (`### 🔒 GATE M3 (critérios de aceite)`), o prazo como linha "Prazo sugerido" e os textos para o cliente como citação de sugestão (texto livre: nada disso vira campo do Hub sozinho), e as premissas e dúvidas numa seção com `<!-- hub: ignorar -->`. **Levar para a importação** põe o texto no campo acima; dali em diante é a importação de sempre (Ver o que entra, depois Importar). Os títulos saem limpos para este leitor: uma linha, sem caixa, sem código de tarefa, sem risco e sem o travessão com espaços que abriria a nota.
