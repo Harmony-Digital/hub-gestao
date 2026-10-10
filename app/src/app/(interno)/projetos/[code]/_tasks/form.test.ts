@@ -60,6 +60,44 @@ describe("mudança de status", () => {
       ok: true,
       value: { code: "HUB-12", version: 3, status_id: WS, reason: "x \n y" },
     });
+    // Quem destrava vem junto do motivo; sem motivo (não é bloqueio), é ignorado.
+    expect(
+      parseMoveForm(
+        form({
+          code: "HUB-12",
+          status_id: WS,
+          reason: "Falta a credencial.",
+          waiting_on: `user:${ID}`,
+        }),
+      ),
+    ).toEqual({
+      ok: true,
+      value: {
+        code: "HUB-12",
+        version: undefined,
+        status_id: WS,
+        reason: "Falta a credencial.",
+        waiting_on: { type: "user", id: ID },
+      },
+    });
+    expect(
+      parseMoveForm(
+        form({ code: "HUB-12", status_id: WS, waiting_on: `user:${ID}` }),
+      ),
+    ).toEqual({
+      ok: true,
+      value: { code: "HUB-12", version: undefined, status_id: WS },
+    });
+    expect(
+      parseMoveForm(
+        form({
+          code: "HUB-12",
+          status_id: WS,
+          reason: "x",
+          waiting_on: "fulano",
+        }),
+      ).ok,
+    ).toBe(false);
     expect(parseMoveForm(form({ code: "hub-1", status_id: WS })).ok).toBe(
       false,
     );

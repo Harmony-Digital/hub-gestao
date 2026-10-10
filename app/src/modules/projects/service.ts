@@ -149,6 +149,9 @@ type TaskSummaryRow = {
   assignee_name: string | null;
   due_date: string | null;
   blocked_reason: string | null;
+  blocked_on_type: string | null;
+  blocked_on_id: string | null;
+  blocked_on_name: string | null;
   parent_code: string | null;
   workstream_id: string | null;
 };
@@ -157,7 +160,9 @@ export const TASK_SUMMARY_SELECT = `
   select t.code, p.code as project_code, t.title, s.name as status_name, t.status_category,
          t.priority, t.assignee_type, t.assignee_id,
          ${ACTOR_NAME_SQL("t.assignee_type", "t.assignee_id")} as assignee_name,
-         t.due_date, t.blocked_reason, par.code as parent_code, t.workstream_id
+         t.due_date, t.blocked_reason, t.blocked_on_type, t.blocked_on_id,
+         ${ACTOR_NAME_SQL("t.blocked_on_type", "t.blocked_on_id")} as blocked_on_name,
+         par.code as parent_code, t.workstream_id
     from ${S}.tasks t
     join ${S}.projects p on p.id = t.project_id
     join ${S}.task_statuses s on s.id = t.status_id
@@ -174,6 +179,7 @@ export function toTaskSummary(r: TaskSummaryRow): TaskSummary {
     assignee: actorRef(r.assignee_type, r.assignee_id, r.assignee_name),
     due_date: r.due_date,
     blocked_reason: r.blocked_reason,
+    blocked_on: actorRef(r.blocked_on_type, r.blocked_on_id, r.blocked_on_name),
     parent_code: r.parent_code,
   };
 }

@@ -42,6 +42,9 @@ export const TaskDto = z.object({
   external_ref: z.string().nullable(),
   done_evidence: z.string().nullable(),
   blocked_reason: z.string().nullable(),
+  blocked_on: ActorRef.nullable().describe(
+    "Quem precisa agir para destravar (só em tarefa bloqueada).",
+  ),
   completed_at: Timestamp.nullable(),
   completed_by: ActorRef.nullable(),
   created_by: ActorRef,
@@ -118,6 +121,9 @@ export type UpdateTaskInput = z.infer<typeof UpdateTaskInput>;
 
 export const BlockTaskInput = z.strictObject({
   reason: Text(2000).describe("O que falta e de quem depende."),
+  waiting_on: AssigneeInput.optional().describe(
+    'Quem precisa agir para destravar: uma pessoa ou um agente do workspace ({"type":"user","id":...}) ou "me". A pessoa indicada recebe um aviso e vê a tarefa em "Esperando você" no Hoje.',
+  ),
 });
 export const CompleteTaskInput = z.strictObject({
   evidence: Text(2000).describe(

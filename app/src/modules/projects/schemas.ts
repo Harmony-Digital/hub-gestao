@@ -133,6 +133,7 @@ export const TaskSummary = z.object({
   assignee: ActorRef.nullable(),
   due_date: IsoDate.nullable(),
   blocked_reason: z.string().nullable(),
+  blocked_on: ActorRef.nullable(),
   parent_code: TaskCode.nullable(),
 });
 export type TaskSummary = z.infer<typeof TaskSummary>;

@@ -19,6 +19,7 @@ import {
   ACTOR_NAME_SQL,
   actorRef,
   authorizeProjectId,
+  type AssigneeRef,
   iso,
   isoOrNull,
   projectScopeSql,
@@ -45,7 +46,9 @@ export const TASK_SELECT = `
          ${ACTOR_NAME_SQL("t.assignee_type", "t.assignee_id")} as assignee_name,
          t.workstream_id, w.title as workstream_title, par.code as parent_code,
          t.start_date, t.due_date, t.estimate_minutes, t.sort_key, t.source, t.external_ref,
-         t.done_evidence, t.blocked_reason, t.completed_at, t.completed_by_type, t.completed_by_id,
+         t.done_evidence, t.blocked_reason, t.blocked_on_type, t.blocked_on_id,
+         ${ACTOR_NAME_SQL("t.blocked_on_type", "t.blocked_on_id")} as blocked_on_name,
+         t.completed_at, t.completed_by_type, t.completed_by_id,
          ${ACTOR_NAME_SQL("t.completed_by_type", "t.completed_by_id")} as completed_by_name,
          t.created_by_type, t.created_by_id,
          ${ACTOR_NAME_SQL("t.created_by_type", "t.created_by_id")} as created_by_name,
@@ -83,6 +86,9 @@ export type TaskRow = {
   external_ref: string | null;
   done_evidence: string | null;
   blocked_reason: string | null;
+  blocked_on_type: string | null;
+  blocked_on_id: string | null;
+  blocked_on_name: string | null;
   completed_at: Date | string | null;
   completed_by_type: string | null;
   completed_by_id: string | null;
@@ -125,6 +131,7 @@ export function toTaskDto(r: TaskRow): TaskDto {
     external_ref: r.external_ref,
     done_evidence: r.done_evidence,
     blocked_reason: r.blocked_reason,
+    blocked_on: actorRef(r.blocked_on_type, r.blocked_on_id, r.blocked_on_name),
     completed_at: isoOrNull(r.completed_at),
     completed_by: actorRef(
       r.completed_by_type,
@@ -568,7 +575,11 @@ export async function updateTask(
       );
     }
     set("status_id", status.id);
-    if (row.status_category === "blocked") set("blocked_reason", null);
+    if (row.status_category === "blocked") {
+      set("blocked_reason", null);
+      set("blocked_on_type", null);
+      set("blocked_on_id", null);
+    }
   }
 
   params.push(row.id);
@@ -662,7 +673,8 @@ export async function startTask(t: TxCtx, code: string): Promise<TaskDto> {
   );
   await t.tx.query(
     `update ${S}.tasks
-        set status_id = $2, assignee_type = $3, assignee_id = $4, blocked_reason = null
+        set status_id = $2, assignee_type = $3, assignee_id = $4, blocked_reason = null,
+            blocked_on_type = null, blocked_on_id = null
       where id = $1`,
     [row.id, statusId, t.actor.type, t.actor.id],
   );
@@ -687,7 +699,7 @@ export async function startTask(t: TxCtx, code: string): Promise<TaskDto> {
 export async function blockTask(
   t: TxCtx,
   code: string,
-  input: { reason: string },
+  input: { reason: string; waiting_on?: AssigneeRef },
 ): Promise<TaskDto> {
   const row = await lockTask(t, code, "task.transition");
   if (row.status_category === "done") {
@@ -696,6 +708,10 @@ export async function blockTask(
     );
   }
   assertNoSecrets({ reason: input.reason });
+  // Quem destrava: uma pessoa ou um agente do workspace (conferido como o responsável).
+  const waiting = input.waiting_on
+    ? await resolveAssignee(t, input.waiting_on)
+    : null;
   const statusId = await statusByCategory(
     t,
     row.project_id,
@@ -703,8 +719,16 @@ export async function blockTask(
     "Bloqueada",
   );
   await t.tx.query(
-    `update ${S}.tasks set status_id = $2, blocked_reason = $3 where id = $1`,
-    [row.id, statusId, input.reason],
+    `update ${S}.tasks
+        set status_id = $2, blocked_reason = $3, blocked_on_type = $4, blocked_on_id = $5
+      where id = $1`,
+    [
+      row.id,
+      statusId,
+      input.reason,
+      waiting?.type ?? null,
+      waiting?.id ?? null,
+    ],
   );
   await recomputeRollup(t, row.project_id);
   const after = await taskById(t, row.id);
@@ -714,23 +738,32 @@ export async function blockTask(
     entityId: row.id,
     projectId: row.project_id,
     before: { status_category: row.status_category },
-    after: { status: after.status.name, blocked_reason: input.reason },
+    after: {
+      status: after.status.name,
+      blocked_reason: input.reason,
+      waiting_on: after.blocked_on?.name ?? null,
+    },
   });
   await emitEvent(t, "task.blocked", {
     code: after.code,
     project_code: after.project_code,
     reason: input.reason,
+    waiting_on: after.blocked_on,
   });
-  // Bloqueio avisa o responsável pelo projeto e a pessoa com a tarefa (nunca quem bloqueou).
+  // Bloqueio avisa o responsável pelo projeto, a pessoa com a tarefa e quem destrava (com
+  // um aviso próprio: "esperando você"); nunca quem bloqueou.
   const owner = await maybeOne<{ id: string | null }>(
     t,
     `select owner_profile_id as id from ${S}.projects where id = $1`,
     [row.project_id],
   );
+  const waitingProfile =
+    after.blocked_on?.type === "user" ? after.blocked_on.id : null;
   const people = new Set(
     [
       owner?.id ?? null,
       after.assignee?.type === "user" ? after.assignee.id : null,
+      waitingProfile,
     ].filter((id): id is string => Boolean(id)),
   );
   for (const profileId of people) {
@@ -745,6 +778,7 @@ export async function blockTask(
         title: after.title,
         project_code: after.project_code,
         reason: input.reason,
+        waiting_on_you: profileId === waitingProfile,
       },
     );
   }
@@ -775,6 +809,7 @@ export async function completeTask(
   await t.tx.query(
     `update ${S}.tasks
         set status_id = $2, done_evidence = $3, blocked_reason = null,
+            blocked_on_type = null, blocked_on_id = null,
             completed_by_type = $4, completed_by_id = $5
       where id = $1`,
     [row.id, statusId, input.evidence, t.actor.type, t.actor.id],
@@ -812,7 +847,8 @@ export async function reopenTask(
   const statusId = await defaultStatus(t, row.project_id);
   await t.tx.query(
     `update ${S}.tasks
-        set status_id = $2, blocked_reason = null, done_evidence = null
+        set status_id = $2, blocked_reason = null, done_evidence = null,
+            blocked_on_type = null, blocked_on_id = null
       where id = $1`,
     [row.id, statusId],
   );
@@ -861,7 +897,12 @@ export async function reopenTask(
 export async function moveTask(
   t: TxCtx,
   code: string,
-  input: { status_id: string; evidence?: string; reason?: string },
+  input: {
+    status_id: string;
+    evidence?: string;
+    reason?: string;
+    waiting_on?: AssigneeRef;
+  },
   expectedVersion?: number,
 ): Promise<TaskDto> {
   const row = await lockTask(t, code, "task.transition");
@@ -900,7 +941,10 @@ export async function moveTask(
     await reopenTask(t, row.code, {});
   }
   if (target.category === "blocked") {
-    return blockTask(t, row.code, { reason: input.reason!.trim() });
+    return blockTask(t, row.code, {
+      reason: input.reason!.trim(),
+      waiting_on: input.waiting_on,
+    });
   }
   const now = await taskById(t, row.id);
   if (now.status.id === target.id) return now;

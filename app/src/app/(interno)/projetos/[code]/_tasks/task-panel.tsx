@@ -112,11 +112,18 @@ async function PanelContent({
           version={task.version}
           statuses={data.statuses}
           currentId={task.status.id}
+          assignees={data.assignees}
         />
         {task.status.category === "blocked" && task.blocked_reason ? (
           <Callout tone="danger" icon={<Ban aria-hidden="true" />}>
             <span className="font-semibold">Bloqueada:</span>{" "}
             <Linkified text={task.blocked_reason} />
+            {task.blocked_on?.name ? (
+              <span className="mt-1 block">
+                <span className="font-semibold">Esperando:</span>{" "}
+                {task.blocked_on.name}
+              </span>
+            ) : null}
           </Callout>
         ) : null}
         {task.status.category === "done" ? (

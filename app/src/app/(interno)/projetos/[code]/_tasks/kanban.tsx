@@ -45,6 +45,8 @@ import {
   type LaneBy,
 } from "./board-state";
 import { IDLE, type ActionState } from "./form";
+import { WaitingOnSelect } from "./waiting-on-select";
+import type { AssigneeOption } from "@/modules/tasks/board";
 import { ErrorNote, textareaClass } from "@/components/forms";
 import { holdLive } from "../../../_live/hold";
 
@@ -138,9 +140,12 @@ export function KanbanBoard({
   cards: serverCards,
   lanes,
   laneBy,
+  assignees = [],
 }: {
   projectCode: string;
   columns: BoardColumn[];
+  /** Pessoas e agentes para "quem destrava", ao soltar em Bloqueada. */
+  assignees?: AssigneeOption[];
   /** Já na ordem do quadro (posição manual, depois a do servidor). */
   cards: BoardCard[];
   /** Raias (frente ou responsável), ou null para o quadro único. */
@@ -222,6 +227,7 @@ export function KanbanBoard({
     column: BoardColumn,
     before: string | null,
     text?: string,
+    waitingOn?: string,
   ): Promise<ActionState> {
     const codes = columnCodes(
       placeCard(cards, card.code, column.id, before),
@@ -242,6 +248,9 @@ export function KanbanBoard({
                 column.category === "done" ? "evidence" : "reason",
                 text,
               );
+            }
+            if (waitingOn && column.category === "blocked") {
+              form.set("waiting_on", waitingOn);
             }
             const moved = await mudarStatus(IDLE, form);
             if (moved.status === "error") return resolve(moved);
@@ -289,10 +298,16 @@ export function KanbanBoard({
     if (result.status === "error") setError(result.message);
   }
 
-  async function confirmNote(text: string) {
+  async function confirmNote(text: string, waitingOn?: string) {
     if (!note) return;
     setNoteError(null);
-    const result = await save(note.card, note.column, note.before, text);
+    const result = await save(
+      note.card,
+      note.column,
+      note.before,
+      text,
+      waitingOn,
+    );
     if (result.status === "error") setNoteError(result.message);
     else setNote(null);
   }
@@ -400,6 +415,7 @@ export function KanbanBoard({
         request={note}
         error={noteError}
         pending={saving}
+        assignees={assignees}
         onCancel={() => setNote(null)}
         onConfirm={confirmNote}
       />
@@ -614,14 +630,16 @@ function NoteDialog({
   request,
   error,
   pending,
+  assignees,
   onCancel,
   onConfirm,
 }: {
   request: NoteRequest | null;
   error: string | null;
   pending: boolean;
+  assignees: AssigneeOption[];
   onCancel: () => void;
-  onConfirm: (text: string) => void;
+  onConfirm: (text: string, waitingOn?: string) => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -634,8 +652,15 @@ function NoteDialog({
   const done = request?.column.category === "done";
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const text = new FormData(event.currentTarget).get("note");
-    if (typeof text === "string" && text.trim()) onConfirm(text.trim());
+    const data = new FormData(event.currentTarget);
+    const text = data.get("note");
+    const waitingOn = data.get("waiting_on");
+    if (typeof text === "string" && text.trim()) {
+      onConfirm(
+        text.trim(),
+        typeof waitingOn === "string" && waitingOn ? waitingOn : undefined,
+      );
+    }
   };
 
   return (
@@ -679,6 +704,13 @@ function NoteDialog({
               className={textareaClass}
             />
           </label>
+          {!done ? (
+            <WaitingOnSelect
+              id="quadro-quem-destrava"
+              assignees={assignees}
+              disabled={pending}
+            />
+          ) : null}
           <div aria-live="polite">
             {error ? <ErrorNote message={error} /> : null}
           </div>

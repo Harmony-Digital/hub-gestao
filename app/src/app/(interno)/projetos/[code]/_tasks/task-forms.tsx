@@ -17,6 +17,7 @@ import type {
 } from "@/modules/tasks/board";
 import { mudarStatus, salvarTarefa } from "./actions";
 import { IDLE, PRIORITIES, type ActionState } from "./form";
+import { WaitingOnSelect } from "./waiting-on-select";
 
 function Hidden({ code, version }: { code: string; version?: number }) {
   return (
@@ -36,11 +37,14 @@ export function StatusPicker({
   version,
   statuses,
   currentId,
+  assignees = [],
 }: {
   code: string;
   version: number;
   statuses: StatusOption[];
   currentId: string;
+  /** Pessoas e agentes para "quem destrava", ao bloquear. */
+  assignees?: AssigneeOption[];
 }) {
   const [target, setTarget] = useState<StatusOption | null>(null);
   const [state, action, pending] = useActionState(
@@ -123,6 +127,13 @@ export function StatusPicker({
               className={textareaClass}
             />
           </label>
+          {!done ? (
+            <WaitingOnSelect
+              id={`${code}-quem-destrava`}
+              assignees={assignees}
+              disabled={pending}
+            />
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <Button
               type="submit"

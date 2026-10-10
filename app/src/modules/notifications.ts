@@ -143,6 +143,13 @@ export function describeNotification(
         href: taskHref,
       };
     case "task.blocked":
+      if (payload.waiting_on_you === true) {
+        return {
+          text: `${task ?? "Uma tarefa"} está esperando você${project ? ` em ${project}` : ""}`,
+          detail: str(payload.reason) ?? str(payload.title),
+          href: taskHref,
+        };
+      }
       return {
         text: `${who} bloqueou ${task ?? "uma tarefa"}${project ? ` em ${project}` : ""}`,
         detail: str(payload.reason) ?? str(payload.title),

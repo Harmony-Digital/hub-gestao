@@ -41,6 +41,7 @@ function task(over: Partial<TaskDto> = {}): TaskDto {
     external_ref: null,
     done_evidence: null,
     blocked_reason: null,
+    blocked_on: null,
     completed_at: null,
     completed_by: null,
     created_by: { type: "user", id: null, name: "Fábio" },
