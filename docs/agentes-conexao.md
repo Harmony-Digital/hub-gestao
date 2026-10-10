@@ -43,6 +43,12 @@ Claude Code, no `.mcp.json` do repositório do projeto, com a chave numa variáv
 }
 ```
 
+No Mac do Fábio, o caminho pronto é este:
+
+1. Criar o agente e a chave em `https://hub.harmonydigital.com.br/agentes`. A chave aparece uma única vez.
+2. Rodar `bash scripts/conectar-claude-code.sh`. O script pede a chave sem mostrá-la na tela e confere no Hub (`/api/v1/me`). Depois guarda a chave nas Chaves do macOS (serviço `hub-gestao-producao`) e escreve `~/.config/hub-gestao/mcp-producao.json`, sem segredo.
+3. Rodar `bash scripts/teste-mcp-producao.sh`. O Claude Code roda só com as ferramentas do Hub e cria, inicia e conclui uma tarefa no projeto HUB, com evidência. É o teste do GATE M2.
+
 Codex e Hermes: mesmo endereço e mesmo cabeçalho. Confirmar o formato de configuração de servidor MCP por HTTP na versão instalada de cada um; se não houver suporte, usar a API REST abaixo.
 
 O servidor mostra só as ferramentas que a chave pode usar. A primeira chamada é sempre `hub_whoami`.

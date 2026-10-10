@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { Suspense } from "react";
 import {
   ArrowUpRight,
@@ -6,13 +5,11 @@ import {
   CircleDashed,
   CirclePause,
   Clock3,
-  LogOut,
 } from "lucide-react";
+import { AppHeader } from "@/components/app-header";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/auth/current-user";
-import type { WorkspaceRole } from "@/lib/db/actor";
 import { roadmap, statusLabel, type MilestoneStatus } from "@/lib/roadmap";
-import { sair } from "./login/actions";
 
 const statusStyle: Record<MilestoneStatus, string> = {
   concluido: "bg-ok-soft text-ok-fg",
@@ -28,30 +25,10 @@ const statusIcon: Record<MilestoneStatus, typeof CircleCheck> = {
   adiado: CirclePause,
 };
 
-const roleLabel: Record<WorkspaceRole, string> = {
-  owner: "Dono",
-  admin: "Administração",
-  member: "Equipe",
-};
-
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col bg-background">
-      <header className="bg-navy text-mist">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <Image
-            src="/brand/harmony-logo-branco.png"
-            alt="Harmony Digital"
-            width={140}
-            height={40}
-            priority
-            className="h-8 w-auto"
-          />
-          <Suspense fallback={<div className="h-8" />}>
-            <UserMenu />
-          </Suspense>
-        </div>
-      </header>
+      <AppHeader />
 
       {/* Todo o conteúdo depende da sessão conferida: sem acesso, nada aparece. */}
       <Suspense fallback={<MainSkeleton />}>
@@ -66,29 +43,6 @@ export default function Home() {
           </span>
         </div>
       </footer>
-    </div>
-  );
-}
-
-async function UserMenu() {
-  const user = await getCurrentUser();
-  return (
-    <div className="flex items-center gap-3">
-      <span className="hidden text-sm text-off sm:inline">{user.fullName}</span>
-      <span className="rounded-full border border-brand/40 px-3 py-1 font-mono text-[11px] tracking-[0.12em] text-brand-soft uppercase">
-        {roleLabel[user.actor.role]}
-      </span>
-      <form action={sair}>
-        <Button
-          type="submit"
-          variant="ghost"
-          size="lg"
-          className="text-mist hover:bg-navy-4 hover:text-off"
-        >
-          <LogOut aria-hidden="true" />
-          Sair
-        </Button>
-      </form>
     </div>
   );
 }
