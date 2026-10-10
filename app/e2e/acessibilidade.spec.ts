@@ -44,6 +44,16 @@ const OPEN: {
       ),
   },
   {
+    name: "Modelo de IA",
+    path: "/agentes",
+    open: (page) =>
+      openDialog(
+        page,
+        page.getByRole("button", { name: /^Modelo de IA de / }).first(),
+        "Modelo de IA",
+      ),
+  },
+  {
     name: "Novo marco",
     path: "/projetos/EXE",
     open: (page) =>

@@ -673,6 +673,17 @@ export type ConsoleAgent = {
   owner: { id: string; name: string } | null;
   createdAt: string;
   keys: ConsoleKey[];
+  /** Modelo de IA (D5): provedor e modelo para todos; chave e preços só para o dono. */
+  ai: {
+    provider: "anthropic" | "openai" | "xai";
+    model: string;
+    credentialId: string | null;
+    credentialLabel: string | null;
+    credentialLast4: string | null;
+    credentialRevoked: boolean;
+    priceIn: number | null;
+    priceOut: number | null;
+  } | null;
 };
 
 export type AgentsConsole = {
@@ -700,6 +711,14 @@ type ConsoleAgentRow = {
   owner_id: string | null;
   owner_name: string | null;
   created_at: Date | string;
+  llm_provider: "anthropic" | "openai" | "xai" | null;
+  llm_model: string | null;
+  llm_credential_id: string | null;
+  credential_label: string | null;
+  credential_last4: string | null;
+  credential_revoked: boolean | null;
+  price_in: number | null;
+  price_out: number | null;
 };
 
 type ConsoleKeyRow = {
@@ -733,10 +752,16 @@ export async function listAgentsConsole(
     `select a.id, a.name, a.kind::text as kind, a.status::text as status, a.roles,
             d.slug as department_slug, d.name as department_name, a.mission,
             a.budget_usd_month::float8 as budget, a.spent_usd_month::float8 as spent,
-            p.id as owner_id, p.full_name as owner_name, a.created_at
+            p.id as owner_id, p.full_name as owner_name, a.created_at,
+            a.llm_provider::text as llm_provider, a.llm_model, a.llm_credential_id,
+            c.label as credential_label, c.key_last4 as credential_last4,
+            c.revoked_at is not null as credential_revoked,
+            nullif(a.config ->> 'llm_price_in', '')::float8 as price_in,
+            nullif(a.config ->> 'llm_price_out', '')::float8 as price_out
        from ${S}.agents a
        left join ${S}.departments d on d.id = a.department_id
        left join ${S}.profiles p on p.id = a.owner_profile_id
+       left join ${S}.llm_credentials c on c.id = a.llm_credential_id
       order by a.created_at, a.name`,
   );
   const keys = canManageKeys
@@ -791,6 +816,20 @@ export async function listAgentsConsole(
           : null,
       createdAt: iso(a.created_at),
       keys: keys.filter((k) => k.agent_id === a.id).map(toKey),
+      ai:
+        a.llm_provider && a.llm_model
+          ? {
+              provider: a.llm_provider,
+              model: a.llm_model,
+              // A chave e os preços só para quem gere chaves (o dono).
+              credentialId: canManageKeys ? a.llm_credential_id : null,
+              credentialLabel: canManageKeys ? a.credential_label : null,
+              credentialLast4: canManageKeys ? a.credential_last4 : null,
+              credentialRevoked: Boolean(a.credential_revoked),
+              priceIn: canManageKeys ? a.price_in : null,
+              priceOut: canManageKeys ? a.price_out : null,
+            }
+          : null,
     })),
     canManage,
     canManageKeys,
