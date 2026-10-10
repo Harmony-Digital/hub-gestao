@@ -24,7 +24,7 @@ Referências visuais declaradas pelo Fábio: **ClickUp** (principal: hierarquia,
 | **Tática** | **Frentes** (pacotes de trabalho por departamento, ligados a um marco) | Como vamos chegar lá e quem cuida de cada parte? | Coordenador Tático (agente) + líderes | **Opcional**, item a item (`visibility = client`) |
 | **Operacional (micro)** | **Tarefas**, subtarefas, checklists, comentários internos, logs de agentes | O que está sendo feito agora? | Agentes executores e equipe | **Nunca** |
 
-Mapeamento com o `plan.md` de cada projeto: `## Marco` = Marco · `### Seção` = Frente · `- [ ] item (HUB-123)` = Tarefa · item aninhado = Subtarefa · linha `🔒 GATE` = pedido de aceite do marco (aprovação humana).
+Mapeamento com o `plan.md` de cada projeto: `## Marco` = Marco · `### Seção` = Frente · `- [ ] item (HUB-123)` = Tarefa · item aninhado = Subtarefa · linha `🔒 GATE` = pedido de aceite do marco (aprovação humana). Regras completas da leitura (título, nota, evidência, continuações, seção ignorada com `<!-- hub: ignorar -->`) em `docs/plan-md.md`.
 
 ---
 
@@ -104,7 +104,8 @@ hub-gestao/
 ├── deploy/vps/                        # Dockerfile, compose, rota do Traefik, timers, publicação,
 │                                      #   backup e provisionamento (README com o passo a passo)
 ├── scripts/                           # conectar o Claude Code à produção e teste MCP de produção
-├── docs/                              # credenciais, conexão dos agentes, contratos da API e do MCP
+├── docs/                              # credenciais, conexão dos agentes, contratos da API e do MCP,
+│                                      #   formato do plan.md (plan-md.md)
 └── .github/workflows/                 # ci.yml ("Qualidade") e deploy-vps.yml ("Publicação na VPS")
 ```
 
