@@ -18,7 +18,7 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
             alt="Harmony Digital"
             width={160}
             height={46}
-            priority
+            loading="eager"
             className="h-9 w-auto"
           />
           <p className="font-mono text-[11px] tracking-[0.12em] text-brand-soft uppercase">

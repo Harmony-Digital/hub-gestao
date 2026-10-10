@@ -22,6 +22,7 @@ export function MobileNav({ children }: { children: ReactNode }) {
           alt="Harmony Digital"
           width={110}
           height={32}
+          loading="eager"
           className="h-7 w-auto"
         />
       </Link>
