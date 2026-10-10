@@ -7,6 +7,7 @@
 import { formatAge, formatDate, formatTimestampDay } from "@/lib/format";
 import {
   AGENT_ROLE,
+  APPROVAL_STATUS,
   APPROVAL_TYPE,
   PROJECT_STATUS,
   type Tone,
@@ -75,7 +76,7 @@ export function approvalEffect(
     case "import_review": {
       const next = text(payload.next_status);
       const label =
-        next && next in PROJECT_STATUS
+        next && Object.hasOwn(PROJECT_STATUS, next)
           ? PROJECT_STATUS[next as keyof typeof PROJECT_STATUS].label
           : PROJECT_STATUS.active.label;
       return `o projeto sai de Em revisão e fica como ${label}.`;
@@ -99,7 +100,7 @@ function detailValue(key: string, value: unknown): string | null {
     return formatDate(value) || value;
   }
   if (key === "next_status" && typeof value === "string") {
-    return value in PROJECT_STATUS
+    return Object.hasOwn(PROJECT_STATUS, value)
       ? PROJECT_STATUS[value as keyof typeof PROJECT_STATUS].label
       : value;
   }
@@ -139,7 +140,9 @@ export function approvalDetails(
 }
 
 export function decisionView(a: ApprovalLike, now: Date): DecisionItem {
-  const type = APPROVAL_TYPE[a.type] ?? APPROVAL_TYPE.custom;
+  const type = Object.hasOwn(APPROVAL_TYPE, a.type)
+    ? APPROVAL_TYPE[a.type]
+    : APPROVAL_TYPE.custom;
   const dueTime = a.due_at ? Date.parse(a.due_at) : NaN;
   return {
     id: a.id,
@@ -204,6 +207,22 @@ export function parseDecisionForm(
   return { ok: true, value: { id, decision, ...(note ? { note } : {}) } };
 }
 
+/** O que a aprovação de fato mudou, pelo efeito gravado no pedido. */
+export function approvalResult(effect: Record<string, unknown>): string {
+  if (effect.milestone_status === "accepted") return "O marco foi aceito.";
+  if (effect.workstream_visibility === "client") {
+    return "A frente agora aparece para o cliente.";
+  }
+  if (effect.report_published === true) return "O relatório foi publicado.";
+  if (
+    typeof effect.project_status === "string" &&
+    Object.hasOwn(PROJECT_STATUS, effect.project_status)
+  ) {
+    return `O projeto ficou como ${PROJECT_STATUS[effect.project_status as keyof typeof PROJECT_STATUS].label}.`;
+  }
+  return "A decisão ficou registrada para quem pediu.";
+}
+
 /** Mensagem depois da decisão, com o efeito que de fato aconteceu. */
 export function decisionMessage(
   a: Pick<ApprovalLike, "status" | "title" | "effect">,
@@ -214,17 +233,34 @@ export function decisionMessage(
   if (a.status === "rejected") {
     return `Pedido recusado e registrado: “${a.title}”.`;
   }
-  const e = a.effect;
-  const result =
-    e.milestone_status === "accepted"
-      ? "O marco foi aceito."
-      : e.workstream_visibility === "client"
-        ? "A frente agora aparece para o cliente."
-        : e.report_published === true
-          ? "O relatório foi publicado."
-          : typeof e.project_status === "string" &&
-              e.project_status in PROJECT_STATUS
-            ? `O projeto ficou como ${PROJECT_STATUS[e.project_status as keyof typeof PROJECT_STATUS].label}.`
-            : "A decisão ficou registrada para quem pediu.";
+  const result = approvalResult(a.effect);
   return `Aprovado: “${a.title}”. ${result}`;
+}
+
+// Histórico ---------------------------------------------------------------------------
+
+export type HistoryItem = DecisionItem & {
+  outcome: string;
+  outcomeTone: Tone;
+  decidedBy: string | null;
+  /** Dia da decisão em Brasília ("10/10"). */
+  decidedOn: string | null;
+  note: string | null;
+  /** O que mudou, só quando foi aprovado. */
+  result: string | null;
+};
+
+export function historyView(a: ApprovalLike, now: Date): HistoryItem {
+  const status = Object.hasOwn(APPROVAL_STATUS, a.status)
+    ? APPROVAL_STATUS[a.status as keyof typeof APPROVAL_STATUS]
+    : { label: a.status, tone: "neutral" as Tone };
+  return {
+    ...decisionView(a, now),
+    outcome: status.label,
+    outcomeTone: status.tone,
+    decidedBy: a.decided_by?.name ?? null,
+    decidedOn: a.decided_at ? formatTimestampDay(a.decided_at) : null,
+    note: a.decision_note?.trim() || null,
+    result: a.status === "approved" ? approvalResult(a.effect) : null,
+  };
 }

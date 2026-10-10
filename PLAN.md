@@ -39,7 +39,7 @@
 | M0 — Fundação e decisões | ✅ Concluído e aprovado pelo Fábio em 2026-10-09 |
 | M1 — Núcleo para agentes (dados, autorização, REST, MCP, chaves, auditoria) | ✅ Concluído e aprovado pelo Fábio em 2026-10-09; o teto de IA segue para o adaptador do M5 |
 | M2 — Publicação inicial na VPS | ✅ Concluído e aprovado pelo Fábio em 2026-10-10; no ar em https://hub.harmonydigital.com.br. A cópia do backup fora da VPS segue aberta, esperando o destino |
-| M3 — Interface interna essencial | 🔄 Em construção desde 2026-10-10: estrutura das telas, Projetos, projeto em três camadas, Lista, painel da tarefa, Nova tarefa, Quadro (PRs #9 a #12) e Hoje (PR #14) no ar. Próximo: Aprovações |
+| M3 — Interface interna essencial | 🔄 Em construção desde 2026-10-10: estrutura das telas, Projetos, projeto em três camadas, Lista, painel da tarefa, Nova tarefa, Quadro (PRs #9 a #12), Hoje (PR #14) e Aprovações (PR #15) no ar. Próximo: cadastro de clientes, projetos, marcos e frentes |
 | M4 — `plan.md`, CLI, GitHub e importação do próprio Hub | ⬜ |
 | M5 — Agentes de gestão (Kratos) + Concierge e Planejador + importação de todos os projetos | ⬜ |
 | M6 — Portal do cliente e relatórios | ⬜ |
@@ -55,12 +55,13 @@
 - **Aprovados pelo Fábio:** GATE M0 e GATE M1 em 2026-10-09; GATE M2 em 2026-10-10 (“Vamos em frente.”).
 - **No ar para a equipe (M3, PRs #9 a #12):**
   - Hoje: o painel do dia, com as decisões (Aprovar, Ajustar, Recusar), bloqueios, riscos e o que os agentes fizeram;
+  - Aprovações: pendentes e histórico, com filtros por situação, tipo e projeto;
   - Projetos, com filtro por saúde;
   - em cada projeto, as abas Visão geral (três camadas), Lista e Quadro (Kanban de arrastar);
   - painel lateral da tarefa (`?tarefa=HUB-n`) e Nova tarefa;
   - `/agentes` (agentes e chaves com exibição única) e `/conta` (a própria pessoa define a senha).
 - **No ar para os agentes (M1):** API REST v1 e MCP, cada agente com chave própria. O Claude Code concluiu a HUB-1 em produção em 2026-10-10.
-- **Próximo:** tela Aprovações (filtros e histórico das decisões). Depois: cadastro de clientes, projetos, marcos e frentes; comentários ricos, checklist, anexos e dependências; Realtime; filtros e visões salvas; notificações; Sala de Controle completa; `⌘K`, tema e acessibilidade; testes Playwright.
+- **Próximo:** cadastro de clientes, projetos, marcos e frentes pela tela (o que falta para o Fábio usar um projeto real no dia a dia, o GATE M3). Depois: comentários ricos, checklist, anexos e dependências; Realtime; filtros e visões salvas; notificações; Sala de Controle completa; `⌘K`, tema e acessibilidade; testes Playwright.
 - **Esperando o Fábio:** destino da cópia do backup fora da VPS (D8); se quiser, o texto do e-mail do link de acesso (hoje sai com o modelo do IA Posicionamento); a semana de uso real do GATE M3, quando o essencial estiver pronto.
 - **Como conferir no computador:** login de teste e projeto de exemplo `EXE`, sem a senha de produção (`AGENTS.md` §6.4).
 
@@ -200,7 +201,7 @@
 ## M3 — Interface interna essencial
 
 ### Shell
-- [ ] Barra lateral recolhível (Hoje · Minhas tarefas · Aprovações · Clientes › Projetos · Departamentos · Agentes · Relatórios · Configurações), barra superior com `⌘K` (`cmdk`), criação rápida, breadcrumb, abas de visão — em andamento: barra lateral fixa com contadores e projetos em destaque, menu em gaveta no celular e trilha no topo de cada tela (PR #9); abas de visão do projeto, Visão geral e Lista (PR #11) e Quadro (PR #12). Faltam recolher a barra, `⌘K`, criação rápida global e as entradas que dependem de telas ainda não feitas
+- [ ] Barra lateral recolhível (Hoje · Minhas tarefas · Aprovações · Clientes › Projetos · Departamentos · Agentes · Relatórios · Configurações), barra superior com `⌘K` (`cmdk`), criação rápida, breadcrumb, abas de visão — em andamento: barra lateral fixa com contadores e projetos em destaque, menu em gaveta no celular e trilha no topo de cada tela (PR #9); abas de visão do projeto, Visão geral e Lista (PR #11) e Quadro (PR #12); Aprovações no menu (PR #15). Faltam recolher a barra, `⌘K`, criação rápida global e as entradas que dependem de telas ainda não feitas
 - [ ] Tema claro/escuro com tokens; `prefers-reduced-motion`; foco visível; navegação por teclado
 
 ### Hoje (cockpit)
@@ -221,7 +222,7 @@
 - [ ] Filtros combináveis e visões salvas por usuário
 
 ### Aprovações
-- [ ] Tela de aprovações com filtro por tipo e projeto; decisão com orientação; efeito automático (publicar, promover visibilidade, aceitar marco)
+- [x] Tela de aprovações com filtro por tipo e projeto; decisão com orientação; efeito automático (publicar, promover visibilidade, aceitar marco) — evidência: PR #15, tela `/aprovacoes` (no menu lateral) com filtros por situação (pendentes, histórico, todas), tipo e projeto, guardados no endereço; pendentes com Aprovar, Ajustar (orientação obrigatória) e Recusar (motivo opcional), pelos mesmos cartões da tela Hoje; histórico com a decisão, quem decidiu e quando, a orientação ou o motivo e o que mudou. Os efeitos vêm do núcleo (`decideApproval`) e têm teste: marco aceito pelo dono, frente visível ao cliente e relatório publicado. Conferido no navegador com os pedidos de exemplo: ajuste, aprovação (a frente passou a Visível) e recusa com motivo, e o filtro por tipo; no celular, filtros rolando para o lado
 
 ### Agentes (Console "Sala de Controle")
 - [ ] Cadastro de agentes (tipo, departamento, missão, orçamento, dono); criação de chave com exibição única; escopos e projetos; expiração; revogação; pausa (kill switch) — versão mínima antecipada em 2026-10-10 para o GATE M2 (tela `/agentes`): cadastro com nome e tipo (owner e admin); criação de chave com exibição única, permissões em PT-BR, projetos e validade de 30 a 365 dias; revogação com confirmação. As chaves só aparecem para o owner, e o valor nunca sai do banco. Tudo passa pelo núcleo do M1, com autorização e histórico (`source = ui`). Testes: 13 dos formulários e 5 do console. Faltam departamento, missão, orçamento, pausa e o visual da Sala de Controle
@@ -407,3 +408,4 @@
 | 2026-10-10 | Claude (Opus 5.5) · Claude Code | Fábio mandou seguir ("Seguinte frente", lido como "siga em frente"). PR #12: aba Quadro (Kanban com `@dnd-kit/core` 6.3.1, sem vulnerabilidades de produção), arrastar entre status com mouse, toque e teclado, janela de evidência ou motivo, cartão que volta quando o servidor recusa. Mensagens de erro nas telas passaram a usar o nome do campo em PT-BR. Conferido no navegador com o projeto de exemplo: arrastar para Em andamento, concluir com evidência, mover pelo teclado, Enter para abrir, cancelar o bloqueio e a recusa de texto com cara de chave. | Próximo: Hoje (cockpit) e Aprovações. Reordenar dentro da coluna e raias ficam para depois. Continua aberta a cópia do backup fora da VPS (destino do Fábio). |
 | 2026-10-10 | Claude (Opus 5.5) · Claude Code | Pedido do Fábio: atualizar CLAUDE.md, AGENTS.md e PLAN.md com tudo o que foi feito, antes de continuar. CLAUDE.md: estado atual, comandos, como entregar uma mudança, acessos como estão hoje e as regras aprendidas (senhas, contas de acesso, proteção automática da sessão). AGENTS.md: estrutura real do repositório, convenções das telas, segredos e acessos, desenvolvimento local com login de teste e projeto de exemplo (§6.4), regra da mudança de status pela tela, publicação e conexão de agentes. app/AGENTS.md: regras do Next.js 16 aprendidas e padrões das telas. PLAN.md: seção "Onde estamos", linha do M3, notas do GATE M2, da barra lateral e dos status. docs/credenciais.md: variáveis do login de teste e do projeto de exemplo, e a chave de serviço do Supabase marcada como não usada pelo servidor. Só documentação; nenhum código mudou. | Próximo: Hoje (cockpit) e Aprovações. |
 | 2026-10-10 | Claude (Opus 5.5) · Claude Code | Fábio: “Vamos seguir.” PR #14: tela Hoje no lugar da página provisória, seguindo o protótipo aprovado (data e saudação, números do dia, saúde dos projetos, Decisões para você com Aprovar, Ajustar e Recusar, suas tarefas, prazos, bloqueios, riscos e agentes nas últimas 24 horas). Dados por regra, no escopo de quem vê (`modules/today/cockpit.ts`, com teste de escopo). Peças de formulário passaram para `components/forms.tsx`. Pedidos de exemplo no banco local. O `next dev` deixou de subir neste Mac ("unable to start FSEvent stream": 11 servidores de outro projeto abertos há dias esgotaram os observadores do macOS); entrou a variável local `HUB_DEV_POLL_MS`, que liga a observação por consulta só quando pedida, e a configuração do preview passou a usá-la. Os servidores do outro projeto não foram tocados. | Próximo: tela Aprovações. Bloqueios que dependem de você pedem um campo novo na tarefa (quem destrava). |
+| 2026-10-10 | Claude (Opus 5.5) · Claude Code | Fábio: “Continue.” PR #15: tela Aprovações (`/aprovacoes`, no menu lateral) com pendentes e histórico, filtros por situação, tipo e projeto guardados no endereço, e os mesmos cartões de decisão da tela Hoje (Aprovar, Ajustar, Recusar). O histórico mostra a decisão, quem decidiu e quando, a orientação ou o motivo e o que mudou. A tela Hoje ganhou o link "Abrir todas as aprovações". Item Aprovações do M3 marcado com evidência. | Próximo: cadastro de clientes, projetos, marcos e frentes pela tela, para o Fábio usar um projeto real (GATE M3). |

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import {
   CircleCheck,
@@ -105,9 +106,12 @@ function DecisionCard({
       <div className="flex flex-wrap items-center gap-2 text-xs text-caption">
         <Pill tone={item.tone}>{item.typeLabel}</Pill>
         {item.projectCode ? (
-          <span className="font-mono font-semibold text-ink-2">
+          <Link
+            href={`/projetos/${item.projectCode}`}
+            className="font-mono font-semibold text-ink-2 hover:text-navy hover:underline"
+          >
             {item.projectCode}
-          </span>
+          </Link>
         ) : null}
         <span className="ml-auto">{item.age}</span>
         {item.due ? (

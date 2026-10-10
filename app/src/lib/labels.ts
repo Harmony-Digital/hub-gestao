@@ -121,6 +121,18 @@ export const APPROVAL_TYPE: Record<
   custom: { label: "Pedido", tone: "neutral" },
 };
 
+/** Situação de um pedido de aprovação. */
+export const APPROVAL_STATUS: Record<
+  "pending" | "approved" | "rejected" | "adjust_requested" | "cancelled",
+  Labeled
+> = {
+  pending: { label: "Esperando decisão", tone: "review" },
+  approved: { label: "Aprovado", tone: "ok" },
+  adjust_requested: { label: "Ajuste pedido", tone: "warn" },
+  rejected: { label: "Recusado", tone: "danger" },
+  cancelled: { label: "Cancelado", tone: "neutral" },
+};
+
 /** Papéis do catálogo de agentes (AGENTES.md), pelo código gravado em cada escrita. */
 export const AGENT_ROLE: Record<string, string> = {
   "KR-00": "Kratos",

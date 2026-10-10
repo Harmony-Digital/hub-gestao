@@ -4,6 +4,7 @@ import {
   approvalEffect,
   decisionMessage,
   decisionView,
+  historyView,
   parseDecisionForm,
   type ApprovalLike,
 } from "./view";
@@ -177,5 +178,63 @@ describe("formulário de decisão", () => {
     expect(
       decisionMessage({ ...base, status: "adjust_requested", effect: {} }),
     ).toMatch(/^Orientação registrada/);
+  });
+});
+
+describe("histórico de decisões", () => {
+  const now = new Date("2026-10-10T15:00:00Z");
+
+  it("aprovado mostra quem decidiu, quando e o que mudou", () => {
+    const item = historyView(
+      approval({
+        status: "approved",
+        decided_by: { name: "Fábio Almeida" },
+        decided_at: "2026-10-10T14:00:00Z",
+        effect: { applied: true, workstream_visibility: "client" },
+      }),
+      now,
+    );
+    expect(item).toMatchObject({
+      outcome: "Aprovado",
+      outcomeTone: "ok",
+      decidedBy: "Fábio Almeida",
+      decidedOn: "10/10",
+      note: null,
+      result: "A frente agora aparece para o cliente.",
+    });
+  });
+
+  it("ajuste e recusa trazem a orientação e não um resultado", () => {
+    const adjusted = historyView(
+      approval({
+        status: "adjust_requested",
+        decision_note: "  Mude o prazo.  ",
+        decided_by: { name: "Fábio Almeida" },
+        decided_at: "2026-10-10T14:00:00Z",
+      }),
+      now,
+    );
+    expect(adjusted).toMatchObject({
+      outcome: "Ajuste pedido",
+      note: "Mude o prazo.",
+      result: null,
+    });
+    expect(historyView(approval({ status: "cancelled" }), now)).toMatchObject({
+      outcome: "Cancelado",
+      decidedBy: null,
+      decidedOn: null,
+    });
+  });
+
+  it("valor estranho vindo do pedido não vira texto quebrado", () => {
+    expect(
+      historyView(
+        approval({
+          type: "import_review",
+          payload: { next_status: "constructor" },
+        }),
+        now,
+      ).effect,
+    ).toBe("o projeto sai de Em revisão e fica como Ativo.");
   });
 });
