@@ -283,3 +283,71 @@ export function parseNewTaskForm(form: FormData): Parsed<{
     },
   };
 }
+
+// Checklist e dependências ------------------------------------------------------------
+
+export type ChecklistRequest =
+  | { op: "add"; code: string; text: string }
+  | { op: "toggle"; id: string; done: boolean }
+  | { op: "rename"; id: string; text: string }
+  | { op: "remove"; id: string };
+
+function checklistText(value: string): Parsed<string> {
+  const clean = value.trim();
+  if (!clean) return { ok: false, message: "Escreva o item do checklist." };
+  if (clean.length > 300 || CONTROL.test(clean)) {
+    return {
+      ok: false,
+      message: "Cada item do checklist: até 300 caracteres, numa linha só.",
+    };
+  }
+  return { ok: true, value: clean };
+}
+
+export function parseChecklistForm(form: FormData): Parsed<ChecklistRequest> {
+  const op = text(form, "op");
+  if (op === "add") {
+    const code = text(form, "code");
+    if (!TASK_CODE.test(code)) return { ok: false, message: RELOAD };
+    const item = checklistText(text(form, "text"));
+    if (!item.ok) return item;
+    return { ok: true, value: { op, code, text: item.value } };
+  }
+  const id = text(form, "id");
+  if (!UUID.test(id)) return { ok: false, message: RELOAD };
+  if (op === "toggle") {
+    const done = text(form, "done");
+    if (done !== "true" && done !== "false") {
+      return { ok: false, message: RELOAD };
+    }
+    return { ok: true, value: { op, id, done: done === "true" } };
+  }
+  if (op === "rename") {
+    const item = checklistText(text(form, "text"));
+    if (!item.ok) return item;
+    return { ok: true, value: { op, id, text: item.value } };
+  }
+  if (op === "remove") return { ok: true, value: { op, id } };
+  return { ok: false, message: RELOAD };
+}
+
+export function parseDependencyForm(
+  form: FormData,
+): Parsed<{ op: "add" | "remove"; code: string; other: string }> {
+  const op = text(form, "op");
+  const code = text(form, "code");
+  if ((op !== "add" && op !== "remove") || !TASK_CODE.test(code)) {
+    return { ok: false, message: RELOAD };
+  }
+  const other = text(form, "other").trim().toUpperCase();
+  if (!TASK_CODE.test(other)) {
+    return {
+      ok: false,
+      message: "Informe o código da tarefa de que esta depende, como HUB-12.",
+    };
+  }
+  if (other === code) {
+    return { ok: false, message: `${code} não pode depender de si mesma.` };
+  }
+  return { ok: true, value: { op, code, other } };
+}
