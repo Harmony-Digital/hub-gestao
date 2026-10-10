@@ -62,56 +62,66 @@ Mapeamento com o `plan.md` de cada projeto: `## Marco` = Marco · `### Seção` 
 
 **Durante**
 5. Entregas pequenas e verificáveis. Cada tarefa do `PLAN.md` deve caber em uma sessão.
-6. Testar de verdade: navegador (`npm run dev`), banco (consulta read-only), API (`curl` ou teste), MCP (cliente de teste). Nada é verificado "por leitura de código".
+6. Testar de verdade: navegador (`npm run dev`, com o login de teste e o projeto de exemplo, §6.4, no computador e no celular), banco (consulta read-only), API (`curl` ou teste), MCP (cliente de teste). Nada é verificado "por leitura de código".
 7. Descobriu trabalho novo? Adicionar tarefa `[ ]` no milestone certo, nunca executar escopo futuro sem pedido.
 
 **Fim**
 8. `npm run check` verde.
 9. Atualizar `PLAN.md`: marcar `[x]` só o verificado, com evidência curta; adicionar linha no **Registro de Execução** (data, IA, entregue, pendências).
 10. Commit com mensagem descritiva em PT-BR, `git add` com caminhos explícitos. Push só quando o `PLAN.md` ou o Fábio autorizar.
-11. Se algo ficou quebrado ou pela metade, dizer isso explicitamente na última mensagem.
+11. A `main` só recebe PR com squash merge, depois do CI "Qualidade" verde nos dois jobs (app e imagem de produção). **Todo merge na `main` é publicado em produção sozinho** (§8), então só entra trabalho verificado. O painel de PR do app Claude não acompanha este repositório (é subpasta da pasta da sessão): acompanhar o CI com `gh run watch` e, depois do merge, conferir a publicação e o `/api/health` com o SHA.
+12. Se algo ficou quebrado ou pela metade, dizer isso explicitamente na última mensagem.
 
 ## 5. Stack e convenções de código
 
-### 5.1 Estrutura prevista do repositório `Harmony-Digital/hub-gestao`
+### 5.1 Estrutura do repositório `Harmony-Digital/hub-gestao` (atual, 2026-10-10)
 
 ```
 hub-gestao/
 ├── AGENTS.md · CLAUDE.md · PRD.md · AGENTES.md · PLAN.md · README.md
-├── app/                      # Next.js 16 (App Router) — web + API + MCP
-│   ├── src/app/(app)/…       # interface interna (shell, projetos, visões, hoje, aprovações, agentes)
-│   ├── src/app/portal/…      # portal do cliente (rota pública autenticada por magic link)
-│   ├── src/app/api/v1/…      # REST para agentes e integrações (OpenAPI 3.1)
-│   ├── src/app/api/internal/ # cron, health, webhooks de entrada (GitHub)
-│   ├── src/app/mcp/route.ts  # servidor MCP Streamable HTTP
-│   ├── src/modules/          # domínio por módulo: projects, tasks, milestones, approvals, agents, sync, reports, portal
-│   ├── src/lib/              # supabase clients, auth, authorize(), audit, idempotency, llm adapter, tokens
-│   ├── src/components/       # UI (shadcn/ui + componentes Harmony)
-│   └── tests/                # Vitest unit/integration · e2e Playwright
-├── packages/cli/             # CLI `hub` (Node) — `hub plan pull|push`, `hub task done HUB-123`
-├── supabase/
-│   ├── migrations/           # hub_gestao_0001_foundation.sql, hub_gestao_0002_…sql
-│   └── tests/                # SQL de RLS com dois workspaces e papel cliente
-├── deploy/vps/               # Dockerfile, docker-compose.yml, traefik.yml, systemd, deploy.sh (padrão RELGOV)
-├── agents/hermes/            # SOUL/AGENTS/skills do Gestor de Projetos e demais agentes Hermes (sem segredos)
-├── docs/                     # ADRs, API, MCP, design system, operação
-└── .github/workflows/        # ci.yml (lint/types/test/build) · deploy-vps.yml
+├── app/                               # Next.js 16.4: telas, API REST v1 e MCP
+│   ├── src/app/(interno)/             # telas da equipe: Hoje (/), projetos, agentes, conta
+│   │   └── projetos/[code]/           # Visão geral (page.tsx), lista/, quadro/ e _tasks/ (cabeçalho com
+│   │                                  #   abas, painel da tarefa, formulários, ações, Kanban, filtro)
+│   ├── src/app/login/ · auth/         # login (Supabase Auth) e retorno do link de acesso
+│   ├── src/app/api/v1/…               # REST para agentes e integrações (OpenAPI 3.1)
+│   ├── src/app/api/health/ · api/internal/cron/   # saúde e relógio dos jobs
+│   ├── src/app/mcp/route.ts           # servidor MCP Streamable HTTP
+│   ├── src/proxy.ts                   # porta das telas (o "middleware" do Next 16)
+│   ├── src/modules/                   # casos de uso por domínio: projects, tasks, milestones, workstreams,
+│   │                                  #   comments, approvals, agents, reports, time, today, search,
+│   │                                  #   health, jobs, mcp, shell
+│   ├── src/lib/                       # authorize, audit, idempotency, auth, db (pg e PGlite), errors,
+│   │                                  #   format, labels, links, ui-context
+│   ├── src/components/                # shell (barra lateral, cabeçalho, selos) e ui (shadcn)
+│   ├── src/test/hub.ts                # ambiente de teste: PGlite com migrations, seed, projeto VIT,
+│   │                                  #   agentes e chaves criados pelo caminho real
+│   └── scripts/cron-tick.mjs          # relógio dos jobs, chamado pelo timer da VPS
+├── supabase/migrations/ · seeds/      # hub_gestao_0001 a 0010 e o seed da Harmony
+├── deploy/vps/                        # Dockerfile, compose, rota do Traefik, timers, publicação,
+│                                      #   backup e provisionamento (README com o passo a passo)
+├── scripts/                           # conectar o Claude Code à produção e teste MCP de produção
+├── docs/                              # credenciais, conexão dos agentes, contratos da API e do MCP
+└── .github/workflows/                 # ci.yml ("Qualidade") e deploy-vps.yml ("Publicação na VPS")
 ```
+
+Ainda não existem: portal do cliente (`src/app/portal/`, M6), CLI `hub` (`packages/cli/`, M4), skills do Kratos versionadas (`agents/hermes/`, M5) e testes Playwright (M3). Os testes ficam ao lado do código (`*.test.ts`), não numa pasta `tests/`.
 
 ### 5.2 Convenções
 
 - **TypeScript estrito**, sem `any` implícito. `zod` em todas as fronteiras (API, MCP, formulários, env).
-- **Server-only** para `service_role`, chaves de LLM e qualquer segredo (`import 'server-only'`). O navegador só usa a `anon key` com sessão do usuário e RLS.
-- **IA multi-provedor (D5)**: nenhum código chama SDK de provedor diretamente. Tudo passa por `src/lib/llm` (AI SDK v7 com Anthropic, OpenAI e xAI), que lê provedor, modelo e credencial da configuração do agente a cada chamada. Trocar de provedor é configuração, nunca deploy.
+- **Server-only** para segredos e acesso ao banco (`import 'server-only'`). O navegador não fala com o banco: telas (server components) e ações de formulário (server actions) passam pelos casos de uso de `src/modules`, com `authorize()`, auditoria e `source = ui`. A chave pública do Supabase só serve ao login (Supabase Auth). O schema não é exposto no PostgREST.
+- **IA multi-provedor (D5)**: nenhum código chama SDK de provedor diretamente. Tudo passa por `src/lib/llm` (AI SDK v7 com Anthropic, OpenAI e xAI), que lê provedor, modelo e credencial da configuração do agente a cada chamada. Trocar de provedor é configuração, nunca deploy. Chega no M5: hoje o Hub não chama IA.
 - **Autorização central**: `authorize(actor, action, resource)` em `src/lib/authorize.ts`. Rotas de API e ferramentas MCP passam por ela antes de tocar o banco. RLS é a segunda linha de defesa, nunca a única nem a inexistente.
 - **Erros** no formato `application/problem+json` (RFC 9457). **Paginação** por cursor. **Idempotência** por cabeçalho `Idempotency-Key` em todo POST/PUT de agente.
 - **Logs** estruturados (`pino`), sem PII, sem segredos, com `request_id` e `actor`.
 - **Banco**: tabelas e colunas em `snake_case` inglês, `uuid` como PK, `created_at/updated_at` em todas, `deleted_at` só onde o PRD pedir soft delete. Enums do Postgres para estados fechados. Toda tabela da aplicação com **RLS habilitada e políticas mínimas**.
 - **Migrations**: `supabase/migrations/hub_gestao_NNNN_descricao.sql`, aplicadas pelo MCP `harmony-supabase` com `apply_migration` e nome prefixado `hub_gestao_`. Nunca `execute_sql` para DDL. Depois de cada migration: `get_advisors` (segurança e desempenho) e registrar achados no `PLAN.md`.
-- **Códigos de tarefa**: `HUB-<n>` sequencial por workspace (sequence no banco). Imutáveis. Aparecem em UI, API, MCP, `plan.md`, commits e PRs.
+- **Códigos de tarefa**: `HUB-<n>` sequencial por workspace (contador no banco). O prefixo é do workspace, não do projeto: tarefas de qualquer projeto da Harmony são `HUB-n`. Imutáveis. Aparecem em UI, API, MCP, `plan.md`, commits e PRs.
 - **Textos para cliente** vivem em campos próprios (`title_client`, `description_client`, `summary_client`). Nunca derivar automaticamente do texto interno.
-- **UI**: shadcn/ui + Tailwind v4 com tokens Harmony (`PRD.md` §14). Sem emojis. Ícones `lucide-react`. Texto PT-BR. Acessível: foco visível, contraste AA, `lang="pt-BR"`.
-- **Testes**: Vitest (unidade e integração), Testing Library (componentes), Playwright (fluxos críticos: criar tarefa, concluir com evidência, aprovação, portal do cliente), SQL de RLS (dois workspaces + papel cliente), contratos de API e MCP (snapshot do OpenAPI e da lista de tools).
+- **UI**: shadcn/ui + Tailwind v4 com tokens Harmony (`PRD.md` §14). Sem emojis. Ícones `lucide-react`. Texto PT-BR. Acessível: foco visível, contraste AA, `lang="pt-BR"`, rótulos e avisos em PT-BR para leitor de tela.
+- **Telas que mudam dados**: cada ação de formulário lê o `FormData` com um parser puro e testado, roda o caso de uso numa transação e atualiza a tela; mudança concorrente (versão velha da tarefa, 412) atualiza a tela e avisa. Mensagens de erro para pessoas mostram o nome do campo em PT-BR. Detalhes e regras do Next.js 16 em `app/AGENTS.md`.
+- **Testes**: Vitest (unidade e integração) com banco local PGlite (o mesmo Postgres 17), RLS com dois workspaces e papel cliente, e contratos de API e MCP (snapshot do OpenAPI e da lista de tools). Previstos e ainda não feitos: Testing Library (componentes) e Playwright (fluxos críticos: criar tarefa, mover no quadro, concluir com evidência, aprovação, portal do cliente).
 - **Commits**: PT-BR, imperativo, descritivos. Exemplo: `Adiciona rollup de progresso por marco (HUB-57)`.
 
 ## 6. Segurança e acessos
@@ -120,41 +130,55 @@ hub-gestao/
 
 | Alvo | Como confirmar | Regra |
 |---|---|---|
-| GitHub | `GH_TOKEN="$(gh auth token --user fabioalmeidadigital)" gh api user --jq .login` → `fabioalmeidadigital` | Repo `Harmony-Digital/hub-gestao`. A conta global do `gh` não é autorizada. O MCP do GitHub está em outra conta: não usar para este repo. |
-| VPS | `ssh vps-harmony hostname` → `vps-harmony-digital` | KVM4 `1821299`, `217.196.63.157`. Leitura livre; escrita só em `/opt/hub-gestao` e com passo autorizado no `PLAN.md`. Arquivos de Traefik, Compose, systemd e `.env` de produção são do proprietário. |
-| Banco | MCP `harmony-supabase`: `select schema_name from harmony_admin.projects where slug = 'hub_gestao'` | Trabalhar só em `proj_hub_gestao`. Nunca `proj_*` de outros projetos, nunca `supabase-relgov`, nunca `supabase-leonardo`, nunca schemas globais sem autorização. |
-| DNS | Nenhuma escrita | Registro `hub` é criado pelo Fábio (ou com autorização explícita). Nunca trocar nameservers; a zona hospeda MX/SPF do Microsoft 365 e outros subdomínios. |
+| GitHub | `GH_TOKEN="$(gh auth token --user fabioalmeidadigital)" gh api user --jq .login` → `fabioalmeidadigital` | Repo `Harmony-Digital/hub-gestao`. A conta global do `gh` não é autorizada. O MCP do GitHub está em outra conta: não usar para este repo. `fetch` e `push` com o `GH_TOKEN` exportado e `git -c credential.helper= -c 'credential.helper=!gh auth git-credential' …` (o ajudante padrão usa outra conta e responde "Repository not found"). |
+| VPS | `ssh vps-harmony hostname` → `vps-harmony-digital` | KVM4 `1821299`, `217.196.63.157`. Leitura livre; escrita só em `/opt/hub-gestao` e com passo autorizado no `PLAN.md`. Arquivos de Traefik, Compose, systemd e `.env` de produção são do proprietário. O Traefik do EasyPanel é compartilhado: reiniciar derruba todos os sites por alguns segundos, só com ok do Fábio. |
+| Banco | MCP `harmony-supabase`: `select schema_name from harmony_admin.projects where slug = 'hub_gestao'` | Trabalhar só em `proj_hub_gestao`. Nunca `proj_*` de outros projetos, nunca `supabase-relgov`, nunca `supabase-leonardo`, nunca schemas globais sem autorização. O servidor do Hub conecta com o papel `hub_gestao_app` (sem `BYPASSRLS`), e a partida recusa papel que ignore a RLS (`src/lib/db/guard.ts`). Escrita no banco de produção pelo terminal é barrada pela proteção da sessão: usar o conector (DDL só por `apply_migration`). |
+| DNS | Nenhuma escrita sem ordem do Fábio | O registro `hub` (CNAME → `srv1821299.hstgr.cloud`) existe desde 2026-10-09, criado pela API da Hostinger com autorização dele. Outra mudança só com ordem explícita. Nunca trocar nameservers; a zona hospeda MX/SPF do Microsoft 365 e outros subdomínios. A API pode responder 500 e mesmo assim gravar: conferir a listagem antes de repetir. |
 | Vercel | Não se aplica | O Hub roda na VPS. Não criar projeto Vercel para ele. |
 
 ### 6.2 Segredos
 
 - Produção: `/opt/hub-gestao/shared/.env.production` (root, `0600`). Local: `app/.env.local` (gitignored). Modelo versionado: `app/.env.example` sem valores.
-- Variáveis mínimas: `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `HUB_API_KEY_PEPPER`, `HUB_ENCRYPTION_KEY`, `CRON_SECRET`, `RESEND_API_KEY` (fase do portal), `GITHUB_WEBHOOK_SECRET`, `LLM_MONTHLY_BUDGET_USD`.
+- A lista completa de variáveis, com onde cada uma vive e quem fornece, está em `docs/credenciais.md`. Em produção, o servidor fala com o banco por `DATABASE_URL` (papel `hub_gestao_app`); o pepper das chaves, a cifra e o segredo do relógio foram gerados na própria VPS e nunca saíram de lá. O link de acesso por e-mail está ligado (`HUB_AUTH_MAGIC_LINK=on`).
 - **Chaves de IA (D5)** não ficam no `.env` de produção: o Fábio as cadastra na tela Agentes, e o Hub guarda cifradas em `llm_credentials` com `HUB_ENCRYPTION_KEY`. Em desenvolvimento local, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` e `XAI_API_KEY` no `.env.local` servem só de fallback.
 - Chaves de agente são **hash** no banco (`agent_api_keys.key_hash`); o valor em claro aparece uma única vez na criação e nunca é logado.
 - Rotação: qualquer suspeita de vazamento → revogar (`revoked_at`) antes de investigar.
+- **Senhas de pessoas nunca passam por um agente**: nem cadastrar, nem digitar, nem repetir, mesmo quando pedirem no chat. A pessoa define a sua em `/conta` (Minha conta) ou entra pelo link de acesso por e-mail.
+- **Contas de acesso e segurança do servidor são do Fábio**: papel de banco, usuário do servidor, SSH e sudo são executados por ele, por script com botão Rodar (ex.: `deploy/vps/hub-provision-local.sh`). O agente prepara e ensaia o script; não executa.
+- Recusa da proteção automática da sessão nunca é contornada: parar, explicar e perguntar ao Fábio.
 
 ### 6.3 Dados de clientes (LGPD)
 
 Contatos e conteúdos de clientes ficam no schema do Hub com RLS por `workspace_id` e `project_members`. Exportação e exclusão por cliente são requisitos (PRD §12). Nenhum dado pessoal em logs, prompts de LLM além do necessário ou repositório.
+
+### 6.4 Desenvolvimento local e dados de exemplo
+
+- Sem `DATABASE_URL`, o servidor local usa PGlite em `app/.data/pglite`, com as mesmas migrations e o seed da Harmony.
+- **Login de teste**: `HUB_DEV_LOGIN=on` e `HUB_DEV_LOGIN_SECRET` (32 caracteres ou mais) no `app/.env.local` ligam o botão "Entrar como dono, sem senha (só neste computador)" no `/login`. O cookie é assinado com esse segredo. O código fica atrás de `NODE_ENV !== "production"`, e o CI confere que a imagem de produção recusa o cookie e não mostra o botão.
+- **Projeto de exemplo**: `HUB_DEV_SAMPLE=on` cria no banco local o cliente "Clínica Exemplo" e o projeto `EXE`, com marcos, frentes, agentes e tarefas de exemplo. Só no banco local.
+- `HUB_DEV_AGENT_KEY` registra o "Agente local de teste" para chamar a API e o MCP locais.
+- Preview no app Claude: configuração `hub-gestao` (porta 3100), que sobe com `WATCHPACK_POLLING=true` porque o observador de arquivos do macOS esgota com EMFILE.
+- Conferência visual no computador (1440 px) e no celular (375 px), olhando o console do navegador e o log do servidor.
 
 ## 7. Regras de negócio que não podem quebrar
 
 1. **Visibilidade** (`internal | client`) é verificada por RLS e por `authorize()`. Operacional é sempre `internal`. Comentários nascem `internal`.
 2. **Rollup determinístico**: progresso da frente = tarefas concluídas / tarefas (ponderadas por `estimate_minutes` quando houver); progresso do marco = média ponderada das frentes + tarefas soltas; saúde do projeto = regra em código (atrasos, bloqueios, deriva de prazo). Nunca via LLM.
 3. **🔒 GATE**: aceite de marco só por humano com papel `owner` ou `admin`; o cliente nunca aceita marco, no máximo confirma o recebimento (D9). API e MCP recusam. Sincronização de `plan.md` ignora `[x]` em linha de GATE e abre alerta.
-4. **Conclusão exige evidência** (`done_evidence` não vazio) quando a tarefa pertence a um projeto com `require_evidence = true` (padrão da Harmony).
+4. **Conclusão exige evidência** (`done_evidence` não vazio). O serviço exige sempre; o banco reforça nos projetos com `require_evidence = true` (padrão da Harmony).
 5. **Idempotência**: mesma `Idempotency-Key` + mesmo corpo → mesma resposta; corpo diferente → `409`.
 6. **Auditoria**: toda mutação grava `activity_log` com `actor_type`, `actor_id`, `source` (`ui | api | mcp | sync | cron | webhook`), `before` e `after`. A tabela é append-only (sem UPDATE/DELETE para a aplicação).
 7. **Escopo de chave**: uma chave de agente só vê e altera os projetos listados em `scopes.project_ids` (ou todos, se `workspace:*` e o Fábio autorizou). Ações de escrita exigem `tasks:write`; aprovações exigem `approvals:request` e nunca `approvals:decide`.
 8. **Teto de custo de IA**: cada agente interno tem orçamento mensal (`agents.budget_usd_month`); estourou, o agente responde com texto determinístico e registra o evento.
+9. **Mudança de status pela tela** (Lista, painel e Quadro) passa pelo caso de uso `moveTask`: concluir pede evidência, bloquear pede o motivo, tarefa concluída é reaberta antes de ir para outro status, e a versão lida é conferida (se outra pessoa ou agente mudou a tarefa, nada é gravado e a tela avisa). Agentes usam as ações próprias (`start`, `block`, `complete`, `reopen`); o `start` aplica o limite de tarefas em andamento por agente.
 
-## 8. Deploy e operação (resumo; detalhes no `PRD.md` §13)
+## 8. Deploy e operação (resumo; detalhes no `PRD.md` §13 e em `deploy/vps/README.md`)
 
-- Push em `main` → GitHub Actions: lint, typecheck, testes, build → imagem Docker sem segredos → SSH restrito à VPS (`load <sha>`) → troca do container → healthcheck em `/api/health` → rollback automático se falhar. Igual ao RELGOV, com nomes `hub-*`.
-- Container `hub-app` sem root, filesystem somente leitura, rede `hub_proxy`, limites iniciais 1,5 CPU e 2 GB. Traefik roteia `hub.harmonydigital.com.br`.
-- Jobs determinísticos (rollups, lembretes, digests, limpeza) por `systemd timer` → `POST /api/internal/cron/<job>` com `CRON_SECRET`. Raciocínio de agentes fica no Hermes.
-- Encerrar entrega: run verde, `/api/health` com o SHA publicado, smoke test real (login, criar tarefa via MCP, ver no quadro).
+- Merge na `main` → CI **"Qualidade"**: formato, lint, tipos, testes e build, mais a imagem de produção testada com as restrições da VPS (inclusive a recusa do login de teste) → **"Publicação na VPS"** (só com a variável `HUB_DEPLOY_ENABLED=true`): imagem sem segredos enviada por SSH restrito (usuário `hubdeploy`, só o comando `load <sha>`) → troca do contêiner → saúde em `/api/health` com o SHA → volta à versão anterior se falhar. Mesmo padrão do Certato, com nomes `hub-*`.
+- Contêiner `hub-app`: usuário 1001, sistema de arquivos somente leitura, sem capabilities, limites de 1,5 CPU e 2 GB, redes `hub_proxy` (Traefik) e `supabase_default` (banco). Rota do Traefik em `/etc/easypanel/traefik/config/hub.yaml`, com Let's Encrypt e cabeçalhos de segurança.
+- Jobs determinísticos: timer `hub-cron` a cada 5 minutos chama o relógio de dentro do contêiner (`app/scripts/cron-tick.mjs`). Raciocínio de agentes fica no Hermes.
+- Backup (D8): timer `hub-backup` diário às 06:00 UTC, `pg_dump` do schema com 14 dias de retenção em `/opt/hub-gestao/backups`. A cópia fora da VPS espera o destino escolhido pelo Fábio.
+- Encerrar entrega: CI e publicação verdes, `/api/health` com o SHA publicado, smoke test real (tela atrás de login, tarefa via MCP, ver no quadro).
 
 ## 9. Definição de pronto (DoD) de uma tarefa deste repositório
 
@@ -172,9 +196,10 @@ Contatos e conteúdos de clientes ficam no schema do Hub com RLS por `workspace_
 
 ## 10. Como um agente entra no Hub
 
-1. Recebe uma **chave de agente** (`hub_ak_…`) criada pelo Fábio na tela **Agentes** (ou pela API, com papel `owner`). A chave tem `scopes` e `project_ids`.
-2. Conecta por **MCP** (`https://hub.harmonydigital.com.br/mcp`, Streamable HTTP, `Authorization: Bearer <chave>`) ou por **REST** (`/api/v1`, mesmo cabeçalho). Claude Code e Codex: registrar o servidor MCP no projeto cliente. Hermes: registrar nos `mcp_servers` da configuração do agente (confirmar formato na versão instalada; alternativa: skill que chama a REST).
+1. Recebe uma **chave de agente** (`hub_ak_…`) criada pelo Fábio na tela **Agentes** (`/agentes`, no ar desde 2026-10-10). A chave tem escopos, projetos e validade, e o valor aparece uma única vez.
+2. Conecta por **MCP** (`https://hub.harmonydigital.com.br/mcp`, Streamable HTTP, `Authorization: Bearer <chave>`) ou por **REST** (`/api/v1`, mesmo cabeçalho). Claude Code e Codex: registrar o servidor MCP no projeto cliente (passo a passo em `docs/agentes-conexao.md`). No Mac do Fábio, `scripts/conectar-claude-code.sh` guarda a chave nas Chaves do macOS e escreve a configuração sem segredo; `scripts/teste-mcp-producao.sh` faz o teste completo (provado em 2026-10-10 com a HUB-1). Hermes: registrar nos `mcp_servers` da configuração do agente (confirmar formato na versão instalada; alternativa: skill que chama a REST).
 3. Primeira chamada sempre `hub_whoami`: confirma identidade, workspace, projetos permitidos e escopos. Se não bater com o esperado, parar.
+4. Toda escrita leva chave de idempotência: no MCP, o campo `idempotency_key` (obrigatório, uma por escrita); na REST, o cabeçalho `Idempotency-Key`.
 
 ## 11. Ciclo de trabalho do agente executor (Claude Code / Codex num projeto cliente)
 
@@ -189,6 +214,8 @@ hub_complete_task(code, evidence)  # evidência obrigatória: SHA, URL, arquivo,
 hub_create_task(...)               # trabalho descoberto: nível operacional, ligado à frente/pai
 hub plan push                      # fim de sessão: devolve o estado ao Hub e regrava o plan.md
 ```
+
+Até a CLI `hub` existir (M4), o plano se lê pelo `hub_get_plan` (JSON ou `plan.md`) e a sincronização fica de fora.
 
 Regras:
 - **Nunca** marcar GATE, nunca mudar prazo de marco, nunca criar marco. Isso é `hub_request_approval` (pedido) para o Fábio decidir.
