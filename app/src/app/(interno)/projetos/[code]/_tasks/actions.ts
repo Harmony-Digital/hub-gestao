@@ -95,9 +95,11 @@ export async function comentarTarefa(
   const ctx = await actionContext();
   const parsed = parseCommentForm(form);
   if (!parsed.ok) return { status: "error", message: parsed.message };
-  const { code, body_md } = parsed.value;
+  const { code, body_md, mentions } = parsed.value;
   try {
-    await inTx(ctx, (t) => createComment(t, { task: code }, { body_md }));
+    await inTx(ctx, (t) =>
+      createComment(t, { task: code }, { body_md, mentions }),
+    );
     refresh();
     return { status: "ok" };
   } catch (err) {

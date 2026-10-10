@@ -21,10 +21,14 @@ export const POST = apiRoute({
       .strictObject({
         target: CommentTarget,
         body_md: CreateCommentInput.shape.body_md,
+        mentions: CreateCommentInput.shape.mentions,
       })
       .parse(body);
     return created(
-      await createComment(t, input.target, { body_md: input.body_md }),
+      await createComment(t, input.target, {
+        body_md: input.body_md,
+        mentions: input.mentions,
+      }),
     );
   },
 });

@@ -161,7 +161,7 @@ describe("comentário", () => {
     expect(parseCommentForm(form({ code: "HUB-3", body: " oi \r\n" }))).toEqual(
       {
         ok: true,
-        value: { code: "HUB-3", body_md: "oi" },
+        value: { code: "HUB-3", body_md: "oi", mentions: [] },
       },
     );
     expect(parseCommentForm(form({ code: "HUB-3", body: "  " })).ok).toBe(
@@ -278,6 +278,49 @@ describe("checklist e dependências", () => {
     ).toBe(false);
     expect(
       parseDependencyForm(fd({ op: "add", code: "HUB-3", other: "sete" })).ok,
+    ).toBe(false);
+  });
+});
+
+describe("comentário com menções", () => {
+  const ID = "4dc6721e-2ac8-463d-84cb-3b25ab170bbd";
+  const fd = (values: Record<string, string>) => {
+    const data = new FormData();
+    for (const [k, v] of Object.entries(values)) data.append(k, v);
+    return data;
+  };
+  it("lê as menções do campo escondido e recusa o que não for pessoa ou agente", () => {
+    expect(
+      parseCommentForm(
+        fd({
+          code: "HUB-3",
+          body: "Oi @Ana",
+          mentions: JSON.stringify([{ type: "user", id: ID }]),
+        }),
+      ),
+    ).toEqual({
+      ok: true,
+      value: {
+        code: "HUB-3",
+        body_md: "Oi @Ana",
+        mentions: [{ type: "user", id: ID }],
+      },
+    });
+    expect(parseCommentForm(fd({ code: "HUB-3", body: "Oi" }))).toMatchObject({
+      ok: true,
+      value: { mentions: [] },
+    });
+    expect(
+      parseCommentForm(
+        fd({
+          code: "HUB-3",
+          body: "Oi",
+          mentions: JSON.stringify([{ type: "client", id: ID }]),
+        }),
+      ).ok,
+    ).toBe(false);
+    expect(
+      parseCommentForm(fd({ code: "HUB-3", body: "Oi", mentions: "{" })).ok,
     ).toBe(false);
   });
 });

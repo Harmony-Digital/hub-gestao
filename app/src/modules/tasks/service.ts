@@ -29,6 +29,7 @@ import {
 } from "@/modules/common";
 import { many, maybeOne, S, type Source, type TxCtx } from "@/modules/context";
 import { emitEvent, recomputeRollup } from "@/modules/events";
+import { notifyProfile } from "@/modules/notifications";
 import type {
   CreateTaskInput,
   TaskDto,
@@ -336,6 +337,25 @@ function assertDates(start?: string | null, due?: string | null) {
   }
 }
 
+// Avisos ---------------------------------------------------------------------------
+
+/** A pessoa que passou a ser responsável recebe aviso (agentes leem a fila pelo MCP). */
+async function notifyAssignee(t: TxCtx, task: TaskDto): Promise<void> {
+  if (task.assignee?.type !== "user" || !task.assignee.id) return;
+  await notifyProfile(
+    t,
+    task.assignee.id,
+    "task.assigned",
+    { type: "task", id: task.id },
+    {
+      by: t.actor.name,
+      task_code: task.code,
+      title: task.title,
+      project_code: task.project_code,
+    },
+  );
+}
+
 // Casos de uso -----------------------------------------------------------------------
 
 export async function createTask(
@@ -443,6 +463,7 @@ export async function createTask(
     project_code: dto.project_code,
     title: dto.title,
   });
+  await notifyAssignee(t, dto);
   return dto;
 }
 
@@ -575,6 +596,9 @@ export async function updateTask(
     project_code: after.project_code,
     version: after.version,
   });
+  if (flat(before).assignee !== flat(after).assignee) {
+    await notifyAssignee(t, after);
+  }
   return after;
 }
 
@@ -697,6 +721,33 @@ export async function blockTask(
     project_code: after.project_code,
     reason: input.reason,
   });
+  // Bloqueio avisa o responsável pelo projeto e a pessoa com a tarefa (nunca quem bloqueou).
+  const owner = await maybeOne<{ id: string | null }>(
+    t,
+    `select owner_profile_id as id from ${S}.projects where id = $1`,
+    [row.project_id],
+  );
+  const people = new Set(
+    [
+      owner?.id ?? null,
+      after.assignee?.type === "user" ? after.assignee.id : null,
+    ].filter((id): id is string => Boolean(id)),
+  );
+  for (const profileId of people) {
+    await notifyProfile(
+      t,
+      profileId,
+      "task.blocked",
+      { type: "task", id: row.id },
+      {
+        by: t.actor.name,
+        task_code: after.code,
+        title: after.title,
+        project_code: after.project_code,
+        reason: input.reason,
+      },
+    );
+  }
   return after;
 }
 

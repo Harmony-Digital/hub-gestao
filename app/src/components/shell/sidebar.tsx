@@ -70,7 +70,20 @@ function NavPlaceholder() {
 
 async function NavWithCounts() {
   const { data } = await getShell();
-  return <SidebarNav badges={{ "/": data.pendingDecisions }} />;
+  return (
+    <SidebarNav
+      badges={{
+        "/": {
+          n: data.pendingDecisions,
+          label: `${data.pendingDecisions} decisões esperando você`,
+        },
+        "/caixa-de-entrada": {
+          n: data.unread,
+          label: `${data.unread} avisos sem ler`,
+        },
+      }}
+    />
+  );
 }
 
 async function Featured() {

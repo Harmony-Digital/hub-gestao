@@ -121,6 +121,7 @@ const REQUESTS = {
   CommentOnTargetRequest: z.strictObject({
     target: CommentTarget,
     body_md: CreateCommentInput.shape.body_md,
+    mentions: CreateCommentInput.shape.mentions,
   }),
   LogTimeRequest: LogTimeInput,
   CreateWorkstreamRequest: CreateWorkstreamInput.omit({ project: true }),

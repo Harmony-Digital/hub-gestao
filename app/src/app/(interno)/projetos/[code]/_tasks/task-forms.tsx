@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useId, useRef, useState, type ReactNode } from "react";
-import { LoaderCircle, Pencil, Send } from "lucide-react";
+import { LoaderCircle, Pencil } from "lucide-react";
 import {
   ErrorNote,
   inputClass,
@@ -15,7 +15,7 @@ import type {
   StatusOption,
   WorkstreamOption,
 } from "@/modules/tasks/board";
-import { comentarTarefa, mudarStatus, salvarTarefa } from "./actions";
+import { mudarStatus, salvarTarefa } from "./actions";
 import { IDLE, PRIORITIES, type ActionState } from "./form";
 
 function Hidden({ code, version }: { code: string; version?: number }) {
@@ -451,54 +451,6 @@ export function DescriptionField({
           onClick={() => setEditing(false)}
         >
           Cancelar
-        </Button>
-      </div>
-      <div aria-live="polite">
-        {state.status === "error" ? (
-          <ErrorNote message={state.message} />
-        ) : null}
-      </div>
-    </form>
-  );
-}
-
-// Comentário -------------------------------------------------------------------------
-
-export function CommentForm({ code }: { code: string }) {
-  const form = useRef<HTMLFormElement>(null);
-  const [state, action, pending] = useActionState(
-    async (previous: ActionState, data: FormData) => {
-      const result = await comentarTarefa(previous, data);
-      if (result.status === "ok") form.current?.reset();
-      return result;
-    },
-    IDLE,
-  );
-  const submit = useSubmit(action);
-  return (
-    <form ref={form} onSubmit={submit} className="flex flex-col gap-2">
-      <Hidden code={code} />
-      <label htmlFor="tarefa-comentario" className="sr-only">
-        Novo comentário
-      </label>
-      <textarea
-        id="tarefa-comentario"
-        name="body"
-        rows={3}
-        required
-        maxLength={10000}
-        disabled={pending}
-        placeholder="Escreva para a equipe e para os agentes. Comentário de tarefa é sempre interno."
-        className={textareaClass}
-      />
-      <div className="flex justify-end">
-        <Button type="submit" size="lg" disabled={pending}>
-          {pending ? (
-            <LoaderCircle aria-hidden="true" className="animate-spin" />
-          ) : (
-            <Send aria-hidden="true" />
-          )}
-          Comentar
         </Button>
       </div>
       <div aria-live="polite">

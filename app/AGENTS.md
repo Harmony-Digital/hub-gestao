@@ -53,7 +53,8 @@ As instruções canônicas do projeto estão em `../AGENTS.md` e valem integralm
 - Formulário em janela: `FormDialog` (`src/components/form-dialog.tsx`), com `<dialog>` nativo. O formulário só é montado na primeira abertura e recomeça limpo a cada abertura; clicar fora não fecha (Esc e Cancelar fecham). A janela fica em estado, não em ref: a função de fechar vai para o formulário durante a renderização, e a regra do React não deixa usar ref nesse momento.
 - Texto só para leitor de tela (`sr-only`, de posição absoluta) dentro de área com rolagem horizontal: a área leva `relative`, senão o texto escondido alarga a página no celular.
 - Pedidos de aprovação: `src/app/(interno)/_approvals/` (cartões de decisão, textos de cada tipo e a ação `decidirPedido`), usados pela tela Hoje e pela de Aprovações.
-- Texto livre com links (descrição, comentário, evidência): `Linkified`, que só transforma http e https em link.
+- Texto livre com links (motivo do bloqueio, evidência): `Linkified`, que só transforma http e https em link. Comentário e descrição de tarefa são Markdown: `Markdown` (`src/components/markdown.tsx`, sem HTML cru, só links http, https e e-mail), com estilos em `.hub-markdown` no `globals.css`.
+- Se o `next dev` servir CSS antigo depois de mudar o `globals.css` (observador de arquivos limitado neste Mac), pare o servidor, apague `app/.next/dev` (cache, regerado sozinho) e suba de novo.
 - O jsonb do Postgres não guarda a ordem das chaves: texto montado a partir de `before` e `after` do histórico usa ordem fixa (ver `describeTaskEvent`).
 
 ## Conferência local

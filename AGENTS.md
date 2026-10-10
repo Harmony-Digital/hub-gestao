@@ -225,6 +225,7 @@ Regras:
 - **Nunca** colocar segredos, tokens, senhas ou dados pessoais em título, descrição, comentário ou evidência.
 - Tarefa concluída sem evidência é reaberta pelo Guardião da Qualidade. Não discutir: anexar evidência.
 - Se o `plan.md` local e o Hub divergirem, o Hub vence; o agente relata a divergência em comentário em vez de "consertar" por conta.
+- Para chamar a atenção de uma pessoa num comentário, cite-a em `mentions` do `hub_comment` (ou da REST): ela recebe aviso na caixa de entrada do Hub. Não cite à toa.
 - **Projeto arquivado** é só consulta: qualquer escrita nele volta 422 com `archived: true`. Não tentar de novo; parar e avisar quem pediu o trabalho. Arquivar e restaurar são decisões de pessoa, pela tela.
 
 ## 12. Ciclo do agente de gestão (Hermes)
