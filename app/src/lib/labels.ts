@@ -85,3 +85,12 @@ export const ROLE_LABEL: Record<"owner" | "admin" | "member", string> = {
   admin: "Administração",
   member: "Equipe",
 };
+
+/** Por onde a tarefa entrou no Hub (coluna source). */
+export const TASK_SOURCE: Record<string, string> = {
+  hub: "pelo Hub",
+  api: "pela API",
+  mcp: "por um agente (MCP)",
+  plan_md: "pelo plan.md",
+  github: "pelo GitHub",
+};

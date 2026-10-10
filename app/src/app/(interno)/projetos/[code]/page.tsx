@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { Ban, Check, Eye, EyeOff, ListChecks, Lock } from "lucide-react";
-import { PageHeader } from "@/components/shell/page-header";
 import { Avatar, Pill, Progress } from "@/components/shell/pill";
 import { HubError } from "@/lib/errors";
 import {
@@ -12,11 +12,8 @@ import {
   initials,
 } from "@/lib/format";
 import {
-  HEALTH,
   MILESTONE_STATUS,
-  PHASES,
   PRIORITY,
-  PROJECT_STATUS,
   STATUS_CATEGORY_TONE,
   WORKSTREAM_STATUS,
 } from "@/lib/labels";
@@ -27,8 +24,13 @@ import {
   type ProjectOverview,
 } from "@/modules/projects/overview";
 import type { TaskSummary } from "@/modules/projects/schemas";
+import { taskFormOptions } from "@/modules/tasks/board";
+import { NewTaskButton } from "./_tasks/new-task";
+import { ProjectHeader } from "./_tasks/project-header";
+import { TaskPanel, taskHref } from "./_tasks/task-panel";
 
 const CODE = /^[A-Z0-9]{2,8}$/;
+const TASK = /^[A-Z]{2,6}-[0-9]{1,9}$/;
 
 export async function generateMetadata({
   params,
@@ -37,23 +39,35 @@ export async function generateMetadata({
   return { title: CODE.test(code) ? code : "Projeto" };
 }
 
-export default function ProjetoPage({ params }: PageProps<"/projetos/[code]">) {
+export default function ProjetoPage({
+  params,
+  searchParams,
+}: PageProps<"/projetos/[code]">) {
   return (
     <Suspense fallback={<ProjectSkeleton />}>
-      <ProjectView params={params} />
+      <ProjectView params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
 
 async function ProjectView({
   params,
-}: Pick<PageProps<"/projetos/[code]">, "params">) {
+  searchParams,
+}: PageProps<"/projetos/[code]">) {
   const { code } = await params;
   if (!CODE.test(code)) notFound();
+  const query = await searchParams;
   const { ctx } = await pageContext();
   let data: ProjectOverview;
+  let options: Awaited<ReturnType<typeof taskFormOptions>>;
   try {
-    data = await inTx(ctx, (t) => projectOverview(t, code));
+    ({ data, options } = await inTx(ctx, async (t) => {
+      const overview = await projectOverview(t, code);
+      return {
+        data: overview,
+        options: await taskFormOptions(t, overview.project.id),
+      };
+    }));
   } catch (err) {
     // Projeto inexistente ou fora do alcance de quem vê: a mesma página de "não achei".
     if (err instanceof HubError && (err.status === 404 || err.status === 403)) {
@@ -61,115 +75,72 @@ async function ProjectView({
     }
     throw err;
   }
-  const { project: p } = data;
-  const health = HEALTH[p.health];
-  const reasons = Array.isArray(p.health_reason.reasons)
-    ? (p.health_reason.reasons as unknown[]).filter(
-        (r): r is string => typeof r === "string",
-      )
-    : [];
+  const basePath = `/projetos/${code}`;
+  const openCode = Array.isArray(query.tarefa) ? query.tarefa[0] : query.tarefa;
+  const open = openCode && TASK.test(openCode) ? openCode : null;
+  const hrefFor = (task: string) => taskHref(basePath, {}, task);
 
   return (
     <>
-      <PageHeader
-        trail={[{ label: "Projetos", href: "/projetos" }, { label: p.name }]}
-        title={
-          <span className="flex flex-wrap items-center gap-3">
-            <span className="rounded-lg bg-navy px-2.5 py-1 font-mono text-sm text-off">
-              {p.code}
-            </span>
-            {p.name}
-          </span>
-        }
-        description={p.objective_internal ?? undefined}
-      >
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
-          <span className="flex items-center gap-2">
-            <Pill tone={health.tone}>{health.label}</Pill>
-            {reasons[0] ? (
-              <span className="text-caption">{reasons[0]}</span>
-            ) : null}
-          </span>
-          <Pill tone={PROJECT_STATUS[p.status].tone}>
-            {PROJECT_STATUS[p.status].label}
-          </Pill>
-          <PhaseSteps phase={p.phase} />
-          <span className="text-caption">
-            Cliente: <span className="text-ink">{p.client.name}</span>
-          </span>
-          {p.pm_agent ? (
-            <span className="flex items-center gap-1.5 text-caption">
-              Gestão:
-              <Avatar text={initials(p.pm_agent.name)} agent />
-              <span className="text-ink">{p.pm_agent.name}</span>
-            </span>
-          ) : null}
-          {p.owner ? (
-            <span className="flex items-center gap-1.5 text-caption">
-              Responsável:
-              <Avatar text={initials(p.owner.name)} />
-              <span className="text-ink">{p.owner.name}</span>
-            </span>
-          ) : null}
-          <Progress value={p.progress_pct} label="Progresso do projeto" />
-        </div>
-      </PageHeader>
+      {/* Com o painel aberto em tela larga, a página encolhe para o painel não cobrir nada. */}
+      <div className={open ? "xl:pr-[36rem]" : undefined}>
+        <ProjectHeader
+          project={data.project}
+          active="overview"
+          showObjective
+          actions={
+            <NewTaskButton
+              projectCode={code}
+              basePath={basePath}
+              workstream={null}
+              workstreams={options.workstreams}
+              assignees={options.assignees}
+            />
+          }
+        />
 
-      <main className="flex w-full flex-col gap-6 px-4 py-6 sm:px-8">
-        <Layer
-          n={1}
-          title="Estratégica"
-          heading="Marcos e entregas"
-          note="O cliente vê sempre"
-          icon={<Eye aria-hidden="true" className="size-3.5" />}
-        >
-          <Milestones data={data} />
-        </Layer>
+        <main className="flex w-full flex-col gap-6 px-4 py-6 sm:px-8">
+          <Layer
+            n={1}
+            title="Estratégica"
+            heading="Marcos e entregas"
+            note="O cliente vê sempre"
+            icon={<Eye aria-hidden="true" className="size-3.5" />}
+          >
+            <Milestones data={data} />
+          </Layer>
 
-        <Layer
-          n={2}
-          title="Tática"
-          heading="Frentes por departamento"
-          note="O cliente vê só as frentes marcadas"
-          icon={<Eye aria-hidden="true" className="size-3.5" />}
-        >
-          <Workstreams data={data} />
-        </Layer>
+          <Layer
+            n={2}
+            title="Tática"
+            heading="Frentes por departamento"
+            note="O cliente vê só as frentes marcadas"
+            icon={<Eye aria-hidden="true" className="size-3.5" />}
+          >
+            <Workstreams data={data} />
+          </Layer>
 
-        <Layer
-          n={3}
-          title="Operacional"
-          heading="O que está acontecendo agora"
-          note="O cliente nunca vê"
-          icon={<EyeOff aria-hidden="true" className="size-3.5" />}
-        >
-          <Operational data={data} />
-        </Layer>
-      </main>
+          <Layer
+            n={3}
+            title="Operacional"
+            heading="O que está acontecendo agora"
+            note="O cliente nunca vê"
+            icon={<EyeOff aria-hidden="true" className="size-3.5" />}
+          >
+            <Operational data={data} hrefFor={hrefFor} />
+          </Layer>
+        </main>
+      </div>
+      {open ? (
+        <TaskPanel
+          projectCode={code}
+          taskCode={open}
+          closeHref={basePath}
+          basePath={basePath}
+          keep={{}}
+        />
+      ) : null}
     </>
-  );
-}
-
-function PhaseSteps({ phase }: { phase: string }) {
-  const index = PHASES.findIndex((p) => p.key === phase);
-  return (
-    <ol aria-label="Fase do projeto" className="flex items-center gap-1">
-      {PHASES.map((p, i) => (
-        <li
-          key={p.key}
-          aria-current={i === index ? "step" : undefined}
-          className={`rounded-full px-2.5 py-0.5 text-xs ${
-            i === index
-              ? "bg-brand font-semibold text-navy"
-              : i < index
-                ? "bg-off-2 text-ink-2"
-                : "border border-line text-caption"
-          }`}
-        >
-          {p.label}
-        </li>
-      ))}
-    </ol>
   );
 }
 
@@ -367,37 +338,50 @@ function Workstreams({ data }: { data: ProjectOverview }) {
   );
 }
 
-function TaskRow({ task }: { task: TaskSummary }) {
+function TaskRow({ task, href }: { task: TaskSummary; href: string }) {
   const priority = PRIORITY[task.priority];
   return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
-      <span className="w-16 font-mono text-xs font-semibold text-caption">
-        {task.code}
-      </span>
-      <span className="min-w-40 flex-1 text-ink">{task.title}</span>
-      {task.priority === "urgent" || task.priority === "high" ? (
-        <Pill tone={priority.tone}>{priority.label}</Pill>
-      ) : null}
-      {task.due_date ? (
-        <span className="text-xs text-caption">
-          até {formatDayMonth(task.due_date)}
+    <li>
+      <Link
+        href={href}
+        scroll={false}
+        prefetch={false}
+        className="-mx-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-2 py-2.5 hover:bg-off"
+      >
+        <span className="w-16 font-mono text-xs font-semibold text-caption">
+          {task.code}
         </span>
-      ) : null}
-      {task.assignee ? (
-        <Avatar
-          text={initials(task.assignee.name)}
-          agent={task.assignee.type === "agent"}
-          title={task.assignee.name ?? undefined}
-        />
-      ) : null}
-      <Pill tone={STATUS_CATEGORY_TONE[task.status_category]}>
-        {task.status_name}
-      </Pill>
+        <span className="min-w-40 flex-1 text-ink">{task.title}</span>
+        {task.priority === "urgent" || task.priority === "high" ? (
+          <Pill tone={priority.tone}>{priority.label}</Pill>
+        ) : null}
+        {task.due_date ? (
+          <span className="text-xs text-caption">
+            até {formatDayMonth(task.due_date)}
+          </span>
+        ) : null}
+        {task.assignee ? (
+          <Avatar
+            text={initials(task.assignee.name)}
+            agent={task.assignee.type === "agent"}
+            title={task.assignee.name ?? undefined}
+          />
+        ) : null}
+        <Pill tone={STATUS_CATEGORY_TONE[task.status_category]}>
+          {task.status_name}
+        </Pill>
+      </Link>
     </li>
   );
 }
 
-function Operational({ data }: { data: ProjectOverview }) {
+function Operational({
+  data,
+  hrefFor,
+}: {
+  data: ProjectOverview;
+  hrefFor: (code: string) => string;
+}) {
   const { project: p } = data;
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
@@ -412,7 +396,7 @@ function Operational({ data }: { data: ProjectOverview }) {
           ) : (
             <ul className="divide-y divide-line">
               {data.queue.map((t) => (
-                <TaskRow key={t.code} task={t} />
+                <TaskRow key={t.code} task={t} href={hrefFor(t.code)} />
               ))}
             </ul>
           )}
@@ -426,19 +410,23 @@ function Operational({ data }: { data: ProjectOverview }) {
             </h3>
             <ul className="flex flex-col gap-2">
               {data.blocked.map((t) => (
-                <li
-                  key={t.code}
-                  className="rounded-xl border border-danger/30 bg-danger-soft/40 p-3 text-sm"
-                >
-                  <span className="font-mono text-xs font-semibold text-danger-fg">
-                    {t.code}
-                  </span>{" "}
-                  <span className="font-medium text-navy">{t.title}</span>
-                  {t.blocked_reason ? (
-                    <span className="mt-1 block text-ink-2">
-                      {t.blocked_reason}
-                    </span>
-                  ) : null}
+                <li key={t.code}>
+                  <Link
+                    href={hrefFor(t.code)}
+                    scroll={false}
+                    prefetch={false}
+                    className="block rounded-xl border border-danger/30 bg-danger-soft/40 p-3 text-sm hover:border-danger/60"
+                  >
+                    <span className="font-mono text-xs font-semibold text-danger-fg">
+                      {t.code}
+                    </span>{" "}
+                    <span className="font-medium text-navy">{t.title}</span>
+                    {t.blocked_reason ? (
+                      <span className="mt-1 block text-ink-2">
+                        {t.blocked_reason}
+                      </span>
+                    ) : null}
+                  </Link>
                 </li>
               ))}
             </ul>

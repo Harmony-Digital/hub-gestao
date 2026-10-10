@@ -5,6 +5,8 @@ import { cache } from "react";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import type { HubUser } from "@/lib/auth/resolve";
 import { getDb } from "@/lib/db";
+import { toHubError } from "@/lib/errors";
+import { log } from "@/lib/log";
 import { inTx, type Ctx } from "@/modules/context";
 import { shellData, type ShellData } from "@/modules/shell/service";
 
@@ -35,3 +37,31 @@ export const getShell = cache(
     return { user, data: await inTx(ctx, (t) => shellData(t)) };
   },
 );
+
+/**
+ * Contexto de uma ação de formulário (server action). Fica fora do try de quem chama:
+ * sem sessão, getCurrentUser manda para o login (redirect), e isso não pode ser engolido
+ * como erro comum.
+ */
+export async function actionContext(): Promise<Ctx> {
+  const user = await getCurrentUser();
+  return {
+    db: await getDb(),
+    actor: user.actor,
+    source: "ui",
+    requestId: randomUUID(),
+  };
+}
+
+/** Mensagem de erro para a tela. Falha interna vai para o log, sem dados do formulário. */
+export function actionErrorMessage(
+  err: unknown,
+  requestId: string,
+  where: string,
+): string {
+  const hubError = toHubError(err);
+  if (hubError.status >= 500) {
+    log.error({ err, request_id: requestId }, where);
+  }
+  return hubError.detail;
+}
