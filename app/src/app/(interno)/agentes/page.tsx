@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Bot } from "lucide-react";
-import { AppHeader } from "@/components/app-header";
+import { PageHeader } from "@/components/shell/page-header";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { getDb } from "@/lib/db";
 import {
@@ -15,7 +15,7 @@ import { listProjects } from "@/modules/projects/service";
 import { KIND_LABELS, SCOPE_LABELS, type KeyScope } from "./form";
 import { NovaChaveForm, NovoAgenteForm, RevogarChaveButton } from "./forms";
 
-export const metadata: Metadata = { title: "Agentes" };
+export const metadata: Metadata = { title: "Sala de Controle" };
 
 const STATUS_LABEL: Record<ConsoleAgent["status"], string> = {
   active: "Ativo",
@@ -37,27 +37,18 @@ const KEY_STATE_STYLE: Record<ConsoleKey["state"], string> = {
 
 export default function AgentesPage() {
   return (
-    <div className="flex flex-1 flex-col bg-background">
-      <AppHeader />
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6">
-        <section className="flex flex-col gap-2">
-          <p className="font-mono text-xs tracking-[0.12em] text-brand-strong uppercase">
-            Sala de Controle
-          </p>
-          <h1 className="text-3xl font-bold tracking-tight text-navy">
-            Agentes
-          </h1>
-          <p className="max-w-2xl leading-relaxed text-ink-2">
-            Quem opera o Hub pela API e pelo MCP. Cada agente entra com chave
-            própria, só com as permissões e os projetos que você liberar, e tudo
-            o que ele faz fica no histórico.
-          </p>
-        </section>
+    <>
+      <PageHeader
+        trail={[{ label: "Sala de Controle" }]}
+        title="Sala de Controle"
+        description="Quem opera o Hub pela API e pelo MCP. Cada agente entra com chave própria, só com as permissões e os projetos que você liberar, e tudo o que ele faz fica no histórico."
+      />
+      <main className="flex w-full max-w-5xl flex-col gap-8 px-4 py-8 sm:px-8">
         <Suspense fallback={<ConsoleSkeleton />}>
           <AgentsConsoleView />
         </Suspense>
       </main>
-    </div>
+    </>
   );
 }
 

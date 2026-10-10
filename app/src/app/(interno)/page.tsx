@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import {
   ArrowUpRight,
@@ -6,7 +7,7 @@ import {
   CirclePause,
   Clock3,
 } from "lucide-react";
-import { AppHeader } from "@/components/app-header";
+import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { roadmap, statusLabel, type MilestoneStatus } from "@/lib/roadmap";
@@ -27,23 +28,27 @@ const statusIcon: Record<MilestoneStatus, typeof CircleCheck> = {
 
 export default function Home() {
   return (
-    <div className="flex flex-1 flex-col bg-background">
-      <AppHeader />
+    <>
+      <PageHeader
+        trail={[{ label: "Hoje" }]}
+        title="Hoje"
+        description="A IA executa. O humano decide. O painel do dia (decisões, bloqueios, riscos e o que os agentes fizeram) chega nas próximas entregas do M3."
+      />
 
       {/* Todo o conteúdo depende da sessão conferida: sem acesso, nada aparece. */}
       <Suspense fallback={<MainSkeleton />}>
         <HomeContent />
       </Suspense>
 
-      <footer className="border-t border-line">
-        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-5 text-sm text-caption sm:px-6">
+      <footer className="mt-auto border-t border-line">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-5 text-sm text-caption sm:px-8">
           <span>Harmony Digital · uso interno</span>
           <span className="font-mono text-xs">
             versão {process.env.APP_VERSION ?? "local"}
           </span>
         </div>
       </footer>
-    </div>
+    </>
   );
 }
 
@@ -51,25 +56,27 @@ async function HomeContent() {
   const user = await getCurrentUser();
   const firstName = user.fullName.trim().split(/\s+/)[0];
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-12 px-4 py-12 sm:px-6">
+    <main className="flex w-full max-w-5xl flex-col gap-10 px-4 py-8 sm:px-8">
       <section className="flex flex-col gap-4">
-        <p className="font-mono text-xs tracking-[0.12em] text-brand-strong uppercase">
-          Hub de Gestão · em construção
-        </p>
-        <h1 className="max-w-3xl text-4xl font-bold tracking-tight text-navy sm:text-5xl">
-          A IA executa. O humano decide.
-        </h1>
-        <p className="max-w-2xl text-lg leading-relaxed text-ink-2">
+        <p className="text-lg leading-relaxed text-ink-2">
           Olá, {firstName}. Projetos, departamentos e atividades da Harmony em
           um só lugar. Os agentes executam e registram tudo. Para você, ficam as
           decisões.
         </p>
-        <div className="flex flex-wrap gap-3 pt-2">
+        <div className="flex flex-wrap gap-3">
           <Button asChild size="lg" className="h-11 px-4 text-[15px]">
-            <a href="/api/health">
-              Ver a saúde do serviço
+            <Link href="/projetos">
+              Ver os projetos
               <ArrowUpRight aria-hidden="true" />
-            </a>
+            </Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            size="lg"
+            className="h-11 px-4 text-[15px]"
+          >
+            <Link href="/agentes">Abrir a Sala de Controle</Link>
           </Button>
         </div>
       </section>
@@ -120,7 +127,7 @@ function MainSkeleton() {
   return (
     <main
       aria-busy="true"
-      className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-12 sm:px-6"
+      className="flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-8"
     >
       <div className="h-4 w-48 rounded bg-off-2" />
       <div className="h-12 w-full max-w-xl rounded bg-off-2" />
