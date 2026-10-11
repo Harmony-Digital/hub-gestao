@@ -3,12 +3,16 @@
 import { refresh } from "next/cache";
 import type { ActionState } from "@/lib/action-state";
 import { sendEmail } from "@/lib/email";
+import { appUrl, magicLinkEnabled } from "@/lib/auth/config";
+import { teamInviteEmail } from "@/modules/workspace/team-invite";
 import { actionContext, actionErrorMessage } from "@/lib/ui-context";
 import { inTx } from "@/modules/context";
 import {
   addMember,
   createDepartment,
   emailTestTarget,
+  memberInviteTarget,
+  noteMemberInviteEmailed,
   removeDepartment,
   renameWorkspace,
   setDepartmentLead,
@@ -255,6 +259,44 @@ export async function removerEtiqueta(
     await inTx(ctx, (t) => removeLabel(t, parsed.value));
     refresh();
     return { status: "ok", message: "Etiqueta removida." };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+/** Convite da equipe por e-mail (RF-03), só o dono: diz por onde entrar no Hub. */
+export async function enviarConviteEquipe(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const profileId = String(form.get("profile_id") ?? "");
+  const base = appUrl();
+  if (!base) {
+    return {
+      status: "error",
+      message:
+        "Falta o endereço público do Hub no servidor (NEXT_PUBLIC_APP_URL).",
+    };
+  }
+  try {
+    const target = await inTx(ctx, (t) => memberInviteTarget(t, profileId));
+    const message = teamInviteEmail({
+      name: target.name,
+      orgName: target.orgName,
+      role: target.role,
+      loginUrl: `${base}/login`,
+      magicLink: magicLinkEnabled(),
+    });
+    const sent = await sendEmail({
+      to: target.email,
+      subject: message.subject,
+      text: message.text,
+      fromName: target.orgName,
+    });
+    if (!sent.ok) return { status: "error", message: sent.detail };
+    await inTx(ctx, (t) => noteMemberInviteEmailed(t, profileId, sent.id));
+    return { status: "ok", message: `Convite enviado para ${target.name}.` };
   } catch (err) {
     return failure(err, ctx.requestId);
   }

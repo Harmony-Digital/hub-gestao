@@ -376,6 +376,63 @@ export async function emailTestTarget(
   return { email: row.email, name: row.full_name, orgName: row.org };
 }
 
+/**
+ * Para quem vai o convite da equipe por e-mail (RF-03): só o dono, para outra pessoa
+ * ativa da equipe (nunca o próprio dono). O envio fica com quem chama, fora da transação.
+ */
+export async function memberInviteTarget(
+  t: TxCtx,
+  profileId: string,
+): Promise<{
+  email: string;
+  name: string;
+  orgName: string;
+  role: "admin" | "member";
+}> {
+  assertOwner(t);
+  if (!Uuid.safeParse(profileId).success) {
+    throw notFound("Pessoa não encontrada na equipe.");
+  }
+  const row = await maybeOne<{
+    email: string;
+    full_name: string;
+    role: string;
+    org: string;
+  }>(
+    t,
+    `select p.email, p.full_name, m.role::text as role, w.name as org
+       from ${S}.memberships m
+       join ${S}.profiles p on p.id = m.profile_id
+       join ${S}.workspaces w on w.id = m.workspace_id
+      where m.profile_id = $1 and m.status = 'active' and p.deactivated_at is null`,
+    [profileId],
+  );
+  if (!row || (row.role !== "admin" && row.role !== "member")) {
+    throw notFound("Pessoa não encontrada na equipe ativa.");
+  }
+  return {
+    email: row.email,
+    name: row.full_name,
+    orgName: row.org,
+    role: row.role,
+  };
+}
+
+/** O convite saiu por e-mail: o histórico guarda o envio, nunca o endereço nem o texto. */
+export async function noteMemberInviteEmailed(
+  t: TxCtx,
+  profileId: string,
+  emailId: string,
+): Promise<void> {
+  assertOwner(t);
+  await audit(t, {
+    action: "member.invite_emailed",
+    entityType: "profile",
+    entityId: profileId,
+    after: { email_id: emailId || null },
+  });
+}
+
 // Departamentos (RF-27) -------------------------------------------------------------------
 
 export const DepartmentInput = z.strictObject({

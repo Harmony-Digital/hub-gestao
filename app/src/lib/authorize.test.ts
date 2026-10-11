@@ -94,6 +94,30 @@ describe("authorize: pessoas", () => {
     ).toBe(false);
   });
 
+  it("convidado do projeto só lê (PRD §4.1)", () => {
+    const m = user("member");
+    const guest = { projectId: projectA, projectRole: "guest" as const };
+    for (const read of [
+      "project.read",
+      "task.read",
+      "milestone.read",
+      "comment.read",
+      "report.read",
+    ] as const) {
+      expect(can(m, read, guest)).toBe(true);
+    }
+    for (const write of [
+      "task.write",
+      "task.transition",
+      "comment.write",
+      "workstream.write",
+      "time.write",
+      "approval.request",
+    ] as const) {
+      expect(can(m, write, guest)).toBe(false);
+    }
+  });
+
   it("contato de cliente não usa a API interna", () => {
     expect(can(client, "project.read", { projectId: projectA })).toBe(false);
     expect(() => authorize(client, "task.read")).toThrow(/portal/);

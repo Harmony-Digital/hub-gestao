@@ -25,6 +25,7 @@ import {
   AddMemberButton,
   DepartmentLeadForm,
   MemberAccessButton,
+  MemberInviteButton,
   MemberRoleButton,
   WorkspaceNameForm,
 } from "./team";
@@ -100,7 +101,11 @@ async function Settings() {
   return (
     <>
       <WorkspaceSection settings={settings} owner={owner} />
-      <TeamSection team={settings.team} owner={owner} />
+      <TeamSection
+        team={settings.team}
+        owner={owner}
+        emailOn={emailConfig() !== null}
+      />
       <DepartmentsSection settings={settings} />
       <LabelsSection labels={labels} />
       <EmailSection owner={owner} on={emailConfig() !== null} />
@@ -159,7 +164,15 @@ const STATUS_PILL: Record<
   suspended: { label: "Suspensa", tone: "danger" },
 };
 
-function TeamSection({ team, owner }: { team: TeamMember[]; owner: boolean }) {
+function TeamSection({
+  team,
+  owner,
+  emailOn,
+}: {
+  team: TeamMember[];
+  owner: boolean;
+  emailOn: boolean;
+}) {
   return (
     <section aria-labelledby="equipe" className={SECTION}>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -211,6 +224,13 @@ function TeamSection({ team, owner }: { team: TeamMember[]; owner: boolean }) {
                   name={m.name}
                   status={m.status}
                 />
+                {m.status === "active" ? (
+                  <MemberInviteButton
+                    profileId={m.profileId}
+                    name={m.name}
+                    emailOn={emailOn}
+                  />
+                ) : null}
               </div>
             ) : null}
           </li>
