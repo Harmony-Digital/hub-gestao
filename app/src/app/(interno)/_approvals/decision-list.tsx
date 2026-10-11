@@ -175,6 +175,17 @@ function DecisionCard({
         </div>
       ) : null}
 
+      {item.messageBody ? (
+        <div className="flex flex-col gap-1 rounded-xl border border-line p-3">
+          <p className="text-sm font-medium text-navy">
+            Mensagem para o cliente
+          </p>
+          <div className="text-sm text-ink">
+            <Markdown text={item.messageBody} />
+          </div>
+        </div>
+      ) : null}
+
       {item.reportBody ? (
         <details className="group rounded-xl border border-line">
           <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-navy">

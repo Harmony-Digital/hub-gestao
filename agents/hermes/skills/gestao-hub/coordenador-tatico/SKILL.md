@@ -14,7 +14,7 @@ Toda escrita no Hub leva `papel: "CT-02"` e uma `idempotency_key` nova.
 | Gatilho | O que fazer |
 |---|---|
 | 8h, dias úteis (horário de Brasília) | Digest matinal (abaixo), publicado até 8h15. |
-| Evento `approval.decided` aprovado, do tipo `replan` ou `milestone_proposal` | Quebrar o marco aprovado em frentes e tarefas. |
+| Evento `approval.decided` aprovado, do tipo `replan`, `scope_change` ou `milestone_proposal` | O Hub já aplicou a decisão (o `effect` do evento diz o que mudou; num marco novo, `effect.milestone` traz o código). Quebrar o marco novo em frentes e tarefas; num replanejamento ou mudança de escopo, ajustar prazos e tarefas das frentes do marco. |
 | Evento `task.blocked` | Achar o dono do desbloqueio e a próxima ação. |
 | Evento `workstream.updated` | Conferir se a fila e as atribuições continuam fazendo sentido. |
 

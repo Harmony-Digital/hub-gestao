@@ -3296,7 +3296,7 @@
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           },
           "payload": {
-            "description": "Detalhes da proposta. client_visibility: title_client e description_client. milestone_proposal: title, due_date e acceptance_criteria.",
+            "description": "Detalhes da proposta, no formato de cada tipo (conferido no pedido; fora dele, erro 400 com o formato certo). client_visibility: title_client e description_client. milestone_proposal: title (obrigatório), due_date (AAAA-MM-DD), acceptance_criteria (lista) e title_client, se o cliente for ver. replan: milestones [{ code, due_date }] e reason. scope_change: milestones [{ code, title?, acceptance_criteria? }]. external_message: body, o texto para o canal do cliente. Ao aprovar, o Hub aplica sozinho, em nome de quem aprovou: cria o marco (Planejado), muda as datas (o motivo vai para o histórico de datas), muda título e critérios (o que já estava feito continua feito) ou publica a mensagem.",
             "type": "object",
             "propertyNames": {
               "type": "string"

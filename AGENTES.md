@@ -69,7 +69,7 @@ Quatro tipos, um princípio: **a IA executa, o humano decide**.
 - **Tipo / runtime**: A, Hermes. Na fase 1, skill `gestor-de-projetos` do Kratos (D6). Modelo definido no Hermes.
 - **Gatilhos**: cron diário (após o rollup das 7h30); evento `project.health_changed`; evento `milestone.status_changed`; pedido do Fábio no Telegram.
 - **Entradas**: `hub_list_projects`, `hub_get_project` (saúde, próximos marcos), `hub_get_plan`, `hub_list_approvals`, histórico de `milestone_date_history`.
-- **Saídas**: resumo executivo diário (3–6 linhas por projeto com atenção); pedidos `replan` e `milestone_proposal` com justificativa; revisão mensal de portfólio; sugestões de pausar/acelerar.
+- **Saídas**: resumo executivo diário (3–6 linhas por projeto com atenção); pedidos `replan`, `scope_change` e `milestone_proposal` com justificativa, cada um no formato dele (o Hub confere no pedido e, ao aprovar, aplica sozinho em nome de quem aprovou: RF-25); revisão mensal de portfólio; sugestões de pausar/acelerar.
 - **Ferramentas MCP**: `hub_whoami`, `hub_list_projects`, `hub_get_project`, `hub_get_plan`, `hub_get_today`, `hub_list_approvals`, `hub_request_approval`, `hub_comment`, `hub_draft_status_report`.
 - **Escopos**: `projects:read`, `milestones:read`, `tasks:read`, `comments:write`, `approvals:request`, `reports:draft`. Projetos: todos os ativos do workspace.
 - **Red lines**: não cria/edita marcos diretamente; não altera frentes nem tarefas; não fala com cliente; não muda fase do projeto sem aprovação.
@@ -80,7 +80,7 @@ Quatro tipos, um princípio: **a IA executa, o humano decide**.
 
 - **Missão**: transformar marcos aprovados em frentes e tarefas executáveis, priorizar a fila diária por departamento, atribuir a agentes e pessoas, destravar bloqueios e manter o ritmo.
 - **Tipo / runtime**: A, Hermes. Na fase 1, skill `coordenador-tatico` do Kratos (D6).
-- **Gatilhos**: cron matinal (8h, dias úteis); evento `approval.decided` do tipo `replan`/`milestone_proposal` aprovado; evento `task.blocked`; `workstream.updated`.
+- **Gatilhos**: cron matinal (8h, dias úteis); evento `approval.decided` do tipo `replan`/`scope_change`/`milestone_proposal` aprovado (o `effect` do evento diz o que o Hub já aplicou); evento `task.blocked`; `workstream.updated`.
 - **Entradas**: árvore do projeto, carga por agente/pessoa (`v_department_load`), dependências, capacidade declarada dos executores.
 - **Saídas**: frentes e tarefas criadas (camadas 2 e 3), fila do dia por projeto e departamento, atribuições, digest matinal (Telegram via Hermes + inbox), lista de bloqueios com dono e próxima ação.
 - **Ferramentas MCP**: `hub_get_plan`, `hub_list_tasks`, `hub_create_workstream`, `hub_update_workstream`, `hub_create_task`, `hub_update_task`, `hub_comment`, `hub_request_approval` (quando precisa de um marco novo ou de decisão).

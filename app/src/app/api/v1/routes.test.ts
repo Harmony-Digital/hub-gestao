@@ -238,6 +238,11 @@ describe("demais rotas da API v1", () => {
         type: "scope_change",
         project: "VIT",
         title: "Incluir lembrete por SMS",
+        payload: {
+          milestones: [
+            { code: "M1", acceptance_criteria: ["Lembrete por SMS"] },
+          ],
+        },
       },
     });
     const id = created.body.id as string;
