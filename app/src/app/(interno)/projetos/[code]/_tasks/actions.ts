@@ -47,6 +47,7 @@ import {
   parseTaskFieldsForm,
   parseTimeForm,
   parseCustomFieldsForm,
+  parseLabelsForm,
   type ActionState,
   type CreateTaskState,
 } from "./form";
@@ -113,6 +114,26 @@ export async function salvarTarefa(
 }
 
 /** Grava os campos personalizados da tarefa (só os que mudaram), pela atualização da tarefa. */
+/** Troca as etiquetas da tarefa pela lista do painel (RF-18). */
+export async function salvarEtiquetas(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseLabelsForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  const { code, version, labels } = parsed.value;
+  try {
+    await inTx(ctx, (t) =>
+      updateTask(t, code, UpdateTaskInput.parse({ labels }), version),
+    );
+    refresh();
+    return { status: "ok" };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
 export async function salvarCamposTarefa(
   _previous: ActionState,
   form: FormData,

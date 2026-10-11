@@ -135,6 +135,8 @@ export const OPEN_LIMIT = 500;
 export type TaskListFilter = {
   workstream?: string | null;
   department?: string | null;
+  /** Nome de uma etiqueta (RF-18), sem diferenciar maiúsculas. */
+  label?: string | null;
   assignee?: string | null;
   priorities?: string[];
   due?: "late" | "week" | "none" | null;
@@ -161,6 +163,8 @@ export type ProjectTaskList = TaskFormOptions & {
   departments: DepartmentOption[];
   /** Departamento filtrado, já conferido: o slug de um departamento ou null. */
   department: string | null;
+  /** As etiquetas do workspace, para o filtro e o editor (RF-18). */
+  labels: { name: string; color: string }[];
   tasks: TaskDto[];
   doneTotal: number;
   /** Abertas com os filtros (todas, não só as que vieram em `tasks`). */
@@ -257,6 +261,12 @@ export async function projectTaskList(
   } else if (filter.due === "none") {
     where += " and t.due_date is null";
   }
+  const label = filter.label?.trim();
+  if (label && label.length <= 40) {
+    where += ` and exists (select 1 from ${S}.task_labels tl
+                             join ${S}.labels l on l.id = tl.label_id
+                            where tl.task_id = t.id and lower(l.name) = lower(${param(label)}))`;
+  }
   const search = filter.search?.trim();
   if (search) {
     const like = `%${search.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
@@ -302,6 +312,10 @@ export async function projectTaskList(
     workstream,
     departments,
     department,
+    labels: await many<{ name: string; color: string }>(
+      t,
+      `select name, color from ${S}.labels order by lower(name)`,
+    ),
     tasks: [...open, ...done].map(toTaskDto),
     doneTotal: totals?.done ?? 0,
     openTotal: totals?.open ?? 0,
@@ -332,6 +346,8 @@ export type TaskDetail = TaskFormOptions & {
   time: { totalMinutes: number; entries: TimeEntryDto[] };
   /** Campos personalizados do projeto (o valor de cada um está em task.custom_fields). */
   fields: CustomFieldDto[];
+  /** As etiquetas do workspace, para sugerir no editor (RF-18). */
+  labels: { name: string; color: string }[];
 };
 
 type HistoryRow = {
@@ -382,6 +398,10 @@ export async function taskDetail(t: TxCtx, code: string): Promise<TaskDetail> {
     comments,
     time: await taskTime(t, task.id),
     fields: await projectFields(t, projectId),
+    labels: await many<{ name: string; color: string }>(
+      t,
+      `select name, color from ${S}.labels order by lower(name)`,
+    ),
     history: history.map((h) => ({
       at: iso(h.created_at),
       actor: actorRef(h.actor_type, h.actor_id, h.actor_name),
@@ -429,6 +449,14 @@ function fieldChange(key: string, value: unknown): string | null {
       return "mudou a referência externa";
     case "custom_fields":
       return "mudou os campos personalizados";
+    case "labels": {
+      const names = Array.isArray(value)
+        ? value.filter((v): v is string => typeof v === "string")
+        : [];
+      return names.length
+        ? `mudou as etiquetas para ${joinPt(names)}`
+        : "tirou as etiquetas";
+    }
     default:
       return null;
   }
@@ -446,6 +474,7 @@ const FIELD_ORDER = [
   "estimate_minutes",
   "external_ref",
   "custom_fields",
+  "labels",
   "sort_key",
 ] as const;
 

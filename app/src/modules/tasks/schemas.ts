@@ -12,6 +12,7 @@ import {
   Timestamp,
   Uuid,
 } from "@/modules/common";
+import { LabelList } from "./labels";
 
 export const AssigneeInput = z.union([
   z.literal("me"),
@@ -46,6 +47,9 @@ export const TaskDto = z.object({
     .describe(
       "Campos personalizados do projeto com valor, pelo nome (número com ponto, data AAAA-MM-DD).",
     ),
+  labels: z
+    .array(z.object({ name: z.string(), color: z.string() }))
+    .describe("Etiquetas da tarefa, em ordem alfabética."),
   done_evidence: z.string().nullable(),
   blocked_reason: z.string().nullable(),
   blocked_on: ActorRef.nullable().describe(
@@ -86,6 +90,13 @@ export const TaskFilter = z.strictObject({
     .describe(
       "Slug de um departamento (ex.: sistemas; os do projeto vêm em hub_get_project): só as tarefas das frentes ativas dele.",
     ),
+  label: z
+    .string()
+    .trim()
+    .min(1)
+    .max(40)
+    .optional()
+    .describe("Nome de uma etiqueta (sem diferenciar maiúsculas)."),
   parent: TaskCode.optional(),
   cursor: z.string().optional(),
   limit: z.number().int().min(1).max(200).optional(),
@@ -104,6 +115,7 @@ export const CreateTaskInput = z.strictObject({
   due_date: IsoDate.optional(),
   estimate_minutes: z.number().int().min(1).max(100000).optional(),
   external_ref: z.string().trim().max(500).optional(),
+  labels: LabelList.optional(),
 });
 export type CreateTaskInput = z.infer<typeof CreateTaskInput>;
 
@@ -127,6 +139,7 @@ export const UpdateTaskInput = z.strictObject({
     ),
   sort_key: z.number().finite().optional(),
   external_ref: z.string().trim().max(500).nullable().optional(),
+  labels: LabelList.optional(),
   custom_fields: z
     .record(
       z.string().trim().min(1).max(60),

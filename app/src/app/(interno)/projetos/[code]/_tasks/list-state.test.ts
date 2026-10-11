@@ -60,6 +60,7 @@ describe("estado da lista no endereço", () => {
     ).toEqual({
       frente: ID,
       depto: null,
+      etiqueta: null,
       resp: `agent:${ID}`,
       prio: ["urgent", "high", "low"],
       prazo: "atrasadas",
@@ -99,6 +100,16 @@ describe("estado da lista no endereço", () => {
     expect(query.toString()).toBe("resp=eu&prio=urgent&col=titulo%2Cprazo");
     expect(readListState(Object.fromEntries(query))).toEqual(state);
     expect(listQuery(readListState({})).toString()).toBe("");
+  });
+
+  it("filtra por etiqueta (nome, sem espaços sobrando)", () => {
+    const state = readListState({ etiqueta: "  Cliente   esperando " });
+    expect(state.etiqueta).toBe("Cliente esperando");
+    expect(hasFilters(state)).toBe(true);
+    expect(listQuery(state).toString()).toBe("etiqueta=Cliente+esperando");
+    expect(toTaskFilter(state).label).toBe("Cliente esperando");
+    expect(readListState({ etiqueta: "x".repeat(41) }).etiqueta).toBeNull();
+    expect(readListState({ etiqueta: "a\u0000b" }).etiqueta).toBeNull();
   });
 
   it("filtra por departamento (slug) e ignora o que não é slug", () => {
