@@ -15,7 +15,9 @@ import { createProject } from "@/modules/projects/admin";
 import { importPlan } from "@/modules/sync/service";
 import {
   applyTemplateClientTexts,
+  applyTemplateDates,
   applyTemplateStatuses,
+  TEMPLATE_DATES_REASON,
   createTemplate,
   getTemplate,
   listTemplates,
@@ -323,5 +325,94 @@ describe("modelos de projeto", () => {
         ],
       }),
     ).toBe(422);
+  });
+});
+
+describe("datas dos marcos do modelo", () => {
+  it("espalha as datas entre o início e a entrega, só nos marcos sem data", async () => {
+    const clientId = (
+      await h.raw.query<{ client_id: string }>(
+        `select client_id from ${S}.projects where id = $1`,
+        [h.vit],
+      )
+    ).rows[0].client_id;
+    const markdown = [
+      "# Plano",
+      "",
+      "## M1 — Descoberta",
+      "### Briefing",
+      "- [ ] Fazer o briefing",
+      "",
+      "## M2 — Construção",
+      "### Obra",
+      "- [ ] Construir",
+      "",
+    ].join("\n");
+    const base = {
+      client_id: clientId,
+      phase: "descobrir" as const,
+      status: "active" as const,
+      objective_internal: null,
+      objective_client: null,
+      owner_profile_id: null,
+      pm_agent_id: null,
+      repo_url: null,
+      plan_path: null,
+      require_evidence: false,
+      client_can_confirm_receipt: false,
+      departments: [],
+    };
+    const dated = await inTx(asOwner(), async (t) => {
+      await createProject(t, {
+        ...base,
+        code: "DAT",
+        name: "Com datas",
+        start_date: "2026-10-12",
+        target_date: "2026-12-11",
+      });
+      await importPlan(t, { project: "DAT", markdown });
+      return applyTemplateDates(t, "DAT");
+    });
+    expect(dated).toBe(2);
+    const rows = await h.raw.query<{ code: string; due: string }>(
+      `select m.code, m.due_date::text as due from ${S}.milestones m
+         join ${S}.projects p on p.id = m.project_id
+        where p.code = 'DAT' order by m.sort_order`,
+    );
+    expect(rows.rows).toEqual([
+      { code: "M1", due: "2026-11-11" },
+      { code: "M2", due: "2026-12-11" },
+    ]);
+    // O motivo fica no histórico de datas; a primeira data não conta como revisão.
+    const history = await h.raw.query<{
+      reason: string;
+      old_due: string | null;
+    }>(
+      `select h.reason_internal as reason, h.old_due::text as old_due
+         from ${S}.milestone_date_history h
+         join ${S}.milestones m on m.id = h.milestone_id
+         join ${S}.projects p on p.id = m.project_id where p.code = 'DAT'`,
+    );
+    expect(history.rows).toHaveLength(2);
+    expect(history.rows[0]).toEqual({
+      reason: TEMPLATE_DATES_REASON,
+      old_due: null,
+    });
+    // De novo: os marcos já têm data, nada muda.
+    expect(await inTx(asOwner(), (t) => applyTemplateDates(t, "DAT"))).toBe(0);
+
+    // Sem início e entrega no projeto, os marcos ficam sem data.
+    const none = await inTx(asOwner(), async (t) => {
+      await createProject(t, {
+        ...base,
+        code: "SDT",
+        name: "Sem datas",
+        start_date: null,
+        target_date: null,
+      });
+      await importPlan(t, { project: "SDT", markdown });
+      return applyTemplateDates(t, "SDT");
+    });
+    expect(none).toBe(0);
   });
 });

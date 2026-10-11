@@ -5,8 +5,11 @@ import { badRequest, conflict, notFound, unprocessable } from "@/lib/errors";
 import { assertNoSecrets } from "@/lib/text-guards";
 import { authorizeProjectId, iso, Line, Uuid } from "@/modules/common";
 import { json, many, maybeOne, S, type TxCtx } from "@/modules/context";
+import { updateMilestone } from "@/modules/milestones/admin";
+import { getMilestone } from "@/modules/milestones/service";
 import { getPlan } from "@/modules/projects/service";
 import { STATUS_CATEGORIES } from "@/modules/tasks/status-categories";
+import { spreadDueDates } from "./dates";
 import {
   renderTemplate,
   TEMPLATE_MARKDOWN_MAX,
@@ -519,4 +522,65 @@ export async function applyTemplateClientTexts(
     }
   }
   return applied;
+}
+
+/** Motivo gravado no histórico de datas do marco (interno; o portal não mostra). */
+export const TEMPLATE_DATES_REASON =
+  "Data inicial distribuída pelo modelo, entre o início e a entrega do projeto.";
+
+/**
+ * Depois da importação de um modelo: os marcos sem data recebem datas espalhadas entre
+ * o início e a entrega do projeto (`spreadDueDates`), pelo caso de uso de sempre (com o
+ * histórico de datas). Sem as duas datas do projeto, nada muda. Devolve quantos mudaram.
+ */
+export async function applyTemplateDates(
+  t: TxCtx,
+  projectCode: string,
+): Promise<number> {
+  const project = await maybeOne<{
+    id: string;
+    start_date: string | null;
+    target_date: string | null;
+  }>(
+    t,
+    `select id, start_date::text as start_date, target_date::text as target_date
+       from ${S}.projects where code = $1`,
+    [projectCode],
+  );
+  if (!project) throw notFound(`O projeto ${projectCode} não existe.`);
+  await authorizeProjectId(t, project.id, "milestone.write");
+  if (!project.start_date || !project.target_date) return 0;
+  const undated = await many<{ id: string }>(
+    t,
+    `select id from ${S}.milestones
+      where project_id = $1 and archived_at is null and due_date is null
+        and status <> 'accepted'
+      order by sort_order, created_at, id`,
+    [project.id],
+  );
+  const dates = spreadDueDates(
+    project.start_date,
+    project.target_date,
+    undated.length,
+  );
+  for (const [i, row] of undated.entries()) {
+    const due = dates[i];
+    if (!due) break;
+    const m = await getMilestone(t, row.id);
+    await updateMilestone(t, row.id, {
+      title: m.title,
+      title_client: m.title_client,
+      description_client: m.description_client,
+      due_date: due,
+      status: m.status as "planned" | "in_progress" | "delivered",
+      visibility: m.visibility,
+      acceptance_criteria: m.acceptance_criteria.map((c) => ({
+        text: c.text,
+        done: c.done,
+      })),
+      gate_required: m.gate_required,
+      date_reason: TEMPLATE_DATES_REASON,
+    });
+  }
+  return Math.min(undated.length, dates.length);
 }
