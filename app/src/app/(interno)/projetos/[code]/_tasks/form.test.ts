@@ -437,6 +437,28 @@ describe("checklist e dependências", () => {
       parseDependencyForm(fd({ op: "add", code: "HUB-3", other: "sete" })).ok,
     ).toBe(false);
   });
+
+  it("dependência pela sugestão da lista (código e título)", () => {
+    expect(
+      parseDependencyForm(
+        fd({ op: "add", code: "HUB-3", other: "HUB-29 · Inserir os textos" }),
+      ),
+    ).toEqual({
+      ok: true,
+      value: { op: "add", code: "HUB-3", other: "HUB-29" },
+    });
+    // Só o nome, sem escolher a sugestão: pede para escolher na lista.
+    const loose = parseDependencyForm(
+      fd({ op: "add", code: "HUB-3", other: "Inserir os textos" }),
+    );
+    expect(loose.ok).toBe(false);
+    expect(loose.ok ? "" : loose.message).toMatch(/Escolha a tarefa na lista/);
+    // Código grudado em outra palavra não vale.
+    expect(
+      parseDependencyForm(fd({ op: "add", code: "HUB-3", other: "HUB-29x" }))
+        .ok,
+    ).toBe(false);
+  });
 });
 
 describe("comentário com menções", () => {

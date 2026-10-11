@@ -348,6 +348,8 @@ export type TaskDetail = TaskFormOptions & {
   fields: CustomFieldDto[];
   /** As etiquetas do workspace, para sugerir no editor (RF-18). */
   labels: { name: string; color: string }[];
+  /** As outras tarefas do projeto, para escolher a dependência pelo nome. */
+  peers: { code: string; title: string }[];
 };
 
 type HistoryRow = {
@@ -358,6 +360,9 @@ type HistoryRow = {
   actor_name: string | null;
   after: unknown;
 };
+
+/** Quantas tarefas do projeto o painel sugere como dependência (as mais recentes). */
+export const PEER_LIMIT = 500;
 
 export async function taskDetail(t: TxCtx, code: string): Promise<TaskDetail> {
   // getTask confere a leitura de tarefas no projeto da tarefa.
@@ -401,6 +406,13 @@ export async function taskDetail(t: TxCtx, code: string): Promise<TaskDetail> {
     labels: await many<{ name: string; color: string }>(
       t,
       `select name, color from ${S}.labels order by lower(name)`,
+    ),
+    peers: await many<{ code: string; title: string }>(
+      t,
+      `select code, title from ${S}.tasks
+        where project_id = $1 and id <> $2 and archived_at is null
+        order by created_at desc, id limit ${PEER_LIMIT}`,
+      [projectId, task.id],
     ),
     history: history.map((h) => ({
       at: iso(h.created_at),

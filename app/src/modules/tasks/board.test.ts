@@ -348,6 +348,9 @@ describe("painel da tarefa", () => {
       "Primeiro comentário.",
     ]);
     expect(detail.statuses).toHaveLength(5);
+    // Sugestões de dependência: as outras tarefas do projeto, nunca a própria.
+    expect(detail.peers.map((p) => p.code)).toContain(filha.code);
+    expect(detail.peers.map((p) => p.code)).not.toContain(pai.code);
     const texts = detail.history.map((e) => e.text);
     expect(texts[0]).toBe("concluiu a tarefa");
     expect(detail.history[0].detail).toBe("Entregue no repositório.");
