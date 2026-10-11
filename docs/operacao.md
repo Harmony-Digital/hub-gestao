@@ -95,11 +95,13 @@ O Hub avisa o dono na caixa de entrada (grupos "Agentes" e "Operação do Hub") 
 
 O relógio parado não vira alerta pelo Hub (com ele parado, nem os webhooks saem): ele aparece na saúde e na Sala de Controle (seção "Relógio dos jobs parado").
 
-**Ligar o aviso de publicação** (passo do Fábio, uma vez):
+**Ligar o aviso de publicação** (passo do Fábio, uma vez; rodar de novo troca o segredo): no Mac, na pasta do repositório,
 
-1. Gerar o segredo: `openssl rand -hex 32`.
-2. Na VPS, acrescentar `HUB_ALERT_SECRET=<o segredo>` ao `/opt/hub-gestao/shared/.env.production` (vale a partir da próxima publicação, que recria o contêiner).
-3. No GitHub, em Settings → Secrets and variables → Actions do repositório, criar o segredo `HUB_ALERT_SECRET` com o mesmo valor.
+```bash
+deploy/vps/hub-alert-secret.sh
+```
+
+O script gera o segredo, grava no `/opt/hub-gestao/shared/.env.production` da VPS pelo `hub-env-set.sh` (o valor vai pela entrada padrão, nunca na linha de comando, e o arquivo mantém dono e permissão), recria o contêiner na versão no ar (alguns segundos fora do ar), guarda o mesmo valor no segredo `HUB_ALERT_SECRET` do repositório no GitHub e confere que a rota do aviso passou a recusar pedido sem o segredo (401). O valor não aparece na tela nem fica no Mac. À mão, o mesmo: gerar com `openssl rand -hex 32`, acrescentar `HUB_ALERT_SECRET=<o segredo>` ao `.env.production`, recriar o contêiner e criar o segredo no GitHub (Settings → Secrets and variables → Actions).
 
 Sem o segredo, o último passo do workflow só diz que o aviso está desligado e a publicação segue como antes.
 

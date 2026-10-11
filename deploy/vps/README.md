@@ -94,6 +94,16 @@ O login usa o Supabase Auth compartilhado da Harmony, com cadastro aberto deslig
 
 Teste mensal de restauração: `hub-restore-test.sh` restaura o dump mais recente num banco temporário, compara as contagens com a produção e apaga o banco temporário (não precisa instalar: roda de `/tmp`). Para uma restauração de verdade, `hub-db-grants.sql` devolve as permissões do papel do Hub depois da troca do schema. O passo a passo e o ensaio estão em `docs/operacao.md` (Backup e restauração).
 
+## Passos do Fábio em um clique
+
+Rodam no Mac do Fábio, na pasta do repositório (botão Rodar), com o acesso dele à VPS (`ssh vps-harmony`) e ao GitHub (conta `fabioalmeidadigital`). Cada um diz o que faz no começo do arquivo e para no primeiro erro.
+
+| Script | O que faz |
+|---|---|
+| `hub-alert-secret.sh` | Liga o aviso de publicação que falhou: gera o `HUB_ALERT_SECRET`, grava no `.env.production` e no segredo do repositório, recria o contêiner e confere a rota (401 sem o segredo). Rodar de novo troca o segredo. |
+| `hub-apply-compose.sh` | Aplica na VPS o `docker-compose.yml` do repositório (hoje, a rotação dos logs): mostra a diferença, confere a sintaxe com o Docker, guarda a cópia anterior, recria o contêiner e volta sozinho se ele não ficar saudável. |
+| `hub-env-set.sh` | Ajudante que os scripts acima mandam para a VPS: grava uma variável de uma lista fechada no `.env.production`, com o valor pela entrada padrão (nunca em argumento), mantendo dono e permissão, e para sem mudar nada se a conferência falhar. |
+
 ## Operação
 
 ```bash
