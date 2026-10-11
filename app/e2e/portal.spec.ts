@@ -94,7 +94,7 @@ test("o dono libera o acesso e o contato acompanha os projetos pelo portal", asy
       .getByText(/Acesso liberado: \d+ de \d+$/),
   ).toBeVisible();
   await expect(
-    row.getByText("Link enviado, ainda não entrou", { exact: true }),
+    row.getByText("Acesso liberado, ainda não entrou", { exact: true }),
   ).toBeVisible();
   // O endereço do link é o público do Hub; aqui, o caminho vai para o servidor do teste.
   const entrar = new URL(new URL(link).pathname, page.url()).toString();
