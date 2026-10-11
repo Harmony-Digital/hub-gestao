@@ -68,7 +68,7 @@ Na mesma tela (Clientes → Contatos e portal), só o dono: "Exportar os dados d
 
 ## Arquivos entregues
 
-- **A equipe entrega** na Visão geral do projeto, na seção "Arquivos entregues ao cliente" (aparece quando o cliente tem o portal ligado ou já há arquivos). Entregar e tirar é do dono ou da administração (ação `attachment.write_client`; a equipe comum vê e abre); agente não entrega (o banco recusa). Mesmas regras dos anexos das tarefas: até 10 MB, só tipos comuns de trabalho (imagem, PDF, texto, CSV, planilha, documento, zip), conferidos pelos primeiros bytes; até 50 arquivos por projeto.
+- **A equipe entrega** na Visão geral do projeto, na seção "Arquivos entregues ao cliente" (aparece quando o cliente tem o portal ligado ou já há arquivos). Entregar e tirar é do dono ou da administração (ação `attachment.write_client`; a equipe comum vê e abre); agente não entrega (o banco recusa). Mesmas regras dos anexos das tarefas: até 25 MB, só tipos comuns de trabalho (imagem, PDF, texto, CSV, planilha, documento, zip), conferidos pelos primeiros bytes; até 50 arquivos por projeto.
 - **O cliente baixa** pela página do projeto, por um endereço do próprio portal (`/portal/<cliente>/<código>/arquivos/<id>`), que exige a sessão do cliente e lê com o ator de cliente: a RLS só entrega o conteúdo dos arquivos marcados para ele. Imagem e PDF abrem no navegador; o resto baixa; nada é interpretado como página (`nosniff`, `no-store`).
 - Tirar o arquivo tira do portal na hora; o histórico guarda quem entregou e quem tirou, com o nome do arquivo.
 

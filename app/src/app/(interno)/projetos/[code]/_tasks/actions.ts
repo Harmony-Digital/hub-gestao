@@ -272,7 +272,7 @@ export async function dependenciaTarefa(
 const TASK = /^[A-Z]{2,6}-[0-9]{1,9}$/;
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Anexa um arquivo à tarefa (até 10 MB; o núcleo confere tipo e conteúdo). */
+/** Anexa um arquivo à tarefa (até 25 MB; o núcleo confere tipo e conteúdo). */
 export async function anexarArquivo(
   _previous: ActionState,
   form: FormData,

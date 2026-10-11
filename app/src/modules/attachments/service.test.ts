@@ -114,6 +114,26 @@ describe("anexos da tarefa", () => {
     expect(actions).toEqual(["attachment.added", "attachment.removed"]);
   });
 
+  it("aceita até 25 MB (PRD §8.8): o limite antigo de 10 MB ficou para trás", async () => {
+    expect(MAX_ATTACHMENT_BYTES).toBe(25 * 1024 * 1024);
+    const task = await inTx(asOwner(), (t) =>
+      createTask(t, { project: "VIT", title: "Anexo grande" }),
+    );
+    const bytes = new Uint8Array(12 * 1024 * 1024).fill(0x61);
+    const added = await inTx(asOwner(), (t) =>
+      addAttachment(t, task.code, { name: "relatorio.txt", bytes }),
+    );
+    expect(added.size_bytes).toBe(bytes.length);
+    expect(
+      await count(
+        h,
+        `select count(*)::int as n from ${S}.attachment_contents
+          where attachment_id = $1 and octet_length(content) = $2`,
+        [added.id, bytes.length],
+      ),
+    ).toBe(1);
+  });
+
   it("recusa tipo desconhecido, conteúdo que não bate, vazio e grande demais", async () => {
     const task = await inTx(asOwner(), (t) =>
       createTask(t, { project: "VIT", title: "Recusas" }),
