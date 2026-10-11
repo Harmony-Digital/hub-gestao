@@ -17,6 +17,7 @@ import {
   type ClientTextContext,
   type ClientTextIssue,
 } from "./check";
+import { resolveProject } from "@/modules/common";
 import { clientTextContext } from "./context";
 
 /**
@@ -400,4 +401,121 @@ async function apply(
     after: { by: CLIENT_WRITER_ROLE, issues: out.issues.length },
   });
   return { status: "rewritten", issues: out.issues.length };
+}
+
+// Sugestão na tela ---------------------------------------------------------------------
+
+export const NO_WRITER =
+  "O Redator do Cliente ainda não está ligado: cadastre, na Sala de Controle, um agente com o papel RC-12, a chave e o modelo de IA.";
+
+export type WorkstreamSuggestion =
+  | {
+      ok: true;
+      title: string;
+      description: string | null;
+      notes: string | null;
+      /** O que a verificação em código ainda acha na sugestão (a decisão é da pessoa). */
+      issues: ClientTextIssue[];
+    }
+  | { ok: false; message: string };
+
+/**
+ * Sugestão do Redator para a frente que a própria equipe vai mostrar ao cliente, pela
+ * janela da frente (M6). Quem pede é quem decide a visibilidade (workstream.visibility);
+ * nada é gravado: a pessoa usa a sugestão, ajusta e salva. A chamada à IA fica fora das
+ * transações e falha fechada (sem Redator, sem IA ou com erro, a mensagem diz o motivo).
+ */
+export async function suggestWorkstreamClientText(
+  ctx: Ctx,
+  input: { project: string; title: string; description: string | null },
+  deps: LlmDeps = {},
+): Promise<WorkstreamSuggestion> {
+  const title = input.title.replace(/\s+/g, " ").trim().slice(0, 200);
+  if (!title) {
+    return {
+      ok: false,
+      message: "Escreva o título da frente (ou o título para o cliente) antes.",
+    };
+  }
+  const description = input.description?.trim().slice(0, 2000) || null;
+  const prepared = await inTx(ctx, async (t) => {
+    const project = await resolveProject(
+      t,
+      input.project,
+      "workstream.visibility",
+    );
+    const agent = await writerAgent(t);
+    if (!agent) return null;
+    const info = await maybeOne<{ name: string; client: string }>(
+      t,
+      `select p.name, c.name as client
+         from ${S}.projects p join ${S}.clients c on c.id = p.client_id
+        where p.id = $1`,
+      [project.id],
+    );
+    const context = await clientTextContext(t, project.id);
+    const issues = [
+      ...checkClientText(title, context),
+      ...(description ? checkClientText(description, context) : []),
+    ];
+    const prepared: Prepared = {
+      kind: "workstream",
+      approvalId: "",
+      agentId: agent.id,
+      project: {
+        id: project.id,
+        code: project.code,
+        name: info?.name ?? project.code,
+        client: info?.client ?? "",
+      },
+      period: null,
+      report: null,
+      original: { text: null, title, description },
+      issues,
+      context,
+    };
+    return prepared;
+  });
+  if (!prepared) return { ok: false, message: NO_WRITER };
+
+  const answer = await generateObject(
+    ctx,
+    {
+      agentId: prepared.agentId,
+      purpose: `Redator do Cliente · ${promptTag(CLIENT_WRITER)} · ${prepared.project.code} · tela`,
+      projectId: prepared.project.id,
+      instructions: CLIENT_WRITER.instructions,
+      prompt: writerMessage(prepared),
+      maxOutputTokens: 1200,
+      schema: RewriteOutput,
+      schemaName: "texto_para_o_cliente",
+      schemaDescription:
+        "O título e a descrição da frente para o cliente, no tom Harmony, e uma nota curta sobre o que mudou.",
+    },
+    deps,
+  );
+  if (!answer.ok) return { ok: false, message: answer.detail };
+  const suggested = answer.object.title?.replace(/\s+/g, " ").trim();
+  if (!suggested) {
+    return {
+      ok: false,
+      message:
+        "O Redator não devolveu um título. Tente de novo ou escreva o texto.",
+    };
+  }
+  const suggestedDescription =
+    answer.object.description?.trim().slice(0, 2000) || null;
+  const finalTitle = suggested.slice(0, 200);
+  return {
+    ok: true,
+    title: finalTitle,
+    description: suggestedDescription,
+    notes: answer.object.notes?.trim() || null,
+    issues: [
+      ...checkClientText(finalTitle, prepared.context),
+      ...(suggestedDescription
+        ? checkClientText(suggestedDescription, prepared.context)
+        : []),
+    ],
+  };
 }

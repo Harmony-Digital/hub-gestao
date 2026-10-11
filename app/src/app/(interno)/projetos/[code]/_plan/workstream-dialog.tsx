@@ -1,7 +1,15 @@
 "use client";
 
-import { useActionState, useId, useState } from "react";
-import { Archive, Eye, LoaderCircle, Pencil, Plus } from "lucide-react";
+import { useActionState, useId, useRef, useState, useTransition } from "react";
+import {
+  Archive,
+  Eye,
+  LoaderCircle,
+  Pencil,
+  Plus,
+  Sparkles,
+  TriangleAlert,
+} from "lucide-react";
 import { FormDialog } from "@/components/form-dialog";
 import {
   ErrorNote,
@@ -15,7 +23,13 @@ import { IDLE, type ActionState } from "@/lib/action-state";
 import { WORKSTREAM_STATUS } from "@/lib/labels";
 import type { AssigneeOption } from "@/modules/tasks/board";
 import { ArchiveConfirm } from "../../../_archive/archive-controls";
-import { salvarFrente } from "./actions";
+import {
+  checkClientText,
+  describeIssue,
+  type ClientTextContext,
+  type ClientTextIssue,
+} from "@/modules/client-text/check";
+import { salvarFrente, sugerirTextoCliente } from "./actions";
 import { WORKSTREAM_STATUSES } from "./form";
 
 /** A frente como o formulário de edição precisa. */
@@ -44,6 +58,11 @@ export type WorkstreamFormOptions = {
   workstreams: { id: string; title: string; milestone: string | null }[];
   /** Quem pode mostrar a frente ao cliente (workstream.visibility). */
   canShowClient: boolean;
+  /**
+   * Verificação do texto para o cliente (RC-12, regra em código, roda na tela) e o
+   * Redator: null quando pronto, ou o motivo de não estar ligado.
+   */
+  clientText?: { context: ClientTextContext; writer: string | null } | null;
 };
 
 /** "Nova frente" (sem frente) ou "Editar" (com a frente), numa janela. */
@@ -119,6 +138,7 @@ function WorkstreamForm({
   // Arquivar troca o formulário pela confirmação, na mesma janela.
   const [archiving, setArchiving] = useState(false);
   const others = options.workstreams.filter((w) => w.id !== workstream?.id);
+  const formRef = useRef<HTMLFormElement>(null);
 
   return (
     <>
@@ -133,6 +153,7 @@ function WorkstreamForm({
         />
       ) : null}
       <form
+        ref={formRef}
         onSubmit={submit}
         className={archiving ? "hidden" : "flex flex-col gap-4"}
       >
@@ -289,48 +310,26 @@ function WorkstreamForm({
           ) : null}
 
           {options.canShowClient ? (
-            <div className="flex flex-col gap-3 rounded-xl bg-off p-4">
-              <input type="hidden" name="visibility_section" value="1" />
-              <p className="flex items-center gap-2 text-sm font-semibold text-navy">
-                <Eye aria-hidden="true" className="size-4" />O que o cliente vê
-              </p>
-              <label className="flex items-start gap-2 text-sm text-ink">
-                <input
-                  type="checkbox"
-                  name="client_visible"
-                  defaultChecked={workstream?.visibility === "client"}
-                  className="mt-0.5 size-4 accent-[var(--color-brand)]"
-                />
-                Mostrar esta frente ao cliente no portal. As tarefas continuam
-                só da equipe.
-              </label>
-              <Field
-                id={`${id}-title-client`}
-                label="Título para o cliente"
-                hint="Obrigatório para mostrar. O portal nunca usa o título interno."
-              >
-                <input
-                  id={`${id}-title-client`}
-                  name="title_client"
-                  maxLength={200}
-                  defaultValue={workstream?.title_client ?? ""}
-                  className={inputClass}
-                />
-              </Field>
-              <Field
-                id={`${id}-description-client`}
-                label="Descrição para o cliente (opcional)"
-              >
-                <textarea
-                  id={`${id}-description-client`}
-                  name="description_client"
-                  rows={2}
-                  maxLength={2000}
-                  defaultValue={workstream?.description_client ?? ""}
-                  className={textareaClass}
-                />
-              </Field>
-            </div>
+            <ClientSection
+              id={id}
+              projectCode={projectCode}
+              workstream={workstream}
+              clientText={options.clientText ?? null}
+              internal={() => ({
+                title:
+                  (
+                    formRef.current?.elements.namedItem(
+                      "title",
+                    ) as HTMLInputElement | null
+                  )?.value ?? "",
+                description:
+                  (
+                    formRef.current?.elements.namedItem(
+                      "description_internal",
+                    ) as HTMLTextAreaElement | null
+                  )?.value ?? "",
+              })}
+            />
           ) : (
             <p className="rounded-xl bg-off p-4 text-sm text-ink-2">
               {workstream?.visibility === "client"
@@ -380,5 +379,219 @@ function WorkstreamForm({
         </div>
       </form>
     </>
+  );
+}
+
+/** Alertas sem repetição (o mesmo termo no título e na descrição aparece uma vez). */
+function uniqueIssues(issues: ClientTextIssue[]): ClientTextIssue[] {
+  const seen = new Map<string, ClientTextIssue>();
+  for (const issue of issues) {
+    seen.set(`${issue.kind}:${issue.term.toLowerCase()}`, issue);
+  }
+  return [...seen.values()];
+}
+
+type Suggestion = {
+  title: string;
+  description: string | null;
+  notes: string | null;
+  issues: ClientTextIssue[];
+};
+
+/**
+ * "O que o cliente vê": mostrar ao cliente, o título e a descrição para ele, os alertas
+ * da verificação em código (enquanto a pessoa escreve) e a sugestão do Redator do
+ * Cliente (RC-12), que a pessoa usa ou descarta. Nada vai para o portal sem salvar.
+ */
+function ClientSection({
+  id,
+  projectCode,
+  workstream,
+  clientText,
+  internal,
+}: {
+  id: string;
+  projectCode: string;
+  workstream?: WorkstreamInitial;
+  clientText: { context: ClientTextContext; writer: string | null } | null;
+  internal: () => { title: string; description: string };
+}) {
+  const [title, setTitle] = useState(workstream?.title_client ?? "");
+  const [description, setDescription] = useState(
+    workstream?.description_client ?? "",
+  );
+  const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [asking, startAsking] = useTransition();
+  const titleRef = useRef<HTMLInputElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const issues = clientText
+    ? uniqueIssues([
+        ...checkClientText(title, clientText.context),
+        ...checkClientText(description, clientText.context),
+      ])
+    : [];
+
+  const ask = () => {
+    const source = internal();
+    setError(null);
+    startAsking(async () => {
+      const result = await sugerirTextoCliente({
+        project: projectCode,
+        title: title.trim() || source.title,
+        description: description.trim() || source.description.trim() || null,
+      });
+      if (result.ok) {
+        setSuggestion({
+          title: result.title,
+          description: result.description,
+          notes: result.notes,
+          issues: result.issues,
+        });
+      } else {
+        setSuggestion(null);
+        setError(result.message);
+      }
+    });
+  };
+
+  const use = (s: Suggestion) => {
+    if (titleRef.current) titleRef.current.value = s.title;
+    if (descriptionRef.current) {
+      descriptionRef.current.value = s.description ?? "";
+    }
+    setTitle(s.title);
+    setDescription(s.description ?? "");
+    setSuggestion(null);
+  };
+
+  return (
+    <div className="flex flex-col gap-3 rounded-xl bg-off p-4">
+      <input type="hidden" name="visibility_section" value="1" />
+      <p className="flex items-center gap-2 text-sm font-semibold text-navy">
+        <Eye aria-hidden="true" className="size-4" />O que o cliente vê
+      </p>
+      <label className="flex items-start gap-2 text-sm text-ink">
+        <input
+          type="checkbox"
+          name="client_visible"
+          defaultChecked={workstream?.visibility === "client"}
+          className="mt-0.5 size-4 accent-[var(--color-brand)]"
+        />
+        Mostrar esta frente ao cliente no portal. As tarefas continuam só da
+        equipe.
+      </label>
+      <Field
+        id={`${id}-title-client`}
+        label="Título para o cliente"
+        hint="Obrigatório para mostrar. O portal nunca usa o título interno."
+      >
+        <input
+          ref={titleRef}
+          id={`${id}-title-client`}
+          name="title_client"
+          maxLength={200}
+          defaultValue={workstream?.title_client ?? ""}
+          onInput={(e) => setTitle(e.currentTarget.value)}
+          className={inputClass}
+        />
+      </Field>
+      <Field
+        id={`${id}-description-client`}
+        label="Descrição para o cliente (opcional)"
+      >
+        <textarea
+          ref={descriptionRef}
+          id={`${id}-description-client`}
+          name="description_client"
+          rows={2}
+          maxLength={2000}
+          defaultValue={workstream?.description_client ?? ""}
+          onInput={(e) => setDescription(e.currentTarget.value)}
+          className={textareaClass}
+        />
+      </Field>
+
+      <div aria-live="polite" className="flex flex-col gap-2">
+        {issues.length > 0 ? (
+          <div className="flex items-start gap-2 rounded-lg bg-warn-soft p-3 text-sm text-warn-fg">
+            <TriangleAlert
+              aria-hidden="true"
+              className="mt-0.5 size-4 shrink-0"
+            />
+            <span>
+              O texto para o cliente cita{" "}
+              {issues.map((issue) => describeIssue(issue)).join(", ")}. O
+              cliente não deve ler isso.
+            </span>
+          </div>
+        ) : null}
+        {error ? <p className="text-sm text-danger-fg">{error}</p> : null}
+      </div>
+
+      {clientText ? (
+        clientText.writer ? (
+          <p className="text-xs text-ink-2">{clientText.writer}</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={asking}
+              onClick={ask}
+              className="self-start"
+            >
+              {asking ? (
+                <LoaderCircle aria-hidden="true" className="animate-spin" />
+              ) : (
+                <Sparkles aria-hidden="true" />
+              )}
+              Pedir sugestão ao Redator
+            </Button>
+            {suggestion ? (
+              <div className="flex flex-col gap-2 rounded-lg border border-line bg-card p-3 text-sm">
+                <p className="text-xs font-semibold text-ink-2">
+                  Sugestão do Redator do Cliente
+                </p>
+                <p className="font-medium text-navy">{suggestion.title}</p>
+                {suggestion.description ? (
+                  <p className="text-ink">{suggestion.description}</p>
+                ) : null}
+                {suggestion.notes ? (
+                  <p className="text-xs text-ink-2">{suggestion.notes}</p>
+                ) : null}
+                {suggestion.issues.length > 0 ? (
+                  <p className="text-xs text-warn-fg">
+                    Ainda cita{" "}
+                    {uniqueIssues(suggestion.issues)
+                      .map((issue) => describeIssue(issue))
+                      .join(", ")}
+                    : revise antes de salvar.
+                  </p>
+                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => use(suggestion)}
+                  >
+                    Usar a sugestão
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSuggestion(null)}
+                  >
+                    Descartar
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )
+      ) : null}
+    </div>
   );
 }

@@ -439,6 +439,12 @@ async function ensureSampleInternalAgents(raw: PGlite): Promise<void> {
       mission:
         "Planejador de exemplo, só no banco local: propõe planos a partir de documentos.",
     },
+    {
+      name: "Redator do Cliente (exemplo)",
+      role: "RC-12",
+      mission:
+        "Redator do Cliente de exemplo, só no banco local: sugere o texto para o cliente.",
+    },
   ];
   const key = encryptionKeyOrNull();
   const simulated = process.env.HUB_DEV_FAKE_LLM === "on" && key !== null;
