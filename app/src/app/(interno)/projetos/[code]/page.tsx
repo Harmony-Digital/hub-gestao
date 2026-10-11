@@ -61,6 +61,7 @@ import type {
 import { taskFormOptions } from "@/modules/tasks/board";
 import {
   MilestoneButton,
+  MilestoneOrder,
   RequestAcceptanceButton,
   type MilestoneInitial,
 } from "./_plan/milestone-dialog";
@@ -221,13 +222,19 @@ async function ProjectView({
             note="O cliente vê, exceto os internos"
             icon={<Eye aria-hidden="true" className="size-3.5" />}
             action={
-              canWriteMilestones ? <MilestoneButton projectCode={code} /> : null
+              canWriteMilestones ? (
+                <MilestoneButton
+                  projectCode={code}
+                  canDropGate={can(user.actor, "milestone.accept")}
+                />
+              ) : null
             }
           >
             <Milestones
               data={data}
               projectCode={code}
               canWrite={canWriteMilestones}
+              canDropGate={can(user.actor, "milestone.accept")}
               canRequest={
                 !archivedProject && can(user.actor, "approval.request")
               }
@@ -520,6 +527,7 @@ function milestoneInitial(m: MilestoneDto): MilestoneInitial | null {
     status,
     visibility: m.visibility,
     acceptance_criteria: m.acceptance_criteria,
+    gate_required: m.gate_required,
   };
 }
 
@@ -527,12 +535,15 @@ function Milestones({
   data,
   projectCode,
   canWrite,
+  canDropGate,
   canRequest,
   pending,
 }: {
   data: ProjectOverview;
   projectCode: string;
   canWrite: boolean;
+  /** Quem aceita marcos (o dono) pode tirar o GATE (RF-09). */
+  canDropGate: boolean;
   canRequest: boolean;
   /** Marcos com pedido de aceite esperando decisão. */
   pending: string[];
@@ -547,7 +558,7 @@ function Milestones({
   }
   return (
     <ol className="flex flex-col divide-y divide-line">
-      {data.milestones.map((m) => {
+      {data.milestones.map((m, index) => {
         const status = MILESTONE_STATUS[m.status];
         const criteriaDone = m.acceptance_criteria.filter((c) => c.done).length;
         const initial = milestoneInitial(m);
@@ -572,6 +583,7 @@ function Milestones({
                   ? ` · critérios ${criteriaDone}/${m.acceptance_criteria.length}`
                   : ""}
                 {m.visibility === "internal" ? " · interno" : ""}
+                {m.gate_required ? "" : " · sem GATE"}
               </span>
               {m.client_received_at ? (
                 <span className="block text-xs text-ok-fg">
@@ -588,7 +600,7 @@ function Milestones({
             <Progress value={m.progress_pct} label={`Progresso de ${m.code}`} />
             {/* Ações em coluna de largura fixa: as barras de progresso ficam alinhadas. */}
             {canWrite || canRequest ? (
-              <span className="flex items-center justify-end gap-1 sm:w-44">
+              <span className="flex items-center justify-end gap-1 sm:w-64">
                 {initial && requested ? (
                   <Link
                     href="/aprovacoes"
@@ -597,7 +609,9 @@ function Milestones({
                   >
                     <Pill tone="review">Aceite pedido</Pill>
                   </Link>
-                ) : initial?.status === "delivered" && canRequest ? (
+                ) : initial?.status === "delivered" &&
+                  m.gate_required &&
+                  canRequest ? (
                   <RequestAcceptanceButton
                     milestone={{
                       id: m.id,
@@ -608,10 +622,18 @@ function Milestones({
                     }}
                   />
                 ) : null}
+                {canWrite ? (
+                  <MilestoneOrder
+                    milestone={{ id: m.id, code: m.code }}
+                    first={index === 0}
+                    last={index === data.milestones.length - 1}
+                  />
+                ) : null}
                 {initial && canWrite ? (
                   <MilestoneButton
                     projectCode={projectCode}
                     milestone={initial}
+                    canDropGate={canDropGate}
                   />
                 ) : null}
               </span>

@@ -3286,7 +3286,7 @@
             "maxLength": 4000
           },
           "milestone": {
-            "description": "Obrigatório para milestone_acceptance: o marco cujo aceite é pedido.",
+            "description": "Obrigatório para milestone_acceptance: o marco cujo aceite é pedido. Só marco com GATE (gate_required); o marco sem GATE fecha quando é Entregue.",
             "type": "string",
             "pattern": "^M[0-9]{1,3}$"
           },
