@@ -34,6 +34,12 @@ Tela da equipe: **Clientes → abrir o cliente → Contatos e portal** (`/client
 6. **Gerar novo link** (só o dono): o link anterior que ainda não foi usado deixa de valer.
 7. **Revogar acesso** (só o dono, com confirmação): encerra as sessões abertas e anula os links pendentes na hora. Liberar de novo devolve o acesso.
 
+**Preparação do portal (OB-13).** A mesma tela tem a lista do que já está pronto para o cliente ver e do que falta, contada do próprio banco: contatos cadastrados, acesso liberado, aceite do uso dos dados e, em cada projeto ativo do cliente, o objetivo escrito para o cliente (com o atalho para Editar projeto), quantas entregas e frentes aparecem no portal e o aviso das entregas marcadas para o cliente que estão sem o título para ele (essas não aparecem).
+
+**Mensagem de convite (OB-13).** Ao liberar o acesso (ou gerar um link novo), além do link vem uma mensagem de convite pronta, com o primeiro nome do contato, os projetos que ele vai acompanhar, o link e até quando ele vale. A mensagem fica num campo editável: o dono revisa, copia ("Copiar mensagem") e manda por onde preferir. O Hub não manda nada (D9).
+
+**Boas-vindas no canal (OB-13).** Com o canal do projeto ainda vazio, o "Canal do cliente" da Visão geral oferece "Usar o rascunho de boas-vindas", que põe uma mensagem pronta no campo de resposta, para revisar antes de enviar.
+
 A tela mostra, para cada contato: a situação (Sem acesso; Link enviado, ainda não entrou; Com acesso; Acesso revogado), quando foi liberado, quando aceitou o uso dos dados, o último acesso e até quando vale o link ainda não usado.
 
 ## Segurança

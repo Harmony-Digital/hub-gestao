@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId, useState } from "react";
+import { useActionState, useId, useRef, useState } from "react";
 import {
   CircleCheck,
   Copy,
@@ -10,15 +10,25 @@ import {
   Plus,
   UserX,
 } from "lucide-react";
-import { ErrorNote, inputClass, useSubmit } from "@/components/forms";
+import {
+  ErrorNote,
+  inputClass,
+  textareaClass,
+  useSubmit,
+} from "@/components/forms";
 import { Button } from "@/components/ui/button";
 import type { AccessStatus, ContactRole } from "@/modules/portal/access";
 import { criarContato, gerarLinkPortal, revogarAcessoPortal } from "./actions";
 import { PORTAL_IDLE, ROLE_LABEL, type PortalFormState } from "./form";
 
-/** O link de uso único, uma vez só, com o botão de copiar. */
-function LinkOnce({ link }: { link: string }) {
-  const [copied, setCopied] = useState(false);
+/**
+ * O link de uso único, uma vez só, com o botão de copiar, e a mensagem de convite pronta
+ * (OB-13), que o dono revisa, copia e manda por onde preferir: o Hub não manda nada.
+ */
+function LinkOnce({ link, invite }: { link: string; invite?: string }) {
+  const id = useId();
+  const [copied, setCopied] = useState<"link" | "invite" | null>(null);
+  const message = useRef<HTMLTextAreaElement>(null);
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-brand/40 bg-brand-soft/10 p-3">
       <p className="text-sm font-medium text-navy">
@@ -31,17 +41,53 @@ function LinkOnce({ link }: { link: string }) {
           variant="outline"
           onClick={async () => {
             await navigator.clipboard.writeText(link);
-            setCopied(true);
+            setCopied("link");
           }}
         >
-          {copied ? (
+          {copied === "link" ? (
             <CircleCheck aria-hidden="true" />
           ) : (
             <Copy aria-hidden="true" />
           )}
-          {copied ? "Copiado" : "Copiar link"}
+          {copied === "link" ? "Copiado" : "Copiar link"}
         </Button>
       </div>
+      {invite ? (
+        <div className="flex flex-col gap-1.5 border-t border-brand/30 pt-2">
+          <label
+            htmlFor={`${id}-invite`}
+            className="text-sm font-medium text-navy"
+          >
+            Mensagem de convite (revise e mande você mesmo)
+          </label>
+          <textarea
+            id={`${id}-invite`}
+            ref={message}
+            defaultValue={invite}
+            rows={9}
+            className={`${textareaClass} text-sm`}
+          />
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={async () => {
+                await navigator.clipboard.writeText(
+                  message.current?.value ?? invite,
+                );
+                setCopied("invite");
+              }}
+            >
+              {copied === "invite" ? (
+                <CircleCheck aria-hidden="true" />
+              ) : (
+                <Copy aria-hidden="true" />
+              )}
+              {copied === "invite" ? "Copiada" : "Copiar mensagem"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -59,7 +105,9 @@ function Result({ state }: { state: PortalFormState }) {
             />
             {state.message}
           </p>
-          {state.link ? <LinkOnce link={state.link} /> : null}
+          {state.link ? (
+            <LinkOnce link={state.link} invite={state.invite} />
+          ) : null}
         </>
       ) : null}
     </div>

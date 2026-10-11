@@ -12,6 +12,7 @@ import {
   issuePortalLink,
   revokePortalAccess,
 } from "@/modules/portal/access";
+import { inviteMessage } from "@/modules/portal/invite";
 import {
   parseContactForm,
   parseContactIdForm,
@@ -73,6 +74,11 @@ export async function gerarLinkPortal(
       status: "ok",
       message: `${issued.released ? "Acesso liberado." : "Link novo gerado; o anterior não vale mais."} Copie o link e mande ao contato por onde preferir: ele vale uma vez, até ${formatTimestampDay(issued.expiresAt)}, e não aparece de novo.`,
       link: issued.url,
+      invite: inviteMessage({
+        ...issued.invite,
+        url: issued.url,
+        until: formatTimestampDay(issued.expiresAt),
+      }),
     };
   } catch (err) {
     return failure(err, ctx.requestId);

@@ -183,6 +183,7 @@ Mesmo contrato do EX-06, com departamento e tipo de evidência próprios:
 - **Tipo / runtime**: C (app) com passos determinísticos; redação via RC-12.
 - **Red lines**: nenhum convite ou e-mail sai sem o Fábio clicar em "Liberar acesso" (D9); o OB-13 prepara contatos e textos, nunca libera acesso nem envia.
 - **Fase**: M6.
+- **No Hub (desde o PR #59)**: passos determinísticos, sem IA, na tela Contatos e portal: a lista "Preparação do portal" (contatos, acesso, aceite LGPD, objetivo para o cliente, entregas e frentes que aparecem, entregas sem título para o cliente), a mensagem de convite pronta e editável que acompanha o link (o dono copia e manda) e o rascunho de boas-vindas no canal vazio do projeto. A redação pela IA fica com o RC-12.
 
 ### AC-14 · Auditor de Acesso e Segurança
 
