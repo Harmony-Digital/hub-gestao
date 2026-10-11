@@ -539,7 +539,7 @@ export function buildMcpServer(
       {
         title: "Criar frente",
         description:
-          "Cria uma frente (camada tática) ligada a marco e departamento. Nasce interna; mostrar ao cliente é pedido de aprovação.",
+          "Cria uma frente (camada tática) ligada a marco e departamento, com as frentes de que ela depende (depends_on). Nasce interna; mostrar ao cliente é pedido de aprovação.",
         inputSchema: CreateWorkstreamInput.extend(writeFields),
         outputSchema: WorkstreamDto,
         annotations: mutating,
@@ -559,7 +559,7 @@ export function buildMcpServer(
       {
         title: "Atualizar frente",
         description:
-          "Atualiza título, marco, departamento, descrição interna, status, ordem ou responsável de uma frente.",
+          "Atualiza título, marco, departamento, descrição interna, status, ordem, responsável ou dependências (depends_on, a lista inteira, sem ciclos) de uma frente.",
         inputSchema: UpdateWorkstreamInput.extend({ id: Uuid, ...writeFields }),
         outputSchema: WorkstreamDto,
         annotations: mutating,

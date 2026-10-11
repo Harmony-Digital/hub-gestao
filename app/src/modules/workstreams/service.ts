@@ -21,10 +21,22 @@ import {
   type WorkstreamDto,
 } from "@/modules/projects/schemas";
 import { AssigneeInput } from "@/modules/tasks/schemas";
+import {
+  DEPENDS_ON_SQL,
+  MAX_WORKSTREAM_DEPENDENCIES,
+  replaceWorkstreamDependencies,
+} from "./dependencies";
 
 const DepartmentSlug = z
   .string()
   .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Departamento pelo slug, como sistemas.");
+
+const DependsOn = z
+  .array(Uuid)
+  .max(MAX_WORKSTREAM_DEPENDENCIES)
+  .describe(
+    "Lista completa das frentes de que esta depende (ids de frentes ativas do mesmo projeto). Substitui a anterior; [] tira todas. Sem ciclos.",
+  );
 
 /** Frente nova (camada tática). Nasce interna; ir para o cliente passa por aprovação. */
 export const CreateWorkstreamInput = z.strictObject({
@@ -36,6 +48,7 @@ export const CreateWorkstreamInput = z.strictObject({
   status: WorkstreamStatus.optional(),
   sort_order: z.number().int().optional(),
   assignee: AssigneeInput.optional(),
+  depends_on: DependsOn.optional(),
 });
 export type CreateWorkstreamInput = z.infer<typeof CreateWorkstreamInput>;
 
@@ -47,6 +60,7 @@ export const UpdateWorkstreamInput = z.strictObject({
   status: WorkstreamStatus.optional(),
   sort_order: z.number().int().optional(),
   assignee: AssigneeInput.nullable().optional(),
+  depends_on: DependsOn.optional(),
 });
 export type UpdateWorkstreamInput = z.infer<typeof UpdateWorkstreamInput>;
 
@@ -56,7 +70,8 @@ export const WORKSTREAM_SELECT = `
          w.title, w.title_client, w.description_internal, w.description_client, w.visibility,
          w.status, w.sort_order, w.assignee_type, w.assignee_id,
          ${ACTOR_NAME_SQL("w.assignee_type", "w.assignee_id")} as assignee_name,
-         w.progress_pct, w.task_count, w.done_count, w.blocked_count, w.updated_at
+         w.progress_pct, w.task_count, w.done_count, w.blocked_count, w.updated_at,
+         ${DEPENDS_ON_SQL} as depends_on
     from ${S}.workstreams w
     join ${S}.projects p on p.id = w.project_id
     left join ${S}.milestones m on m.id = w.milestone_id
@@ -86,6 +101,7 @@ export type WorkstreamRow = {
   done_count: number;
   blocked_count: number;
   updated_at: Date | string;
+  depends_on: string[] | null;
 };
 
 export function toWorkstreamDto(r: WorkstreamRow): WorkstreamDto {
@@ -116,6 +132,7 @@ export function toWorkstreamDto(r: WorkstreamRow): WorkstreamDto {
     task_count: r.task_count,
     done_count: r.done_count,
     blocked_count: r.blocked_count,
+    depends_on: r.depends_on ?? [],
     updated_at: iso(r.updated_at),
   };
 }
@@ -234,7 +251,7 @@ export async function createWorkstream(
     ],
   );
   await recomputeRollup(t, project.id);
-  const dto = toWorkstreamDto(await workstreamById(t, inserted!.id));
+  let dto = toWorkstreamDto(await workstreamById(t, inserted!.id));
   await audit(t, {
     action: "workstream.created",
     entityType: "workstream",
@@ -247,6 +264,14 @@ export async function createWorkstream(
       status: dto.status,
     },
   });
+  if (input.depends_on?.length) {
+    await replaceWorkstreamDependencies(
+      t,
+      { id: dto.id, project_id: project.id },
+      input.depends_on,
+    );
+    dto = toWorkstreamDto(await workstreamById(t, dto.id));
+  }
   await emitEvent(t, "workstream.updated", {
     id: dto.id,
     project_code: dto.project_code,
@@ -275,9 +300,10 @@ export async function updateWorkstream(
   if (Object.keys(input).length === 0) {
     throw badRequest("Nada para atualizar: envie ao menos um campo.");
   }
+  const { depends_on: dependsOn, ...fields } = input;
   assertNoSecrets({
-    title: input.title,
-    description_internal: input.description_internal,
+    title: fields.title,
+    description_internal: fields.description_internal,
   });
 
   const sets: string[] = [];
@@ -286,54 +312,64 @@ export async function updateWorkstream(
     params.push(value);
     sets.push(`${column} = $${params.length}`);
   };
-  if (input.title !== undefined) set("title", input.title);
-  if (input.description_internal !== undefined) {
-    set("description_internal", input.description_internal);
+  if (fields.title !== undefined) set("title", fields.title);
+  if (fields.description_internal !== undefined) {
+    set("description_internal", fields.description_internal);
   }
-  if (input.status !== undefined) set("status", input.status);
-  if (input.sort_order !== undefined) set("sort_order", input.sort_order);
-  if (input.milestone !== undefined) {
+  if (fields.status !== undefined) set("status", fields.status);
+  if (fields.sort_order !== undefined) set("sort_order", fields.sort_order);
+  if (fields.milestone !== undefined) {
     set(
       "milestone_id",
-      input.milestone
-        ? await milestoneId(t, current.project_id, input.milestone)
+      fields.milestone
+        ? await milestoneId(t, current.project_id, fields.milestone)
         : null,
     );
   }
-  if (input.department !== undefined) {
+  if (fields.department !== undefined) {
     set(
       "department_id",
-      input.department ? await departmentId(t, input.department) : null,
+      fields.department ? await departmentId(t, fields.department) : null,
     );
   }
-  if (input.assignee !== undefined) {
-    const assignee = input.assignee
-      ? await resolveAssignee(t, input.assignee)
+  if (fields.assignee !== undefined) {
+    const assignee = fields.assignee
+      ? await resolveAssignee(t, fields.assignee)
       : null;
     set("assignee_type", assignee?.type ?? null);
     set("assignee_id", assignee?.id ?? null);
   }
-  params.push(current.id);
-  await t.tx.query(
-    `update ${S}.workstreams set ${sets.join(", ")} where id = $${params.length}`,
-    params,
-  );
-  await recomputeRollup(t, current.project_id);
+  if (sets.length > 0) {
+    params.push(current.id);
+    await t.tx.query(
+      `update ${S}.workstreams set ${sets.join(", ")} where id = $${params.length}`,
+      params,
+    );
+    await recomputeRollup(t, current.project_id);
+  }
   const before = toWorkstreamDto(current);
-  const after = toWorkstreamDto(await workstreamById(t, current.id));
-  const flat = (d: WorkstreamDto) => ({
-    ...d,
-    milestone: d.milestone?.code ?? null,
-    department: d.department?.slug ?? null,
-    assignee: d.assignee ? `${d.assignee.type}:${d.assignee.id}` : null,
-  });
-  await audit(t, {
-    action: "workstream.updated",
-    entityType: "workstream",
-    entityId: current.id,
-    projectId: current.project_id,
-    ...changedFields(flat(before), flat(after), WORKSTREAM_AUDIT_KEYS),
-  });
+  let after = toWorkstreamDto(await workstreamById(t, current.id));
+  if (sets.length > 0) {
+    const flat = (d: WorkstreamDto) => ({
+      ...d,
+      milestone: d.milestone?.code ?? null,
+      department: d.department?.slug ?? null,
+      assignee: d.assignee ? `${d.assignee.type}:${d.assignee.id}` : null,
+    });
+    await audit(t, {
+      action: "workstream.updated",
+      entityType: "workstream",
+      entityId: current.id,
+      projectId: current.project_id,
+      ...changedFields(flat(before), flat(after), WORKSTREAM_AUDIT_KEYS),
+    });
+  }
+  if (
+    dependsOn !== undefined &&
+    (await replaceWorkstreamDependencies(t, current, dependsOn))
+  ) {
+    after = toWorkstreamDto(await workstreamById(t, current.id));
+  }
   await emitEvent(t, "workstream.updated", {
     id: after.id,
     project_code: after.project_code,

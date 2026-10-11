@@ -62,6 +62,7 @@ function workstream(
     task_count: tasks.length,
     done_count: 0,
     blocked_count: 0,
+    depends_on: [],
     updated_at: NOW,
     tasks,
   };

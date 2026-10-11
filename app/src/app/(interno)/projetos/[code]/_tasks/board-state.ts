@@ -23,6 +23,8 @@ export type BoardCard = {
   late: boolean;
   parent: string | null;
   done: boolean;
+  /** Tarefas abertas de que esta depende (códigos); vazio em tarefa concluída. */
+  waitingOn: string[];
   /** Endereço que abre o painel da tarefa nesta tela. */
   href: string;
 };
@@ -36,6 +38,7 @@ export function toBoardCard(
   task: TaskDto,
   today: string,
   href: string,
+  waitingOn: string[] = [],
 ): BoardCard {
   const done = task.status.category === "done";
   return {
@@ -60,6 +63,7 @@ export function toBoardCard(
     late: task.due_date !== null && task.due_date < today && !done,
     parent: task.parent_code,
     done,
+    waitingOn: done ? [] : waitingOn,
     href,
   };
 }

@@ -1,11 +1,13 @@
 /**
  * Saúde do projeto (PRD §5.7): regra em código, nunca decidida por IA.
  *
- * Vermelho (at_risk): marco atrasado, ou mais de 25% das tarefas abertas bloqueadas.
+ * Vermelho (at_risk): marco atrasado, mais de 25% das tarefas abertas bloqueadas, ou
+ * dependência quebrada (frente que começou antes de terminar a frente de que depende,
+ * `workstreams/dependency-rule.ts`).
  * Amarelo (attention): de 10% a 25% bloqueadas, ou aprovação pendente há mais de 3 dias úteis.
  * Verde (healthy): nenhum dos sinais acima.
  *
- * Ainda não entram (próximos marcos): deriva prevista pelo ritmo e dependência quebrada.
+ * Ainda não entra: deriva prevista pelo ritmo.
  */
 
 export type Health = "healthy" | "attention" | "at_risk";
@@ -14,6 +16,8 @@ export type HealthInputs = {
   open_task_count: number;
   blocked_task_count: number;
   late_milestones: number;
+  /** Frentes que começaram antes de terminar a frente de que dependem. */
+  broken_dependencies: number;
   oldest_pending_approval_at: Date | string | null;
 };
 
@@ -44,6 +48,14 @@ export function computeHealth(input: HealthInputs, now: Date): HealthResult {
       input.late_milestones === 1
         ? "1 marco passou da data sem entrega."
         : `${input.late_milestones} marcos passaram da data sem entrega.`,
+    );
+  }
+
+  if (input.broken_dependencies > 0) {
+    red.push(
+      input.broken_dependencies === 1
+        ? "1 frente começou antes de terminar a frente de que depende."
+        : `${input.broken_dependencies} frentes começaram antes de terminar as frentes de que dependem.`,
     );
   }
 

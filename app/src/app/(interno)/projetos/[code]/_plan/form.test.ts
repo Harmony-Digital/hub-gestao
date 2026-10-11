@@ -129,8 +129,33 @@ describe("formulário de frente", () => {
           assignee: { type: "agent", id: ID },
         },
         visibility: null,
+        dependsOn: null,
       },
     });
+  });
+
+  it("com a lista Depende de: lê as frentes marcadas; nenhuma marcada tira todas", () => {
+    const OTHER = "9b1d3f7e-5c2a-4e8b-9f10-2a3b4c5d6e7f";
+    const data = form({ ...base, dependencies_section: "1" });
+    data.append("depends_on", ID);
+    data.append("depends_on", OTHER);
+    data.append("depends_on", ID);
+    const read = parseWorkstreamForm(data);
+    expect(read.ok && read.value.dependsOn).toEqual([ID, OTHER]);
+    const none = parseWorkstreamForm(
+      form({ ...base, dependencies_section: "1" }),
+    );
+    expect(none.ok && none.value.dependsOn).toEqual([]);
+    // Id estranho ou a própria frente: recarregar.
+    const odd = form({ ...base, dependencies_section: "1", depends_on: "x" });
+    expect(parseWorkstreamForm(odd).ok).toBe(false);
+    const self = form({
+      ...base,
+      id: ID,
+      dependencies_section: "1",
+      depends_on: ID,
+    });
+    expect(parseWorkstreamForm(self).ok).toBe(false);
   });
 
   it("com a parte do cliente: mostrar exige o título para o cliente", () => {
@@ -180,6 +205,7 @@ describe("o que mudou na frente", () => {
     visibility: "internal",
     title_client: null,
     description_client: null,
+    depends_on: [ID],
   };
   const fields = {
     title: "Integração com a agenda",
@@ -191,9 +217,12 @@ describe("o que mudou na frente", () => {
   };
 
   it("salvar sem mexer em nada não muda nada", () => {
-    expect(workstreamChanges(current, { fields, visibility: null })).toEqual({
+    expect(
+      workstreamChanges(current, { fields, visibility: null, dependsOn: null }),
+    ).toEqual({
       fields: {},
       visibility: false,
+      dependsOn: false,
     });
     expect(
       workstreamChanges(current, {
@@ -203,8 +232,18 @@ describe("o que mudou na frente", () => {
           title_client: null,
           description_client: null,
         },
-      }).visibility,
-    ).toBe(false);
+        dependsOn: [ID],
+      }),
+    ).toMatchObject({ visibility: false, dependsOn: false });
+  });
+
+  it("avisa quando a lista Depende de mudou", () => {
+    const changed = (dependsOn: string[]) =>
+      workstreamChanges(current, { fields, visibility: null, dependsOn })
+        .dependsOn;
+    expect(changed([])).toBe(true);
+    expect(changed([ID, "9b1d3f7e-5c2a-4e8b-9f10-2a3b4c5d6e7f"])).toBe(true);
+    expect(changed(["9b1d3f7e-5c2a-4e8b-9f10-2a3b4c5d6e7f"])).toBe(true);
   });
 
   it("devolve só os campos alterados e avisa quando a parte do cliente mudou", () => {
@@ -216,10 +255,12 @@ describe("o que mudou na frente", () => {
           title_client: "Agenda conectada",
           description_client: null,
         },
+        dependsOn: null,
       }),
     ).toEqual({
       fields: { milestone: null, assignee: null, status: "done" },
       visibility: true,
+      dependsOn: false,
     });
   });
 });

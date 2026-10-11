@@ -5,6 +5,7 @@ const base = {
   open_task_count: 20,
   blocked_task_count: 0,
   late_milestones: 0,
+  broken_dependencies: 0,
   oldest_pending_approval_at: null,
 };
 const now = new Date("2026-10-09T12:00:00Z"); // sexta-feira
@@ -15,6 +16,19 @@ describe("saúde do projeto (PRD §5.7)", () => {
       health: "healthy",
       reasons: [],
     });
+  });
+
+  it("vermelho com dependência quebrada entre frentes", () => {
+    const one = computeHealth({ ...base, broken_dependencies: 1 }, now);
+    expect(one.health).toBe("at_risk");
+    expect(one.reasons).toEqual([
+      "1 frente começou antes de terminar a frente de que depende.",
+    ]);
+    expect(
+      computeHealth({ ...base, broken_dependencies: 2 }, now).reasons,
+    ).toEqual([
+      "2 frentes começaram antes de terminar as frentes de que dependem.",
+    ]);
   });
 
   it("vermelho com marco atrasado", () => {

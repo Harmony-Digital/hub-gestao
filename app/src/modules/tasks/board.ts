@@ -141,6 +141,11 @@ export type ProjectTaskList = TaskFormOptions & {
   workstream: string | null;
   tasks: TaskDto[];
   doneTotal: number;
+  /**
+   * Tarefas abertas que esperam outras ainda abertas: código → códigos de que depende
+   * (o aviso "Espera HUB-n" do Quadro).
+   */
+  waitingOn: Record<string, string[]>;
 };
 
 const LIST_ORDER = `
@@ -220,6 +225,18 @@ export async function projectTaskList(
       where ${where} and t.status_category = 'done'`,
     params,
   );
+  // Na tabela, a linha (task_id = A, blocks_task_id = B) quer dizer "A segura B".
+  const waiting = await many<{ code: string; waiting: string[] }>(
+    t,
+    `select b.code, array_agg(h.code order by h.code) as waiting
+       from ${S}.task_dependencies d
+       join ${S}.tasks b on b.id = d.blocks_task_id
+       join ${S}.tasks h on h.id = d.task_id
+      where b.project_id = $1 and b.archived_at is null and b.status_category <> 'done'
+        and h.archived_at is null and h.status_category <> 'done'
+      group by b.code`,
+    [project.id],
+  );
   return {
     ...options,
     project,
@@ -227,6 +244,7 @@ export async function projectTaskList(
     workstream,
     tasks: [...open, ...done].map(toTaskDto),
     doneTotal: doneTotal?.n ?? 0,
+    waitingOn: Object.fromEntries(waiting.map((w) => [w.code, w.waiting])),
   };
 }
 

@@ -182,7 +182,15 @@ export type WorkstreamFormValue = {
     title_client: string | null;
     description_client: string | null;
   } | null;
+  /**
+   * Frentes de que esta depende (ids), só quando o formulário traz a lista (há outras
+   * frentes no projeto). Vazia tira todas.
+   */
+  dependsOn: string[] | null;
 };
+
+/** O mesmo limite do serviço (MAX_WORKSTREAM_DEPENDENCIES). */
+export const MAX_DEPENDENCIES = 20;
 
 export function parseWorkstreamForm(
   form: FormData,
@@ -237,6 +245,26 @@ export function parseWorkstreamForm(
     };
   }
 
+  let dependsOn: string[] | null = null;
+  if (form.has("dependencies_section")) {
+    const ids = form
+      .getAll("depends_on")
+      .filter((v): v is string => typeof v === "string");
+    if (
+      ids.some((v) => !UUID.test(v)) ||
+      (ref.value.id && ids.includes(ref.value.id))
+    ) {
+      return { ok: false, message: RELOAD };
+    }
+    dependsOn = [...new Set(ids)];
+    if (dependsOn.length > MAX_DEPENDENCIES) {
+      return {
+        ok: false,
+        message: `Escolha até ${MAX_DEPENDENCIES} frentes de que esta depende.`,
+      };
+    }
+  }
+
   return {
     ok: true,
     value: {
@@ -250,6 +278,7 @@ export function parseWorkstreamForm(
         assignee,
       },
       visibility,
+      dependsOn,
     },
   };
 }
@@ -265,6 +294,7 @@ type CurrentWorkstream = {
   visibility: string;
   title_client: string | null;
   description_client: string | null;
+  depends_on: string[];
 };
 
 /**
@@ -273,10 +303,11 @@ type CurrentWorkstream = {
  */
 export function workstreamChanges(
   current: CurrentWorkstream,
-  value: Pick<WorkstreamFormValue, "fields" | "visibility">,
+  value: Pick<WorkstreamFormValue, "fields" | "visibility" | "dependsOn">,
 ): {
   fields: Partial<WorkstreamFormValue["fields"]>;
   visibility: boolean;
+  dependsOn: boolean;
 } {
   const f = value.fields;
   const fields: Partial<WorkstreamFormValue["fields"]> = {};
@@ -301,7 +332,12 @@ export function workstreamChanges(
     (v.visibility !== current.visibility ||
       v.title_client !== (current.title_client || null) ||
       v.description_client !== (current.description_client || null));
-  return { fields, visibility };
+  const wanted = value.dependsOn;
+  const dependsOn =
+    wanted !== null &&
+    (wanted.length !== current.depends_on.length ||
+      wanted.some((id) => !current.depends_on.includes(id)));
+  return { fields, visibility, dependsOn };
 }
 
 // Pedido de aceite --------------------------------------------------------------------

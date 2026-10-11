@@ -62,7 +62,7 @@ O servidor mostra só as ferramentas que a chave pode usar. A primeira chamada �
 | `hub_create_task`, `hub_update_task` | Criar e editar tarefa |
 | `hub_start_task`, `hub_block_task`, `hub_complete_task`, `hub_reopen_task` | Transições; concluir exige evidência |
 | `hub_comment` | Comentário interno em tarefa, frente, marco ou projeto |
-| `hub_create_workstream`, `hub_update_workstream` | Frentes |
+| `hub_create_workstream`, `hub_update_workstream` | Frentes, com as dependências entre elas (`depends_on`: a lista inteira de ids de frentes do mesmo projeto, sem ciclo) |
 | `hub_request_approval`, `hub_list_approvals` | Pedir decisão e acompanhar |
 | `hub_draft_status_report` | Rascunho de status, que vira pedido de aprovação |
 | `hub_log_time`, `hub_search`, `hub_sync_plan` | Tempo, busca e exportação do `plan.md` |

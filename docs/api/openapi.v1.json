@@ -2896,6 +2896,16 @@
                 "additionalProperties": false
               }
             ]
+          },
+          "depends_on": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "description": "Lista completa das frentes de que esta depende (ids de frentes ativas do mesmo projeto). Substitui a anterior; [] tira todas. Sem ciclos."
           }
         },
         "required": [
@@ -2996,6 +3006,16 @@
                 "type": "null"
               }
             ]
+          },
+          "depends_on": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "description": "Lista completa das frentes de que esta depende (ids de frentes ativas do mesmo projeto). Substitui a anterior; [] tira todas. Sem ciclos."
           }
         },
         "additionalProperties": false
@@ -4276,6 +4296,15 @@
                         "minimum": -9007199254740991,
                         "maximum": 9007199254740991
                       },
+                      "depends_on": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "description": "Frentes ativas de que esta depende (ids), na ordem das frentes."
+                      },
                       "updated_at": {
                         "type": "string"
                       },
@@ -4642,6 +4671,7 @@
                       "task_count",
                       "done_count",
                       "blocked_count",
+                      "depends_on",
                       "updated_at",
                       "tasks"
                     ],
@@ -4851,6 +4881,15 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "depends_on": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "description": "Frentes ativas de que esta depende (ids), na ordem das frentes."
                     },
                     "updated_at": {
                       "type": "string"
@@ -5218,6 +5257,7 @@
                     "task_count",
                     "done_count",
                     "blocked_count",
+                    "depends_on",
                     "updated_at",
                     "tasks"
                   ],
@@ -5641,6 +5681,12 @@
                 "minimum": -9007199254740991,
                 "maximum": 9007199254740991
               },
+              "broken_dependencies": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Frentes que começaram antes de terminar a frente de que dependem."
+              },
               "next_due_date": {
                 "anyOf": [
                   {
@@ -5664,6 +5710,7 @@
               "open_task_count",
               "blocked_task_count",
               "late_milestones",
+              "broken_dependencies",
               "next_due_date",
               "oldest_pending_approval_at"
             ],
@@ -6093,6 +6140,15 @@
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
           },
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "description": "Frentes ativas de que esta depende (ids), na ordem das frentes."
+          },
           "updated_at": {
             "type": "string"
           }
@@ -6114,6 +6170,7 @@
           "task_count",
           "done_count",
           "blocked_count",
+          "depends_on",
           "updated_at"
         ],
         "additionalProperties": false
