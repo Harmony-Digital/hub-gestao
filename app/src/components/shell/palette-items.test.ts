@@ -117,6 +117,21 @@ describe("janela ⌘K", () => {
     ]);
   });
 
+  it("oferece a lista de atalhos de teclado (RF-21)", () => {
+    const items = paletteItems({
+      query: "teclado",
+      results: null,
+      canCreateProject: false,
+    });
+    expect(items).toEqual([
+      expect.objectContaining({
+        group: "Ações",
+        label: "Atalhos de teclado",
+        action: "atalhos",
+      }),
+    ]);
+  });
+
   it("oferece o outro tema", () => {
     const label = (dark: boolean) =>
       paletteItems({

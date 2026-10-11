@@ -386,7 +386,7 @@
 - [ ] **RF-12** Status da frente derivado das tarefas (hoje manual; só o andamento é calculado)
 - [ ] **RF-24** Riscos no Hoje com uma frase e uma ação sugerida (hoje só os motivos da regra)
 - [ ] **RF-43** Linha do tempo de marco, frente, projeto e cliente (hoje só da tarefa e na exportação)
-- [ ] **RF-21** Atalhos de teclado além do `⌘K`
+- [x] **RF-21** Atalhos de teclado além do `⌘K` — evidência: PR #98. "/" busca, "c" abre Nova tarefa, "?" mostra a lista e "g" + letra leva às telas (h Hoje, t Minhas tarefas, p Projetos, a Aprovações, d Departamentos, r Relatórios, i Caixa de entrada, s Sala de Controle; no projeto, v, l e q para Visão geral, Lista e Quadro). Não agem com alguém digitando, numa lista de opções, com janela aberta ou com Ctrl, ⌘ ou Alt. A lista (também pelo ⌘K, "Atalhos de teclado") tem a opção de desligar os atalhos de uma tecla (WCAG 2.1.4). Conferido no computador ("c" abre Nova tarefa, desligado não abre, "g" + "p" vai a Projetos, religado pelo ⌘K) e na revisão de acessibilidade, que abre a lista com "?"
 - [ ] **RF-01** Marca do workspace lida do banco (logo, cores, domínio, fuso, idioma) — vai com o M9 (white-label, D7): para a Harmony, a marca é a dela
 
 ### P1
@@ -544,3 +544,4 @@ Fora por ora (P2 ou opcionais do PRD): MFA (RF-02), `/api/v1/events` (SSE), modo
 | 2026-10-11 | Claude (Opus 5.5) · Claude Code | PR #90 (RF-25) entrou na `main` (31f3e3f) com os três jobs verdes; o #89 já estava publicado (`/api/health` com 6447dcb, banco e fila ok). PR #91 (RF-38, lacuna P0): busca `⌘K` por pessoas e agentes, sem diferenciar acento, e a tela "Tarefas de" (`/responsaveis/<id>`), com a skill do CT-02 usando o `hub_search` para achar quem atribuir. |
 | 2026-10-11 | Claude (Opus 5.5) · Claude Code | PR #92 (RF-04, lacuna P0): logo do cliente no cadastro e no portal. Migração 0022 (`client_logos`) aplicada em produção pelo conector antes do merge, por ser só uma tabela nova; conferida (RLS, políticas, trava de agente, permissões) e sem alerta novo do Supabase no schema do Hub. |
 | 2026-10-11 | Claude (Opus 5.5) · Claude Code | PR #91 (RF-38) entrou na `main` (ff7aaf5). PR #93 (RF-14, lacuna P0): data de início e referência externa no painel da tarefa. |
+| 2026-10-11 | Claude (Opus 5.5) · Claude Code | PR #98 (RF-21, lacuna P0): atalhos de teclado, com a lista e a opção de desligar os de uma tecla. |
