@@ -337,6 +337,114 @@ describe("Redator do Cliente (RC-12): reescrita", () => {
   });
 });
 
+describe("Redator do Cliente (RC-12): mensagem externa e marco proposto", () => {
+  /** Só o job deste pedido roda no relógio (os de antes já foram conferidos). */
+  async function runOnly(approvalId: string, out: RewriteOutput) {
+    await h.raw.query(
+      `update ${S}.jobs set status = 'done'
+        where type = $1 and payload ->> 'approval_id' <> $2`,
+      [REWRITE_JOB, approvalId],
+    );
+    const ran = await tick(h.db, h.ws, { llm: { modelFor: answering(out) } });
+    return ran.ran.find((j) => j.type === REWRITE_JOB)?.result;
+  }
+  const payloadOf = async (id: string) =>
+    (
+      await h.raw.query<{ payload: Record<string, unknown> }>(
+        `select payload from ${S}.approvals where id = $1`,
+        [id],
+      )
+    ).rows[0].payload;
+
+  it("a mensagem para o canal do cliente é reescrita; aprovar manda o texto novo", async () => {
+    const approval = await inTx(await asKratos(), (t) =>
+      requestApproval(t, {
+        project: "VIT",
+        type: "external_message",
+        title: "Avisar o cliente da agenda",
+        payload: { body: "Oi! A HUB-61 ficou pronta e o Kratos testou." },
+      }),
+    );
+    expect(await queued(approval.id)).toBe(1);
+    expect(
+      await runOnly(approval.id, {
+        text: "Olá! A integração com a sua agenda ficou pronta e já foi testada.",
+        title: null,
+        description: null,
+        notes: "Tirei o código da tarefa e o nome do agente.",
+      }),
+    ).toEqual({ status: "rewritten", issues: 0 });
+    expect(await payloadOf(approval.id)).toMatchObject({
+      body: "Olá! A integração com a sua agenda ficou pronta e já foi testada.",
+      original_body: "Oi! A HUB-61 ficou pronta e o Kratos testou.",
+      rewritten_by: "RC-12",
+      checks: [],
+    });
+    await inTx(asOwner(), (t) =>
+      decideApproval(t, approval.id, { decision: "approved" }),
+    );
+    const sent = await h.raw.query<{ body_md: string }>(
+      `select body_md from ${S}.comments where body_md like 'Olá! A integração%'`,
+    );
+    expect(sent.rows).toHaveLength(1);
+    expect(
+      (
+        await h.raw.query(
+          `select 1 from ${S}.comments where body_md like '%HUB-61%'`,
+        )
+      ).rows,
+    ).toEqual([]);
+  });
+
+  it("o marco proposto com título para o cliente é reescrito; sem esse título, não vai para a fila", async () => {
+    const plain = await inTx(await asKratos(), (t) =>
+      requestApproval(t, {
+        project: "VIT",
+        type: "milestone_proposal",
+        title: "Marco interno",
+        payload: { title: "Ajustes internos" },
+      }),
+    );
+    expect(await queued(plain.id)).toBe(0);
+
+    const approval = await inTx(await asKratos(), (t) =>
+      requestApproval(t, {
+        project: "VIT",
+        type: "milestone_proposal",
+        title: "Marco de relatórios",
+        payload: {
+          title: "Relatórios",
+          due_date: "2026-12-01",
+          title_client: "Relatórios do Kratos (HUB-70)",
+        },
+      }),
+    );
+    expect(await queued(approval.id)).toBe(1);
+    expect(
+      await runOnly(approval.id, {
+        text: null,
+        title: "Relatórios semanais do atendimento",
+        description: "Um resumo por semana do que seus pacientes pediram.",
+        notes: null,
+      }),
+    ).toEqual({ status: "rewritten", issues: 0 });
+    expect(await payloadOf(approval.id)).toMatchObject({
+      title_client: "Relatórios semanais do atendimento",
+      original_title_client: "Relatórios do Kratos (HUB-70)",
+      rewritten_by: "RC-12",
+    });
+    await inTx(asOwner(), (t) =>
+      decideApproval(t, approval.id, { decision: "approved" }),
+    );
+    const created = await h.raw.query<{ title_client: string }>(
+      `select title_client from ${S}.milestones where title = 'Relatórios'`,
+    );
+    expect(created.rows).toEqual([
+      { title_client: "Relatórios semanais do atendimento" },
+    ]);
+  });
+});
+
 describe("Redator do Cliente (RC-12): sugestão na janela da frente", () => {
   it("sugere o título e a descrição, sem gravar nada, e confere a sugestão de novo", async () => {
     const seen: string[] = [];
