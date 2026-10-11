@@ -36,15 +36,17 @@ export const RewriteOutput = z.object({
   text: z
     .string()
     .nullable()
-    .describe("Relatório reescrito, em Markdown simples (só para relatório)."),
+    .describe(
+      "Relatório ou mensagem reescritos, em Markdown simples (só para relatório e mensagem).",
+    ),
   title: z
     .string()
     .nullable()
-    .describe("Título da frente para o cliente (só para frente)."),
+    .describe("Título para o cliente (só para frente e marco)."),
   description: z
     .string()
     .nullable()
-    .describe("Descrição da frente para o cliente, ou null (só para frente)."),
+    .describe("Descrição para o cliente, ou null (só para frente e marco)."),
   notes: z
     .string()
     .nullable()
@@ -95,7 +97,17 @@ export async function enqueueClientRewrite(
   return row !== null;
 }
 
-type Kind = "report" | "workstream";
+type Kind = "report" | "workstream" | "message" | "milestone";
+
+const KIND_LABEL: Record<Kind, string> = {
+  report: "relatório",
+  workstream: "frente",
+  message: "mensagem",
+  milestone: "marco",
+};
+
+/** Tipos em que o texto é corrido (relatório, mensagem); nos outros, título e descrição. */
+const isText = (kind: Kind) => kind === "report" || kind === "message";
 
 type Prepared = {
   kind: Kind;
@@ -116,7 +128,7 @@ type Prepared = {
 /** A mensagem para a IA: o tipo, o projeto, os pontos da verificação e o texto. */
 export function writerMessage(p: Prepared): string {
   const lines = [
-    `TIPO: ${p.kind === "report" ? "relatório" : "frente"}`,
+    `TIPO: ${KIND_LABEL[p.kind]}`,
     `PROJETO: ${p.project.name} (cliente: ${p.project.client})`,
   ];
   if (p.period) lines.push(`PERÍODO: ${p.period.start} a ${p.period.end}`);
@@ -128,7 +140,7 @@ export function writerMessage(p: Prepared): string {
     "",
     "TEXTO ORIGINAL:",
   );
-  if (p.kind === "report") {
+  if (isText(p.kind)) {
     lines.push(p.original.text ?? "");
   } else {
     lines.push(`Título: ${p.original.title ?? ""}`);
@@ -171,11 +183,11 @@ export async function rewriteForClient(
   const text = out.text?.trim() || null;
   const title = out.title?.replace(/\s+/g, " ").trim() || null;
   const description = out.description?.trim() || null;
-  if (prepared.kind === "report" ? !text : !title) {
+  if (isText(prepared.kind) ? !text : !title) {
     return { status: "skipped", reason: "resposta sem o texto" };
   }
   if (
-    (text && text.length > 20000) ||
+    (text && text.length > (prepared.kind === "message" ? 4000 : 20000)) ||
     (title && title.length > 200) ||
     (description && description.length > 2000)
   ) {
@@ -263,7 +275,22 @@ async function prepare(
       context,
     };
   }
-  if (a.type === "client_visibility") {
+  if (a.type === "external_message") {
+    const body = typeof a.payload.body === "string" ? a.payload.body : null;
+    if (!body) return { skip: "pedido sem a mensagem" };
+    return {
+      kind: "message",
+      approvalId,
+      agentId: agent.id,
+      project,
+      period: null,
+      report: null,
+      original: { text: body, title: null, description: null },
+      issues: checkClientText(body, context),
+      context,
+    };
+  }
+  if (a.type === "client_visibility" || a.type === "milestone_proposal") {
     const title =
       typeof a.payload.title_client === "string"
         ? a.payload.title_client
@@ -274,7 +301,7 @@ async function prepare(
         : null;
     if (!title) return { skip: "pedido sem título para o cliente" };
     return {
-      kind: "workstream",
+      kind: a.type === "milestone_proposal" ? "milestone" : "workstream",
       approvalId,
       agentId: agent.id,
       project,
@@ -370,7 +397,26 @@ async function apply(
         `Versão ${version + 1}, ${note} A versão ${p.report.version}, de quem preparou, fica guardada. Aprovar publica o relatório no portal do cliente.`,
       ],
     );
-  } else if (p.kind === "workstream" && out.title) {
+  } else if (p.kind === "message" && out.text) {
+    // A mensagem aprovada é a que vai ao canal do cliente; a do agente fica guardada.
+    await t.tx.query(
+      `update ${S}.approvals
+          set payload = payload || $2::jsonb,
+              summary = concat_ws(' ', summary, $3::text)
+        where id = $1`,
+      [
+        p.approvalId,
+        json({
+          body: out.text,
+          original_body: p.original.text,
+          checks,
+          rewritten_by: CLIENT_WRITER_ROLE,
+          rewrite_notes: out.notes,
+        }),
+        note,
+      ],
+    );
+  } else if ((p.kind === "workstream" || p.kind === "milestone") && out.title) {
     await t.tx.query(
       `update ${S}.approvals
           set payload = payload || $2::jsonb,

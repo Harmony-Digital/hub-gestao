@@ -23,4 +23,5 @@ Histórico dos prompts que o Hub usa nas chamadas de IA (`src/lib/llm`). Regras:
 
 ## RC-12/redigir
 
+- v2 · 2026-10-11 · `65d5ef6e0d70` · Passa a reescrever também a mensagem externa para o canal do cliente (TIPO mensagem, em `text`) e o título e a descrição para o cliente de um marco proposto (TIPO marco, em `title` e `description`), além do relatório e da frente.
 - v1 · 2026-10-10 · `61f6ba1a2bea` · Primeira versão do Redator do Cliente: reescreve no tom Harmony (segunda pessoa, resultado, sem jargão) o relatório de status para o cliente ou o título e a descrição de uma frente que vai ao portal, mantendo fatos, datas e números e tirando o que a verificação em código achou.

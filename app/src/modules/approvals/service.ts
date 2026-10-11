@@ -387,8 +387,15 @@ export async function requestApproval(
     payload,
     due_at: input.due_at ?? null,
   });
-  // RC-12: o texto proposto para o cliente é reescrito no tom Harmony (job), se ligado.
-  if (input.type === "client_visibility") await enqueueClientRewrite(t, dto.id);
+  // RC-12: o texto proposto para o cliente é reescrito no tom Harmony (job), se ligado:
+  // a frente que vai ao cliente, a mensagem externa e o marco com título para o cliente.
+  if (
+    input.type === "client_visibility" ||
+    input.type === "external_message" ||
+    (input.type === "milestone_proposal" && payload.title_client)
+  ) {
+    await enqueueClientRewrite(t, dto.id);
+  }
   return dto;
 }
 
