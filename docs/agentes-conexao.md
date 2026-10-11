@@ -51,6 +51,8 @@ No Mac do Fábio, o caminho pronto é este:
 
 Codex e Hermes: mesmo endereço e mesmo cabeçalho. Confirmar o formato de configuração de servidor MCP por HTTP na versão instalada de cada um; se não houver suporte, usar a API REST abaixo.
 
+n8n (N8-17): pela API REST, com o fluxo pronto para importar e o passo a passo em `docs/n8n.md`.
+
 O servidor mostra só as ferramentas que a chave pode usar. A primeira chamada é sempre `hub_whoami`.
 
 | Ferramenta | Para quê |

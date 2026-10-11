@@ -1,0 +1,120 @@
+{
+  "name": "Hub · nova tarefa (N8-17)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "6f0f3c52-6a8e-4c1e-9a51-1b2d8f0c7a01",
+      "name": "Quando outro fluxo chamar",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "6f0f3c52-6a8e-4c1e-9a51-1b2d8f0c7a02",
+      "name": "Testar com um exemplo",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"projeto\": \"HUB\",\n  \"titulo\": \"Teste do N8-17: tarefa criada pelo n8n\",\n  \"descricao\": \"Criada pelo fluxo de exemplo do n8n (N8-17). Pode concluir ou arquivar.\",\n  \"prioridade\": \"normal\",\n  \"id_externo\": \"teste-n8n-1\"\n}",
+        "options": {}
+      },
+      "id": "6f0f3c52-6a8e-4c1e-9a51-1b2d8f0c7a03",
+      "name": "Exemplo",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hub.harmonydigital.com.br/api/v1/tasks",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ ('n8n-tarefa-' + ($json.id_externo ? String($json.id_externo) : $execution.id + '-' + $itemIndex)).replace(/[^A-Za-z0-9._:-]/g, '-').slice(0, 200) }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ project: $json.projeto, title: $json.titulo, description_md: $json.descricao || undefined, priority: $json.prioridade || undefined, workstream_id: $json.frente || undefined, due_date: $json.prazo || undefined, external_ref: $json.id_externo ? String($json.id_externo) : undefined }) }}",
+        "options": {}
+      },
+      "id": "6f0f3c52-6a8e-4c1e-9a51-1b2d8f0c7a04",
+      "name": "Criar a tarefa no Hub",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Hub de Gestão (N8-17)"
+        }
+      },
+      "notes": "A credencial é do tipo Header Auth: nome Authorization, valor Bearer e a chave do agente n8n Bridge (Sala de Controle). A chave nunca vai no fluxo."
+    }
+  ],
+  "connections": {
+    "Quando outro fluxo chamar": {
+      "main": [
+        [
+          {
+            "node": "Criar a tarefa no Hub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Testar com um exemplo": {
+      "main": [
+        [
+          {
+            "node": "Exemplo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exemplo": {
+      "main": [
+        [
+          {
+            "node": "Criar a tarefa no Hub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
