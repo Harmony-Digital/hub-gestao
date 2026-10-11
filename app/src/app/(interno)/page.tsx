@@ -469,31 +469,44 @@ function Risks({ projects }: { projects: Cockpit["projects"] }) {
       title="Riscos"
       icon={<TriangleAlert aria-hidden="true" className="size-4" />}
       count={flagged.length}
-      note="Calculados por regra: marco atrasado, bloqueios e aprovações paradas."
+      note="Calculados por regra, cada um com o próximo passo: marco atrasado, dependência quebrada, bloqueios e aprovações paradas."
     >
       {flagged.length === 0 ? (
         <Empty>Nenhum projeto em risco ou em atenção agora.</Empty>
       ) : (
         <ul className="flex flex-col gap-2">
           {flagged.map((p) => (
-            <li key={p.code}>
+            <li
+              key={p.code}
+              className="flex flex-col gap-2 rounded-xl border border-line bg-card p-3 text-sm"
+            >
               <Link
                 href={`/projetos/${p.code}`}
-                className="flex flex-col gap-1.5 rounded-xl border border-line bg-card p-3 text-sm transition-colors hover:border-mist"
+                className="flex items-center gap-2 hover:underline"
               >
-                <span className="flex items-center gap-2">
-                  <Pill tone={HEALTH[p.health].tone}>
-                    {HEALTH[p.health].label}
-                  </Pill>
-                  <span className="font-mono text-xs font-semibold text-caption">
-                    {p.code}
-                  </span>
-                  <span className="font-medium text-navy">{p.name}</span>
+                <Pill tone={HEALTH[p.health].tone}>
+                  {HEALTH[p.health].label}
+                </Pill>
+                <span className="font-mono text-xs font-semibold text-caption">
+                  {p.code}
                 </span>
-                {p.reasons.length > 0 ? (
-                  <span className="text-ink-2">{p.reasons.join(" ")}</span>
-                ) : null}
+                <span className="font-medium text-navy">{p.name}</span>
               </Link>
+              {p.risks.length > 0 ? (
+                <ul className="flex flex-col gap-1.5">
+                  {p.risks.map((risk) => (
+                    <li key={risk.text} className="flex flex-col gap-0.5">
+                      <span className="text-ink">{risk.text}</span>
+                      <Link
+                        href={risk.action.href}
+                        className="text-ink-2 underline underline-offset-2 hover:text-navy"
+                      >
+                        {risk.action.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </li>
           ))}
         </ul>

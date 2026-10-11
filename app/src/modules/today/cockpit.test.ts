@@ -8,6 +8,8 @@ import {
   createTask,
   startTask,
 } from "@/modules/tasks/service";
+import { refreshAllHealth } from "@/modules/health/service";
+import { systemActor } from "@/modules/jobs/service";
 import { agentActor, ctxFor, openTestHub, type TestHub } from "@/test/hub";
 import { cockpit } from "./cockpit";
 
@@ -110,5 +112,26 @@ describe("painel Hoje", () => {
     expect(data.projects).toEqual([]);
     expect(data.agentEvents).toEqual([]);
     expect(data.doneByAgentsToday).toBe(0);
+  });
+});
+
+describe("riscos no Hoje (RF-24)", () => {
+  it("cada risco vem com a ação sugerida e o link para resolver", async () => {
+    // No VIT, 1 de 2 tarefas abertas está bloqueada (acima de 25%): em risco.
+    await inTx(ctxFor(h, systemActor(h.ws), "system"), (t) =>
+      refreshAllHealth(t, new Date()),
+    );
+    const data = await inTx(ctxFor(h, h.owner_actor, "ui"), (t) => cockpit(t));
+    const vit = data.projects.find((p) => p.code === "VIT");
+    expect(vit?.health).toBe("at_risk");
+    expect(vit?.risks).toContainEqual({
+      text: expect.stringMatching(/das tarefas abertas estão bloqueadas/),
+      action: {
+        label:
+          "Abra as bloqueadas no Quadro e cobre de quem destrava a próxima ação.",
+        href: "/projetos/VIT/quadro",
+      },
+    });
+    expect(vit?.reasons).toEqual(vit?.risks.map((r) => r.text));
   });
 });

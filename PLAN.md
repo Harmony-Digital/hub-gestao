@@ -384,7 +384,7 @@
 - [ ] **RF-27** Departamentos: criar, renomear e mudar a cor (hoje só o responsável muda)
 - [ ] **RF-09** Ordem dos marcos e GATE opcional por marco (hoje a ordem é a de criação e todo marco tem gate)
 - [ ] **RF-12** Status da frente derivado das tarefas (hoje manual; só o andamento é calculado)
-- [ ] **RF-24** Riscos no Hoje com uma frase e uma ação sugerida (hoje só os motivos da regra)
+- [x] **RF-24** Riscos no Hoje com uma frase e uma ação sugerida (hoje só os motivos da regra) — evidência: PR #97. A regra de saúde devolve cada sinal com o tipo (marco atrasado, dependência quebrada, tarefas bloqueadas, aprovação parada), gravado junto das frases; no Hoje, cada risco aparece com a ação sugerida e o link para resolver (Visão geral, Quadro ou Aprovações). Regra fixa, sem IA. Teste do caminho completo (recálculo de saúde, gravação e o risco com a ação no painel)
 - [ ] **RF-43** Linha do tempo de marco, frente, projeto e cliente (hoje só da tarefa e na exportação)
 - [ ] **RF-21** Atalhos de teclado além do `⌘K`
 - [ ] **RF-01** Marca do workspace lida do banco (logo, cores, domínio, fuso, idioma) — vai com o M9 (white-label, D7): para a Harmony, a marca é a dela
@@ -544,3 +544,4 @@ Fora por ora (P2 ou opcionais do PRD): MFA (RF-02), `/api/v1/events` (SSE), modo
 | 2026-10-11 | Claude (Opus 5.5) · Claude Code | PR #90 (RF-25) entrou na `main` (31f3e3f) com os três jobs verdes; o #89 já estava publicado (`/api/health` com 6447dcb, banco e fila ok). PR #91 (RF-38, lacuna P0): busca `⌘K` por pessoas e agentes, sem diferenciar acento, e a tela "Tarefas de" (`/responsaveis/<id>`), com a skill do CT-02 usando o `hub_search` para achar quem atribuir. |
 | 2026-10-11 | Claude (Opus 5.5) · Claude Code | PR #92 (RF-04, lacuna P0): logo do cliente no cadastro e no portal. Migração 0022 (`client_logos`) aplicada em produção pelo conector antes do merge, por ser só uma tabela nova; conferida (RLS, políticas, trava de agente, permissões) e sem alerta novo do Supabase no schema do Hub. |
 | 2026-10-11 | Claude (Opus 5.5) · Claude Code | PR #91 (RF-38) entrou na `main` (ff7aaf5). PR #93 (RF-14, lacuna P0): data de início e referência externa no painel da tarefa. |
+| 2026-10-11 | Claude (Opus 5.5) · Claude Code | PR #97 (RF-24, lacuna P0): riscos do Hoje com a ação sugerida e o link para resolver, pela regra de saúde. |
