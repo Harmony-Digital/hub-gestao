@@ -36,7 +36,7 @@ const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const STATUS: Record<AccessStatus, { label: string; className: string }> = {
   none: { label: "Sem acesso", className: "bg-off-2 text-ink-2" },
   invited: {
-    label: "Link enviado, ainda não entrou",
+    label: "Acesso liberado, ainda não entrou",
     className: "bg-info-soft text-info-fg",
   },
   active: { label: "Com acesso", className: "bg-ok-soft text-ok-fg" },
