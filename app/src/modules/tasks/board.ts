@@ -16,6 +16,7 @@ import { many, maybeOne, S, type TxCtx } from "@/modules/context";
 import type { ProjectDetail } from "@/modules/projects/schemas";
 import { getProject } from "@/modules/projects/service";
 import { taskTime, type TimeEntryDto } from "@/modules/time/service";
+import { projectFields, type CustomFieldDto } from "./custom-fields";
 import {
   checklistOf,
   dependenciesOf,
@@ -270,6 +271,8 @@ export type TaskDetail = TaskFormOptions & {
   history: TaskEvent[];
   /** Tempo registrado: as entradas mais recentes e o total. */
   time: { totalMinutes: number; entries: TimeEntryDto[] };
+  /** Campos personalizados do projeto (o valor de cada um está em task.custom_fields). */
+  fields: CustomFieldDto[];
 };
 
 type HistoryRow = {
@@ -319,6 +322,7 @@ export async function taskDetail(t: TxCtx, code: string): Promise<TaskDetail> {
     attachments: await attachmentsOf(t, task.id),
     comments,
     time: await taskTime(t, task.id),
+    fields: await projectFields(t, projectId),
     history: history.map((h) => ({
       at: iso(h.created_at),
       actor: actorRef(h.actor_type, h.actor_id, h.actor_name),
@@ -364,6 +368,8 @@ function fieldChange(key: string, value: unknown): string | null {
       return "mudou a ordem";
     case "external_ref":
       return "mudou a referência externa";
+    case "custom_fields":
+      return "mudou os campos personalizados";
     default:
       return null;
   }
@@ -380,6 +386,7 @@ const FIELD_ORDER = [
   "description_md",
   "estimate_minutes",
   "external_ref",
+  "custom_fields",
   "sort_key",
 ] as const;
 

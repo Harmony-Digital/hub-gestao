@@ -13,6 +13,7 @@ import { ACCEPTED_EXTENSIONS } from "@/modules/attachments/service";
 import { inTx } from "@/modules/context";
 import { taskDetail, type TaskDetail } from "@/modules/tasks/board";
 import { assigneeValue } from "./form";
+import { CustomFieldsForm } from "./custom-fields-form";
 import { TimeEditor } from "./time-editor";
 import { TaskPanelFrame } from "./panel-frame";
 import {
@@ -166,6 +167,18 @@ async function PanelContent({
         {TASK_SOURCE[task.source] ?? ""} em{" "}
         {formatTimestampDay(task.created_at)}.
       </p>
+
+      {data.fields.length > 0 ? (
+        <Section title="Campos do projeto">
+          <CustomFieldsForm
+            key={`campos-do-projeto-${task.version}`}
+            code={task.code}
+            version={task.version}
+            fields={data.fields}
+            values={task.custom_fields}
+          />
+        </Section>
+      ) : null}
 
       <Section title="Descrição">
         <DescriptionField

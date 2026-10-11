@@ -253,6 +253,28 @@ export function changedTaskFields(
   return changes;
 }
 
+// Campos personalizados --------------------------------------------------------------
+
+/** Os campos da tarefa no painel: cada entrada chega como `field.<id do campo>`. */
+export function parseCustomFieldsForm(form: FormData): Parsed<{
+  code: string;
+  version: number | undefined;
+  values: Record<string, string>;
+}> {
+  const ref = taskRef(form);
+  if (!ref.ok) return ref;
+  const values: Record<string, string> = {};
+  for (const [key, value] of form.entries()) {
+    if (!key.startsWith("field.")) continue;
+    const id = key.slice("field.".length);
+    if (!UUID.test(id) || typeof value !== "string") {
+      return { ok: false, message: RELOAD };
+    }
+    values[id] = value.trim();
+  }
+  return { ok: true, value: { ...ref.value, values } };
+}
+
 // Tempo ------------------------------------------------------------------------------
 
 /** Lançar tempo numa tarefa: a duração escrita, o dia (padrão: hoje) e uma nota. */

@@ -59,7 +59,7 @@ O servidor mostra só as ferramentas que a chave pode usar. A primeira chamada �
 | `hub_get_today` | Minha fila: tarefas, bloqueios, prazos e pedidos |
 | `hub_list_projects`, `hub_get_project`, `hub_get_plan` | Projetos e o plano (JSON ou `plan.md`) |
 | `hub_list_tasks`, `hub_get_task` | Tarefas com filtros; detalhe com comentários |
-| `hub_create_task`, `hub_update_task` | Criar e editar tarefa |
+| `hub_create_task`, `hub_update_task` | Criar e editar tarefa (na edição, também os campos personalizados do projeto: `custom_fields`, pelo nome do campo) |
 | `hub_start_task`, `hub_block_task`, `hub_complete_task`, `hub_reopen_task` | Transições; concluir exige evidência |
 | `hub_comment` | Comentário interno em tarefa, frente, marco ou projeto |
 | `hub_create_workstream`, `hub_update_workstream` | Frentes, com as dependências entre elas (`depends_on`: a lista inteira de ids de frentes do mesmo projeto, sem ciclo) |
@@ -67,6 +67,7 @@ O servidor mostra só as ferramentas que a chave pode usar. A primeira chamada �
 | `hub_draft_status_report` | Rascunho de status, que vira pedido de aprovação |
 | `hub_log_time`, `hub_search`, `hub_sync_plan` | Tempo, busca e exportação do `plan.md` |
 | `hub_get_project_time` | Tempo do projeto: por pessoa ou agente e por frente, estimado contra registrado e as tarefas acima da estimativa (o TO-15 lê daqui; também em `GET /api/v1/projects/{code}/time`) |
+| `hub_list_custom_fields` | Campos personalizados das tarefas do projeto: nome, tipo (texto, número, seleção, data ou URL) e as opções da seleção (também em `GET /api/v1/projects/{code}/custom-fields`). O valor de cada tarefa vem em `custom_fields` no `hub_get_task` |
 
 Recursos: `hub://projects/{code}/plan.md`, `hub://projects/{code}/health` e `hub://today`. Prompts: `status-semanal`, `digest-matinal` e `revisar-conclusoes`.
 

@@ -39,6 +39,7 @@ function task(over: Partial<TaskDto> = {}): TaskDto {
     sort_key: 0,
     source: "hub",
     external_ref: null,
+    custom_fields: {},
     done_evidence: null,
     blocked_reason: null,
     blocked_on: null,

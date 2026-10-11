@@ -31,6 +31,7 @@ import {
 import { many, maybeOne, S, type Source, type TxCtx } from "@/modules/context";
 import { emitEvent, recomputeRollup } from "@/modules/events";
 import { notifyProfile } from "@/modules/notifications";
+import { setTaskFieldValues } from "./custom-fields";
 import type {
   CreateTaskInput,
   TaskDto,
@@ -53,7 +54,11 @@ export const TASK_SELECT = `
          t.created_by_type, t.created_by_id,
          ${ACTOR_NAME_SQL("t.created_by_type", "t.created_by_id")} as created_by_name,
          t.version, t.created_at, t.updated_at, t.archived_at,
-         ${CURSOR_AT_SQL("t")} as cursor_at
+         ${CURSOR_AT_SQL("t")} as cursor_at,
+         coalesce((select jsonb_object_agg(cf.name, cv.value)
+                     from ${S}.custom_field_values cv
+                     join ${S}.custom_fields cf on cf.id = cv.field_id
+                    where cv.task_id = t.id), '{}'::jsonb) as custom_fields
     from ${S}.tasks t
     join ${S}.projects p on p.id = t.project_id
     join ${S}.task_statuses s on s.id = t.status_id
@@ -101,6 +106,7 @@ export type TaskRow = {
   updated_at: Date | string;
   archived_at: Date | string | null;
   cursor_at: string;
+  custom_fields: Record<string, string> | null;
 };
 
 export function toTaskDto(r: TaskRow): TaskDto {
@@ -129,6 +135,7 @@ export function toTaskDto(r: TaskRow): TaskDto {
     sort_key: r.sort_key,
     source: r.source,
     external_ref: r.external_ref,
+    custom_fields: r.custom_fields ?? {},
     done_evidence: r.done_evidence,
     blocked_reason: r.blocked_reason,
     blocked_on: actorRef(r.blocked_on_type, r.blocked_on_id, r.blocked_on_name),
@@ -487,6 +494,7 @@ const UPDATE_AUDIT_KEYS = [
   "sort_key",
   "external_ref",
   "blocked_reason",
+  "custom_fields",
 ] as const;
 
 export async function updateTask(
@@ -509,6 +517,12 @@ export async function updateTask(
     title: input.title,
     description_md: input.description_md,
     external_ref: input.external_ref,
+    ...Object.fromEntries(
+      Object.entries(input.custom_fields ?? {}).map(([k, v]) => [
+        `campo ${k}`,
+        typeof v === "string" ? v : undefined,
+      ]),
+    ),
   });
 
   const before = await taskById(t, row.id);
@@ -582,6 +596,14 @@ export async function updateTask(
     }
   }
 
+  // Campos personalizados: valor por nome do campo; a tarefa ganha versão nova se mudar.
+  const fieldsChanged =
+    input.custom_fields !== undefined &&
+    (await setTaskFieldValues(t, row, input.custom_fields));
+  if (sets.length === 0) {
+    if (!fieldsChanged) return before;
+    sets.push("updated_at = now()");
+  }
   params.push(row.id);
   await t.tx.query(
     `update ${S}.tasks set ${sets.join(", ")} where id = $${params.length}`,

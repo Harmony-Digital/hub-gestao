@@ -341,6 +341,57 @@
         }
       }
     },
+    "/projects/{code}/custom-fields": {
+      "get": {
+        "tags": [
+          "Projetos"
+        ],
+        "summary": "Campos personalizados das tarefas",
+        "description": "Os campos próprios do projeto (texto, número, seleção, data ou URL), com as opções da seleção. O valor de cada tarefa vem em custom_fields e muda pela atualização da tarefa, pelo nome do campo. Escopo da chave: `tasks:read`.",
+        "operationId": "getProjectsCodeCustomfields",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "description": "Código do projeto (ex.: HUB) ou da tarefa (ex.: HUB-12).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomFieldList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "423": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/projects/{code}/milestones": {
       "get": {
         "tags": [
@@ -2697,6 +2748,29 @@
                 "type": "null"
               }
             ]
+          },
+          "custom_fields": {
+            "description": "Campos personalizados do projeto, pelo nome: { \"Canal\": \"WhatsApp\" }. Número como 1250 ou \"12,5\", data AAAA-MM-DD, URL com http(s), seleção com uma das opções; vazio ou null tira o valor. Só os campos enviados mudam.",
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60
+            },
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
           }
         },
         "additionalProperties": false
@@ -6514,6 +6588,16 @@
               "null"
             ]
           },
+          "custom_fields": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Campos personalizados do projeto com valor, pelo nome (número com ponto, data AAAA-MM-DD)."
+          },
           "done_evidence": {
             "type": [
               "string",
@@ -6693,6 +6777,7 @@
           "sort_key",
           "source",
           "external_ref",
+          "custom_fields",
           "done_evidence",
           "blocked_reason",
           "blocked_on",
@@ -7285,6 +7370,56 @@
           "estimate",
           "overruns",
           "ai_cost_usd"
+        ],
+        "additionalProperties": false
+      },
+      "CustomFieldList": {
+        "$id": "#/components/schemas/CustomFieldList",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "text",
+                    "number",
+                    "select",
+                    "date",
+                    "url"
+                  ]
+                },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Opções da seleção, na ordem; vazio nos outros tipos."
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "kind",
+                "options"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
         ],
         "additionalProperties": false
       },
