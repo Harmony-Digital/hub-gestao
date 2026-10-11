@@ -359,3 +359,14 @@ html[data-menu="recolhido"] .hub-lateral .hub-contador {
   background-color: var(--color-brand);
   color: var(--color-navy);
 }
+
+/* iPhone e iPad (Safari do iOS): tocar num campo com letra menor que 16 px faz o Safari
+   aproximar a tela, que depois fica arrastando de lado. Só onde o zoom acontece: no
+   computador e no Android, os campos seguem com o tamanho do desenho. */
+@supports (-webkit-touch-callout: none) {
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em) !important;
+  }
+}
