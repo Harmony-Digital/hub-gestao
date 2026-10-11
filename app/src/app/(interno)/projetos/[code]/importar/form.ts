@@ -13,6 +13,8 @@ export type ImportForm = {
   markdown: string;
   /** "preview": mostra o que entra e não grava; "import": grava. */
   intent: "preview" | "import";
+  /** Modelo de onde veio o esqueleto (RF-36): os textos para o cliente entram depois. */
+  template: string | null;
 };
 
 function text(form: FormData, name: string): string {
@@ -39,5 +41,19 @@ export function parseImportForm(form: FormData): Parsed<ImportForm> {
     return { ok: false, message: "O plan.md tem até 1 milhão de caracteres." };
   }
   const intent = text(form, "intent") === "import" ? "import" : "preview";
-  return { ok: true, value: { project, markdown, intent } };
+  const template = text(form, "modelo");
+  return {
+    ok: true,
+    value: {
+      project,
+      markdown,
+      intent,
+      template:
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          template,
+        )
+          ? template
+          : null,
+    },
+  };
 }

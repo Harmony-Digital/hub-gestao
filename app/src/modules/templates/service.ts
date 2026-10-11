@@ -3,9 +3,10 @@ import { audit } from "@/lib/audit";
 import { authorize } from "@/lib/authorize";
 import { badRequest, conflict, notFound, unprocessable } from "@/lib/errors";
 import { assertNoSecrets } from "@/lib/text-guards";
-import { iso, Line, Uuid } from "@/modules/common";
+import { authorizeProjectId, iso, Line, Uuid } from "@/modules/common";
 import { json, many, maybeOne, S, type TxCtx } from "@/modules/context";
 import { getPlan } from "@/modules/projects/service";
+import { STATUS_CATEGORIES } from "@/modules/tasks/status-categories";
 import {
   renderTemplate,
   TEMPLATE_MARKDOWN_MAX,
@@ -17,7 +18,10 @@ import {
 /**
  * Modelos de projeto (PRD §7.15): esqueletos de marcos, frentes (com o departamento),
  * tarefas e critérios de aceite, guardados no workspace (`project_templates`), mais os
- * departamentos do projeto. Usar um modelo é a importação do `plan.md` de sempre, com a
+ * departamentos do projeto e, quando o modelo sai de um projeto (RF-36), o conjunto de
+ * status das tarefas e os textos para o cliente (o objetivo, e o título e a descrição dos
+ * marcos e das frentes, pelo título interno). O projeto novo nasce com esses status, e os
+ * textos entram depois da importação (`applyTemplateClientTexts`), só onde estão vazios. Usar um modelo é a importação do `plan.md` de sempre, com a
  * prévia (a pessoa decide o que entra). Criar, editar, remover e gerar a partir de um
  * projeto é do dono e da administração (workspace.admin).
  */
@@ -36,11 +40,34 @@ export const TemplateInput = z.strictObject({
 });
 export type TemplateInput = z.infer<typeof TemplateInput>;
 
+export const TemplateStatus = z.object({
+  name: Line(40),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  category: z.enum(STATUS_CATEGORIES),
+  is_default: z.boolean(),
+});
+export type TemplateStatus = z.infer<typeof TemplateStatus>;
+
+const ClientText = z.object({
+  title_client: Line(200).nullable(),
+  description_client: z.string().trim().max(2000).nullable(),
+});
+
+export const TemplateClientTexts = z.object({
+  objective: z.string().trim().max(2000).nullable(),
+  /** Pelo título interno do marco ou da frente (o código muda de projeto para projeto). */
+  milestones: z.record(z.string(), ClientText),
+  workstreams: z.record(z.string(), ClientText),
+});
+export type TemplateClientTexts = z.infer<typeof TemplateClientTexts>;
+
 /** O que fica na coluna `structure` do modelo. */
 const Structure = z.object({
   format: z.literal("plan_md"),
   markdown: z.string(),
   departments: z.array(z.string()),
+  statuses: z.array(TemplateStatus).nullish(),
+  client: TemplateClientTexts.nullish(),
 });
 
 export type TemplateDto = {
@@ -51,6 +78,10 @@ export type TemplateDto = {
   departments: { slug: string; name: string }[];
   markdown: string;
   counts: TemplateCounts;
+  /** Conjunto de status das tarefas (RF-36); null: os status padrão do workspace. */
+  statuses: TemplateStatus[] | null;
+  /** Textos para o cliente (RF-36); null: nenhum. */
+  client: TemplateClientTexts | null;
   updatedAt: string;
 };
 
@@ -89,6 +120,8 @@ function toDto(
       .filter((d): d is { slug: string; name: string } => Boolean(d)),
     markdown,
     counts: templateCounts(markdown),
+    statuses: (parsed.success && parsed.data.statuses) || null,
+    client: (parsed.success && parsed.data.client) || null,
     updatedAt: iso(row.updated_at),
   };
 }
@@ -146,20 +179,56 @@ async function nameTaken(t: TxCtx, name: string, except: string | null) {
   if (row) throw conflict(`Já existe um modelo chamado “${name}”.`);
 }
 
-const structureOf = (input: TemplateInput) =>
+const structureOf = (
+  input: TemplateInput,
+  extras: {
+    statuses?: TemplateStatus[] | null;
+    client?: TemplateClientTexts | null;
+  } = {},
+) =>
   json({
     format: "plan_md",
     markdown: input.markdown,
     departments: [...new Set(input.departments)],
+    ...(extras.statuses ? { statuses: extras.statuses } : {}),
+    ...(extras.client ? { client: extras.client } : {}),
   });
+
+/** O conjunto de status precisa ter as cinco categorias e um padrão em "A fazer". */
+function statusesProblem(statuses: TemplateStatus[]): string | null {
+  for (const category of STATUS_CATEGORIES) {
+    if (!statuses.some((s) => s.category === category)) {
+      return "O conjunto de status do modelo precisa ter um status em cada categoria.";
+    }
+  }
+  const defaults = statuses.filter((s) => s.is_default);
+  if (defaults.length !== 1 || defaults[0].category !== "todo") {
+    return "O conjunto de status do modelo precisa de um status padrão, em A fazer.";
+  }
+  if (
+    new Set(statuses.map((s) => s.name.toLowerCase())).size !== statuses.length
+  ) {
+    return "O conjunto de status do modelo tem nome repetido.";
+  }
+  return null;
+}
 
 export async function createTemplate(
   t: TxCtx,
   input: TemplateInput,
+  extras: {
+    statuses?: TemplateStatus[] | null;
+    client?: TemplateClientTexts | null;
+  } = {},
 ): Promise<TemplateDto> {
   authorize(t.actor, ADMIN);
   await checkInput(t, input);
   await nameTaken(t, input.name, null);
+  if (extras.statuses) {
+    const problem = statusesProblem(extras.statuses);
+    if (problem) throw unprocessable(problem);
+  }
+  if (extras.client) assertNoSecrets({ textos: JSON.stringify(extras.client) });
   const row = await maybeOne<{ id: string }>(
     t,
     `insert into ${S}.project_templates (workspace_id, name, description, structure)
@@ -169,7 +238,7 @@ export async function createTemplate(
       t.actor.workspaceId,
       input.name,
       input.description || null,
-      structureOf(input),
+      structureOf(input, extras),
     ],
   );
   const dto = await getTemplate(t, row!.id);
@@ -202,7 +271,16 @@ export async function updateTemplate(
         set name = $2, description = $3, structure = $4::jsonb,
             version = version + 1, updated_at = now()
       where id = $1`,
-    [id, input.name, input.description || null, structureOf(input)],
+    [
+      id,
+      input.name,
+      input.description || null,
+      // Os status e os textos para o cliente do modelo continuam (a tela edita o resto).
+      structureOf(input, {
+        statuses: current.statuses,
+        client: current.client,
+      }),
+    ],
   );
   const after = await getTemplate(t, id);
   await audit(t, {
@@ -273,6 +351,54 @@ export async function templateFromProject(
       })),
     },
   });
+  // RF-36: o conjunto de status e os textos para o cliente do projeto vão junto.
+  const ref = await maybeOne<{ id: string; objective_client: string | null }>(
+    t,
+    `select id, objective_client from ${S}.projects where code = $1`,
+    [plan.project.code],
+  );
+  const statuses = await many<TemplateStatus>(
+    t,
+    `select name, color, category::text as category, is_default
+       from ${S}.task_statuses where project_id = $1
+      order by sort_order, name`,
+    [ref!.id],
+  );
+  const texts = async (table: "milestones" | "workstreams") =>
+    Object.fromEntries(
+      (
+        await many<{
+          title: string;
+          title_client: string | null;
+          description_client: string | null;
+        }>(
+          t,
+          `select title, title_client, description_client from ${S}.${table}
+            where project_id = $1 and archived_at is null
+              and (title_client is not null or description_client is not null)
+            order by sort_order`,
+          [ref!.id],
+        )
+      ).map((r) => [
+        r.title,
+        {
+          title_client: r.title_client,
+          description_client: r.description_client,
+        },
+      ]),
+    );
+  const milestoneTexts = await texts("milestones");
+  const workstreamTexts = await texts("workstreams");
+  const client =
+    ref!.objective_client ||
+    Object.keys(milestoneTexts).length ||
+    Object.keys(workstreamTexts).length
+      ? {
+          objective: ref!.objective_client,
+          milestones: milestoneTexts,
+          workstreams: workstreamTexts,
+        }
+      : null;
   const projectDepartments = await many<{ slug: string }>(
     t,
     `select d.slug from ${S}.project_departments pd
@@ -290,5 +416,107 @@ export async function templateFromProject(
       markdown,
       departments: projectDepartments.map((d) => d.slug),
     }),
+    { statuses: statuses.length ? statuses : null, client },
   );
+}
+
+/**
+ * O projeto novo nasce com o conjunto de status do modelo (RF-36), no lugar dos status
+ * padrão: chamado logo depois de criar o projeto, quando ainda não há tarefa.
+ */
+export async function applyTemplateStatuses(
+  t: TxCtx,
+  projectId: string,
+  statuses: TemplateStatus[],
+): Promise<void> {
+  authorize(t.actor, ADMIN);
+  const problem = statusesProblem(statuses);
+  if (problem) throw unprocessable(problem);
+  const used = await maybeOne(
+    t,
+    `select 1 from ${S}.tasks where project_id = $1 limit 1`,
+    [projectId],
+  );
+  if (used) {
+    throw conflict(
+      "O projeto já tem tarefas: mude os status em Editar projeto.",
+    );
+  }
+  await t.tx.query(`delete from ${S}.task_statuses where project_id = $1`, [
+    projectId,
+  ]);
+  for (const [i, st] of statuses.entries()) {
+    await t.tx.query(
+      `insert into ${S}.task_statuses
+         (workspace_id, project_id, name, color, category, sort_order, is_default)
+       values ($1, $2, $3, $4, $5::${S}.status_category, $6, $7)`,
+      [
+        t.actor.workspaceId,
+        projectId,
+        st.name,
+        st.color.toUpperCase(),
+        st.category,
+        i + 1,
+        st.is_default,
+      ],
+    );
+  }
+}
+
+/**
+ * Os textos para o cliente do modelo (RF-36), depois da importação: pelo título interno
+ * do marco e da frente, só onde o projeto ainda não tem texto para o cliente (nada é
+ * sobrescrito; marco aceito não muda). Mostrar a frente ao cliente continua sendo pedido
+ * de aprovação. Devolve quantos textos entraram.
+ */
+export async function applyTemplateClientTexts(
+  t: TxCtx,
+  projectCode: string,
+  templateId: string,
+): Promise<number> {
+  const template = await getTemplate(t, templateId);
+  if (!template.client) return 0;
+  const project = await maybeOne<{
+    id: string;
+    objective_client: string | null;
+  }>(t, `select id, objective_client from ${S}.projects where code = $1`, [
+    projectCode,
+  ]);
+  if (!project) throw notFound(`O projeto ${projectCode} não existe.`);
+  await authorizeProjectId(t, project.id, "milestone.write");
+  const byTitle = (texts: TemplateClientTexts["milestones"]) =>
+    new Map(Object.entries(texts).map(([k, v]) => [k.trim().toLowerCase(), v]));
+  let applied = 0;
+  for (const table of ["milestones", "workstreams"] as const) {
+    const texts = byTitle(template.client[table]);
+    if (texts.size === 0) continue;
+    const rows = await many<{ id: string; title: string }>(
+      t,
+      `select id, title from ${S}.${table}
+        where project_id = $1 and archived_at is null
+          and title_client is null and description_client is null
+          ${table === "milestones" ? "and status <> 'accepted'" : ""}`,
+      [project.id],
+    );
+    for (const row of rows) {
+      const text = texts.get(row.title.trim().toLowerCase());
+      if (!text || (!text.title_client && !text.description_client)) continue;
+      await t.tx.query(
+        `update ${S}.${table} set title_client = $2, description_client = $3
+          where id = $1`,
+        [row.id, text.title_client, text.description_client],
+      );
+      await audit(t, {
+        action:
+          table === "milestones" ? "milestone.updated" : "workstream.updated",
+        entityType: table === "milestones" ? "milestone" : "workstream",
+        entityId: row.id,
+        projectId: project.id,
+        before: { title_client: null, description_client: null },
+        after: { ...text, from_template: template.name },
+      });
+      applied += 1;
+    }
+  }
+  return applied;
 }
