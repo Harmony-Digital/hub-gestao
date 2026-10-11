@@ -1,16 +1,16 @@
 # Roteiro do Fábio: o que falta para fechar o PLAN.md
 
-> Atualizado em 2026-10-11. Tudo o que cabe ao agente está feito e no ar. Cada passo abaixo depende de uma decisão, de um acesso ou de uma aprovação do Fábio, e diz qual item do `PLAN.md` ele fecha. A ordem vai do que destrava mais para o que destrava menos. O detalhe de cada passo está no documento indicado; aqui fica só o caminho.
+> Atualizado em 2026-10-11. Tudo o que cabe ao agente está feito e no ar. O passo 1 registra as decisões já tomadas; os outros dependem de um acesso ou de uma aprovação do Fábio, e cada um diz qual item do `PLAN.md` fecha. A ordem vai do que destrava mais para o que destrava menos. O detalhe de cada passo está no documento indicado; aqui fica só o caminho.
 
-## 1. Decisões rápidas, no chat (sem servidor)
+## 1. Decisões (tomadas no chat em 2026-10-11)
 
-| Decisão | O que acontece depois | Fecha |
+| Decisão | Resultado | Fecha |
 |---|---|---|
-| Autorizar a varredura de segredos e a proteção de envio do GitHub (grátis enquanto o repositório for público) | o agente liga nas configurações do repositório e confere | segurança do repositório público |
-| Ligar a proteção da `main` (PR obrigatório, sem force-push): com o repositório público, o plano gratuito passou a permitir | o agente liga e confere; volta a ficar indisponível quando o repositório fechar | M0, "Proteção da branch `main`" |
-| Tirar ou manter o acesso de `PUBLIC` ao `pg_net` e às estatísticas no Supabase compartilhado (vale para todos os sistemas; `docs/seguranca.md`) | se for tirar, migração pelo conector, combinada com os outros sistemas | pendência da revisão de segurança (M8) |
-| Escolher o destino da cópia diária do backup fora da VPS (D8) | o agente prepara o envio diário e o teste | M2 (D8) e M8, "Backups" |
-| Quando fechar o repositório e como o CI continua (privado, os 2.000 minutos do mês voltam a contar: plano pago, limite de gastos ou CI mais enxuto) | o agente fecha com o ok no chat | Encerramento |
+| Varredura de segredos e proteção de envio do GitHub | ligadas pelo agente e conferidas (nenhum alerta aberto) | segurança do repositório público |
+| Proteção da `main` | ligada: PR obrigatório com os três jobs do CI, sem force-push, também para administradores; vale enquanto o repositório for público | M0, "Proteção da branch `main`" |
+| Acesso de `PUBLIC` ao `pg_net` e às estatísticas no Supabase compartilhado | manter (o Hub não usa; `docs/seguranca.md`) | pendência da revisão de segurança (M8) |
+| Destino da cópia diária do backup fora da VPS (D8) | Google Drive, por rclone; o agente prepara o script de um clique (passo 2) | M2 (D8) e M8, "Backups" |
+| Quando fechar o repositório | depois dos GATEs, com o CI resolvido (plano pago, limite de gastos ou CI mais enxuto) | Encerramento |
 
 ## 2. Um clique no Mac (botão Rodar, na pasta do repositório)
 
