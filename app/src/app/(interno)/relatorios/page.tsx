@@ -8,12 +8,15 @@ import { Pill } from "@/components/shell/pill";
 import { formatDate, formatTimestampDay } from "@/lib/format";
 import type { Tone } from "@/lib/labels";
 import { pageContext } from "@/lib/ui-context";
-import { inTx } from "@/modules/context";
+import { can } from "@/lib/authorize";
+import { inTx, maybeOne } from "@/modules/context";
+import { listProjects } from "@/modules/projects/service";
 import {
   reportsOverview,
   type ReportGroup,
   type ReportState,
 } from "@/modules/reports/overview";
+import { NewReportButton } from "./new-report";
 
 export const metadata: Metadata = { title: "Relatórios" };
 
@@ -43,6 +46,11 @@ export default function RelatoriosPage({
         trail={[{ label: "Relatórios" }]}
         title="Relatórios"
         description="Os relatórios de status dos projetos, com todas as versões: quem preparou, o que mudou e o que foi publicado. Um relatório só é publicado com a aprovação do dono."
+        actions={
+          <Suspense fallback={null}>
+            <NewReport />
+          </Suspense>
+        }
       />
       <main className="flex w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-8">
         <Suspense
@@ -54,6 +62,33 @@ export default function RelatoriosPage({
         </Suspense>
       </main>
     </>
+  );
+}
+
+/** Preparar relatório: para quem pode rascunhar (dono, administração e equipe). */
+async function NewReport() {
+  const { user, ctx } = await pageContext();
+  if (!can(user.actor, "report.draft")) return null;
+  const { projects, start, end } = await inTx(ctx, async (t) => {
+    const { items } = await listProjects(t);
+    const days = await maybeOne<{ start: string; end: string }>(
+      t,
+      "select (current_date - 6)::text as start, current_date::text as end",
+    );
+    return {
+      projects: items
+        .filter((p) => p.status !== "in_review" && p.status !== "archived")
+        .map((p) => ({ code: p.code, name: p.name })),
+      start: days!.start,
+      end: days!.end,
+    };
+  });
+  return (
+    <NewReportButton
+      projects={projects}
+      defaultStart={start}
+      defaultEnd={end}
+    />
   );
 }
 
@@ -88,8 +123,9 @@ async function ReportsView({
       </FilterRow>
       {groups.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line p-6 text-sm text-ink-2">
-          Nenhum relatório ainda. O Relator de Status (RL-03) prepara os
-          rascunhos; cada um vira um pedido de aprovação no Hoje.
+          Nenhum relatório ainda. Use Preparar relatório, aqui em cima, ou deixe
+          o Relator de Status (RL-03) preparar os rascunhos; cada um vira um
+          pedido de aprovação no Hoje.
         </p>
       ) : (
         <ul className="flex flex-col gap-4">
