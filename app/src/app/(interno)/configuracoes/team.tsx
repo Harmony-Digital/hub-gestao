@@ -20,7 +20,7 @@ const ROLES = [
   {
     value: "member",
     label: "Equipe",
-    hint: "Trabalha nos projetos de que participa (hoje, os que tem como responsável, no Editar projeto).",
+    hint: "Trabalha só nos projetos em que está, em Pessoas no projeto (no Editar projeto de cada um).",
   },
   {
     value: "admin",
@@ -147,7 +147,7 @@ export function AddMemberButton() {
       icon={<Plus aria-hidden="true" />}
       variant="default"
       title="Pôr uma pessoa na equipe"
-      description="Ela entra no Hub com este e-mail, pelo login do Supabase da Harmony. Quem ainda não tem login precisa ser convidado no Supabase Studio (Authentication, Add user); a senha, a própria pessoa define."
+      description="Ela entra no Hub com este e-mail. Quem ainda não tem login na Harmony precisa ter a conta criada no Supabase (Authentication, Add user); a senha é sempre a própria pessoa quem define. Depois, o Convite por e-mail, na linha dela, manda o caminho de entrada."
       wide
     >
       {(close) => <AddMemberForm onDone={close} />}
