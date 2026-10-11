@@ -1,18 +1,23 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import { refresh } from "next/cache";
 import { appUrl } from "@/lib/auth/config";
+import { sendEmail } from "@/lib/email";
 import { apiKeyPepper } from "@/lib/env";
 import { formatTimestampDay } from "@/lib/format";
 import { actionContext, actionErrorMessage } from "@/lib/ui-context";
 import { inTx } from "@/modules/context";
+import { Uuid } from "@/modules/common";
 import {
   createContact,
+  inviteEmailTarget,
   issuePortalLink,
+  noteInviteEmailed,
   revokePortalAccess,
 } from "@/modules/portal/access";
-import { inviteMessage } from "@/modules/portal/invite";
+import { inviteHasLink, inviteMessage } from "@/modules/portal/invite";
 import {
   anonymizeClientContacts,
   anonymizeContact,
@@ -83,6 +88,55 @@ export async function gerarLinkPortal(
         url: issued.url,
         until: formatTimestampDay(issued.expiresAt),
       }),
+    };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+/**
+ * O convite por e-mail, pelo Hub (D9), com a mensagem que o dono revisou. Chamado direto
+ * do botão "Enviar por e-mail": o link de uso único vai na mensagem, e o histórico guarda
+ * só o envio. A chave de repetição vem do link: clicar duas vezes não manda dois e-mails.
+ */
+export async function enviarConvitePorEmail(input: {
+  contactId: string;
+  link: string;
+  text: string;
+}): Promise<PortalFormState> {
+  const ctx = await actionContext();
+  if (!Uuid.safeParse(input.contactId).success) {
+    return {
+      status: "error",
+      message: "Contato não encontrado. Recarregue a página.",
+    };
+  }
+  const text = input.text.trim();
+  if (!inviteHasLink(text, input.link, await linkBase())) {
+    return {
+      status: "error",
+      message:
+        "A mensagem precisa ter o link de acesso. Gere um link novo se apagou sem querer.",
+    };
+  }
+  try {
+    const target = await inTx(ctx, (t) =>
+      inviteEmailTarget(t, input.contactId),
+    );
+    const sent = await sendEmail({
+      to: target.email,
+      subject: target.orgName
+        ? `Seu acesso ao portal da ${target.orgName}`
+        : "Seu acesso ao portal",
+      text,
+      fromName: target.orgName,
+      idempotencyKey: `convite-${createHash("sha256").update(input.link).digest("hex")}`,
+    });
+    if (!sent.ok) return { status: "error", message: sent.detail };
+    await inTx(ctx, (t) => noteInviteEmailed(t, input.contactId, sent.id));
+    return {
+      status: "ok",
+      message: `Convite enviado por e-mail para ${target.email}.`,
     };
   } catch (err) {
     return failure(err, ctx.requestId);

@@ -36,7 +36,7 @@ Tela da equipe: **Clientes → abrir o cliente → Contatos e portal** (`/client
 
 **Preparação do portal (OB-13).** A mesma tela tem a lista do que já está pronto para o cliente ver e do que falta, contada do próprio banco: contatos cadastrados, acesso liberado, aceite do uso dos dados e, em cada projeto ativo do cliente, o objetivo escrito para o cliente (com o atalho para Editar projeto), quantas entregas e frentes aparecem no portal e o aviso das entregas marcadas para o cliente que estão sem o título para ele (essas não aparecem).
 
-**Mensagem de convite (OB-13).** Ao liberar o acesso (ou gerar um link novo), além do link vem uma mensagem de convite pronta, com o primeiro nome do contato, os projetos que ele vai acompanhar, o link e até quando ele vale. A mensagem fica num campo editável: o dono revisa, copia ("Copiar mensagem") e manda por onde preferir. O Hub não manda nada (D9).
+**Mensagem de convite (OB-13).** Ao liberar o acesso (ou gerar um link novo), além do link vem uma mensagem de convite pronta, com o primeiro nome do contato, os projetos que ele vai acompanhar, o link e até quando ele vale. A mensagem fica num campo editável: o dono revisa e escolhe. Pode copiar ("Copiar mensagem") e mandar por onde preferir, ou mandar pelo próprio Hub, por e-mail ("Enviar por e-mail"), quando o Resend estiver configurado (`docs/email.md`). A mensagem precisa ter o link, e dois cliques seguidos não mandam dois e-mails. O Hub nunca manda sozinho (D9): o envio é o clique do dono, e o histórico registra que o convite saiu, sem o link nem o texto.
 
 **Boas-vindas no canal (OB-13).** Com o canal do projeto ainda vazio, o "Canal do cliente" da Visão geral oferece "Usar o rascunho de boas-vindas", que põe uma mensagem pronta no campo de resposta, para revisar antes de enviar.
 
@@ -103,7 +103,7 @@ Roda no `npm test` e no CI, com a sessão de verdade de um contato:
 
 ## Ainda não (próximos passos)
 
-- O convite por e-mail pelo próprio Hub, e o contato pedir um link novo sozinho pelo e-mail: dependem do envio de e-mail (Resend), que o Fábio configura.
+- O contato pedir um link novo sozinho, pelo e-mail: o envio de e-mail existe (`docs/email.md`), mas o pedido do contato ainda não.
 
 ## Onde está no código
 

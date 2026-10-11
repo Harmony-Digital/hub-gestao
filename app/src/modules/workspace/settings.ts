@@ -337,3 +337,19 @@ export async function setDepartmentLead(
     after: { lead_profile_id: profileId },
   });
 }
+
+/** Para o e-mail de teste: o próprio dono (nunca outra pessoa) e o nome do workspace. */
+export async function emailTestTarget(
+  t: TxCtx,
+): Promise<{ email: string; name: string; orgName: string }> {
+  assertOwner(t);
+  const row = await maybeOne<{ email: string; full_name: string; org: string }>(
+    t,
+    `select p.email, p.full_name, w.name as org
+       from ${S}.profiles p, ${S}.workspaces w
+      where p.id = $1 and w.id = $2`,
+    [t.actor.type === "user" ? t.actor.id : null, t.actor.workspaceId],
+  );
+  if (!row) throw notFound("Perfil não encontrado.");
+  return { email: row.email, name: row.full_name, orgName: row.org };
+}

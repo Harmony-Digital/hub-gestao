@@ -105,7 +105,9 @@ Rodam no Mac do Fábio, na pasta do repositório (botão Rodar), com o acesso de
 | `hub-alert-secret.sh` | Liga o aviso de publicação que falhou: gera o `HUB_ALERT_SECRET`, grava no `.env.production` e no segredo do repositório, recria o contêiner e confere a rota (401 sem o segredo). Rodar de novo troca o segredo. |
 | `hub-apply-compose.sh` | Aplica na VPS o `docker-compose.yml` do repositório (hoje, a rotação dos logs): mostra a diferença, confere a sintaxe com o Docker, guarda a cópia anterior, recria o contêiner e volta sozinho se ele não ficar saudável. |
 | `hub-backup-offsite-setup.sh` | Liga a cópia diária do backup no Google Drive: o Fábio autoriza o rclone no navegador (escopo `drive.file`). A senha das cópias vai para o Keychain do Mac e para a VPS. Também instala o envio, o timer e o `hub-backup.sh` atualizado, depois manda a primeira cópia e confere a volta. Para sem mudar nada se a senha da VPS for outra. |
-| `hub-env-set.sh` | Ajudante que os scripts acima mandam para a VPS: grava uma variável de uma lista fechada no `.env.production`, com o valor pela entrada padrão (nunca em argumento), mantendo dono e permissão, e para sem mudar nada se a conferência falhar. |
+| `hub-email-setup.sh` | Liga o e-mail do Hub pelo Resend (`docs/email.md`): pede a chave sem mostrar, o remetente e o endereço de resposta, grava e recria o contêiner. |
+| `hub-env-set.sh` | Ajudante que os scripts acima mandam para a VPS: grava uma variável de uma lista fechada no `.env.production` (segredos hexadecimais, a chave do Resend e os endereços de e-mail, cada um com o formato conferido), com o valor pela entrada padrão (nunca em argumento), mantendo dono e permissão, e para sem mudar nada se a conferência falhar. |
+| `hub-recreate.sh` | Ajudante que recria o contêiner na versão no ar para ler o `.env.production` de novo, com a trava da publicação e esperando ficar saudável. |
 
 ## Operação
 
