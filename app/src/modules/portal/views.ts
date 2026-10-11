@@ -380,3 +380,30 @@ export async function portalAccent(t: TxCtx): Promise<string | null> {
   const color = row?.accent_color ?? null;
   return color && /^#[0-9A-Fa-f]{6}$/.test(color) ? color : null;
 }
+
+/**
+ * A versão do logo do próprio cliente (RF-04), para o endereço da imagem mudar quando o
+ * logo muda; null quando não há logo. O arquivo sai pela rota do portal (readPortalLogo).
+ */
+export async function portalLogo(t: TxCtx): Promise<string | null> {
+  assertClient(t.actor);
+  const row = await maybeOne<{ version: string }>(
+    t,
+    `select left(sha256, 12) as version from ${S}.client_logos
+      where client_id = ${S}.current_client_id()`,
+  );
+  return row?.version ?? null;
+}
+
+/** O logo do próprio cliente, lido com o ator de cliente (a RLS só mostra o dele). */
+export async function readPortalLogo(
+  t: TxCtx,
+): Promise<{ mime: string; content: Buffer } | null> {
+  assertClient(t.actor);
+  const row = await maybeOne<{ mime: string; content: Uint8Array }>(
+    t,
+    `select mime, content from ${S}.client_logos
+      where client_id = ${S}.current_client_id()`,
+  );
+  return row ? { mime: row.mime, content: Buffer.from(row.content) } : null;
+}

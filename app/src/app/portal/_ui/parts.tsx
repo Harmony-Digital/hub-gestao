@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,20 +29,36 @@ export function accentBorder(
   return accent ? { borderLeftColor: accent, borderLeftWidth: 4 } : undefined;
 }
 
-/** O topo das páginas do portal: o nome do cliente, a trilha e o Sair. */
+/** O topo das páginas do portal: o logo e o nome do cliente, a trilha e o Sair. */
 export function PortalTop({
   clientName,
   accent = null,
+  logo = null,
   back,
 }: {
   clientName: string;
   /** Cor de destaque do cliente (#RRGGBB), num ponto ao lado do nome. */
   accent?: string | null;
+  /** Endereço do logo do cliente (rota do portal), se houver (RF-04). */
+  logo?: string | null;
   back?: { href: string; label: string };
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex min-w-0 flex-col gap-1">
+        {logo ? (
+          // O nome do cliente vem logo abaixo: o logo é decorativo para o leitor de tela.
+          // Sem otimização: a imagem exige a sessão do portal, que o otimizador não tem.
+          <Image
+            src={logo}
+            alt=""
+            width={160}
+            height={40}
+            unoptimized
+            loading="eager"
+            className="h-10 w-auto max-w-40 object-contain object-left"
+          />
+        ) : null}
         <p className="flex items-center gap-2 font-mono text-[11px] tracking-[0.12em] text-caption uppercase">
           {accent ? (
             <span

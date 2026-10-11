@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Pencil } from "lucide-react";
@@ -7,11 +8,13 @@ import { can } from "@/lib/authorize";
 import { formatTimestampDay } from "@/lib/format";
 import { pageContext } from "@/lib/ui-context";
 import { archivedClients } from "@/modules/archive/service";
+import { logoVersions } from "@/modules/clients/logo";
 import { inTx } from "@/modules/context";
 import { listClients } from "@/modules/projects/admin";
 import { ArchiveButton, RestoreButton } from "../_archive/archive-controls";
 import { ArchivedSection, archivedWhen } from "../_archive/archived-section";
 import { ClientForm } from "./client-forms";
+import { ClientLogo } from "./client-logo";
 
 export const metadata: Metadata = { title: "Clientes" };
 
@@ -41,10 +44,15 @@ export default function ClientesPage() {
 
 async function ClientsView() {
   const { user, ctx } = await pageContext();
-  const { clients, archived } = await inTx(ctx, async (t) => ({
+  const { clients, archived, logos } = await inTx(ctx, async (t) => ({
     clients: await listClients(t),
     archived: await archivedClients(t),
+    logos: await logoVersions(t),
   }));
+  const logoOf = (c: { id: string; slug: string }) => {
+    const version = logos.get(c.id);
+    return version ? `/clientes/${c.slug}/logo?v=${version}` : null;
+  };
   const admin = can(user.actor, "workspace.admin");
   return (
     <>
@@ -83,6 +91,17 @@ async function ClientsView() {
               <li key={c.id} className="rounded-2xl border border-line bg-card">
                 <details className="group">
                   <summary className="flex min-h-14 cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                    {logoOf(c) ? (
+                      // O nome vem ao lado: para o leitor de tela, o logo é decorativo.
+                      <Image
+                        src={logoOf(c)!}
+                        alt=""
+                        width={96}
+                        height={24}
+                        unoptimized
+                        className="h-6 w-auto max-w-24 object-contain"
+                      />
+                    ) : null}
                     <span className="font-medium text-navy">{c.name}</span>
                     {c.segment ? (
                       <span className="text-sm text-caption">{c.segment}</span>
@@ -107,6 +126,13 @@ async function ClientsView() {
                       </p>
                     ) : null}
                     {admin ? <ClientForm client={c} /> : null}
+                    {admin ? (
+                      <ClientLogo
+                        clientId={c.id}
+                        clientName={c.name}
+                        src={logoOf(c)}
+                      />
+                    ) : null}
                     <div className="flex flex-wrap gap-x-5 gap-y-2">
                       {c.project_count > 0 ? (
                         <Link
