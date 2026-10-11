@@ -27,6 +27,10 @@ import {
   parseWorkstreamForm,
   workstreamChanges,
 } from "./form";
+import {
+  suggestWorkstreamClientText,
+  type WorkstreamSuggestion,
+} from "@/modules/client-text/writer";
 
 /** Cria ou edita um marco (camada estratégica). */
 export async function salvarMarco(
@@ -143,6 +147,41 @@ export async function salvarFrente(
         err,
         ctx.requestId,
         "Falha ao salvar frente.",
+      ),
+    };
+  }
+}
+
+/**
+ * Sugestão do Redator do Cliente (RC-12) para o texto da frente, na janela da frente.
+ * Nada é gravado: a pessoa usa a sugestão, ajusta e salva.
+ */
+export async function sugerirTextoCliente(input: {
+  project: string;
+  title: string;
+  description: string | null;
+}): Promise<WorkstreamSuggestion> {
+  const ctx = await actionContext();
+  if (
+    typeof input?.project !== "string" ||
+    !/^[A-Z0-9]{2,8}$/.test(input.project) ||
+    typeof input.title !== "string" ||
+    input.title.length > 300 ||
+    (input.description !== null &&
+      (typeof input.description !== "string" ||
+        input.description.length > 6000))
+  ) {
+    return { ok: false, message: "Recarregue a página e tente de novo." };
+  }
+  try {
+    return await suggestWorkstreamClientText(ctx, input);
+  } catch (err) {
+    return {
+      ok: false,
+      message: actionErrorMessage(
+        err,
+        ctx.requestId,
+        "Falha ao pedir a sugestão ao Redator.",
       ),
     };
   }

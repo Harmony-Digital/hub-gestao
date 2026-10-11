@@ -9,7 +9,14 @@ import { setAgentModel } from "@/modules/llm/agent-model";
 import { createCredential } from "@/modules/llm/credentials";
 import { draftReport } from "@/modules/reports/service";
 import { agentActor, ctxFor, openTestHub, type TestHub } from "@/test/hub";
-import { REWRITE_JOB, rewriteForClient, type RewriteOutput } from "./writer";
+import { HubError } from "@/lib/errors";
+import {
+  NO_WRITER,
+  REWRITE_JOB,
+  rewriteForClient,
+  suggestWorkstreamClientText,
+  type RewriteOutput,
+} from "./writer";
 
 const S = "proj_hub_gestao";
 let h: TestHub;
@@ -327,5 +334,90 @@ describe("Redator do Cliente (RC-12): reescrita", () => {
       title_client: "Atendimento pelo WhatsApp",
       visibility: "client",
     });
+  });
+});
+
+describe("Redator do Cliente (RC-12): sugestão na janela da frente", () => {
+  it("sugere o título e a descrição, sem gravar nada, e confere a sugestão de novo", async () => {
+    const seen: string[] = [];
+    const before = Number(
+      (
+        await h.raw.query<{ n: number }>(
+          `select count(*)::int as n from ${S}.approvals`,
+        )
+      ).rows[0].n,
+    );
+    const result = await suggestWorkstreamClientText(
+      asOwner(),
+      {
+        project: "VIT",
+        title: "Fluxo de atendimento (HUB-3)",
+        description: "Ligar o n8n ao WhatsApp.",
+      },
+      {
+        modelFor: answering(
+          {
+            text: null,
+            title: "Atendimento automático no WhatsApp",
+            description:
+              "Seus pacientes marcam sozinhos, e o Kratos avisa a equipe.",
+            notes: "Tirei o código da tarefa e o nome da ferramenta.",
+          },
+          seen,
+        ),
+      },
+    );
+    expect(result).toMatchObject({
+      ok: true,
+      title: "Atendimento automático no WhatsApp",
+      notes: "Tirei o código da tarefa e o nome da ferramenta.",
+    });
+    // O nome do agente que sobrou na sugestão volta como alerta.
+    expect(result.ok && result.issues.map((i) => i.term)).toContain("Kratos");
+    expect(seen[0]).toContain("TIPO: frente");
+    expect(seen[0]).toContain("código de tarefa HUB-3");
+    // Nada foi gravado além da execução da IA, ligada ao projeto.
+    expect(
+      Number(
+        (
+          await h.raw.query<{ n: number }>(
+            `select count(*)::int as n from ${S}.approvals`,
+          )
+        ).rows[0].n,
+      ),
+    ).toBe(before);
+    expect(
+      (
+        await h.raw.query(
+          `select 1 from ${S}.agent_runs where agent_id = $1 and project_id = $2 and summary like '%· tela'`,
+          [writerId, h.vit],
+        )
+      ).rows.length,
+    ).toBe(1);
+  });
+
+  it("só quem decide a visibilidade pede; sem Redator ligado, a tela diz o que falta", async () => {
+    await expect(
+      suggestWorkstreamClientText(await asKratos(), {
+        project: "VIT",
+        title: "Fluxo",
+        description: null,
+      }),
+    ).rejects.toSatisfy((e) => e instanceof HubError && e.status === 403);
+    await h.raw.query(
+      `update ${S}.agents set status = 'paused' where id = $1`,
+      [writerId],
+    );
+    expect(
+      await suggestWorkstreamClientText(asOwner(), {
+        project: "VIT",
+        title: "Fluxo",
+        description: null,
+      }),
+    ).toEqual({ ok: false, message: NO_WRITER });
+    await h.raw.query(
+      `update ${S}.agents set status = 'active' where id = $1`,
+      [writerId],
+    );
   });
 });

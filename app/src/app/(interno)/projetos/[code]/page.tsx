@@ -43,6 +43,8 @@ import {
   clientChannel,
   type ChannelMessage,
 } from "@/modules/comments/client-channel";
+import { clientTextContext } from "@/modules/client-text/context";
+import { NO_WRITER, writerAgent } from "@/modules/client-text/writer";
 import { inTx } from "@/modules/context";
 import { projectChangeMarker } from "@/modules/live";
 import { pendingAcceptances } from "@/modules/milestones/admin";
@@ -116,21 +118,39 @@ async function ProjectView({
   };
   let files: ClientFile[];
   let marker: string;
+  let clientText: WorkstreamFormOptions["clientText"] = null;
   try {
-    ({ data, options, departments, pending, archived, channel, files, marker } =
-      await inTx(ctx, async (t) => {
-        const overview = await projectOverview(t, code);
-        return {
-          data: overview,
-          options: await taskFormOptions(t, overview.project.id),
-          departments: await departmentOptions(t),
-          pending: await pendingAcceptances(t, overview.project.id),
-          archived: await archivedInProject(t, overview.project.id),
-          channel: await clientChannel(t, code),
-          files: await clientFiles(t, code),
-          marker: await projectChangeMarker(t, code),
-        };
-      }));
+    ({
+      data,
+      options,
+      departments,
+      pending,
+      archived,
+      channel,
+      files,
+      marker,
+      clientText,
+    } = await inTx(ctx, async (t) => {
+      const overview = await projectOverview(t, code);
+      // Verificação do texto para o cliente e o Redator, para quem decide a visibilidade.
+      const canShow = can(user.actor, "workstream.visibility");
+      return {
+        data: overview,
+        options: await taskFormOptions(t, overview.project.id),
+        departments: await departmentOptions(t),
+        pending: await pendingAcceptances(t, overview.project.id),
+        archived: await archivedInProject(t, overview.project.id),
+        channel: await clientChannel(t, code),
+        files: await clientFiles(t, code),
+        marker: await projectChangeMarker(t, code),
+        clientText: canShow
+          ? {
+              context: await clientTextContext(t, overview.project.id),
+              writer: (await writerAgent(t)) ? null : NO_WRITER,
+            }
+          : null,
+      };
+    }));
   } catch (err) {
     // Projeto inexistente ou fora do alcance de quem vê: a mesma página de "não achei".
     if (err instanceof HubError && (err.status === 404 || err.status === 403)) {
@@ -157,6 +177,7 @@ async function ProjectView({
       milestone: w.milestone?.code ?? null,
     })),
     canShowClient: can(user.actor, "workstream.visibility"),
+    clientText,
   };
 
   return (
