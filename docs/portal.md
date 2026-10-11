@@ -33,6 +33,7 @@ Tela da equipe: **Clientes → abrir o cliente → Contatos e portal** (`/client
 5. **Sessão curta:** depois de 12 horas sem uso, a sessão termina; cada uso empurra o fim, até 7 dias desde a entrada. Para voltar, o contato pede um link novo. **Sair** encerra a sessão na hora.
 6. **Gerar novo link** (só o dono): o link anterior que ainda não foi usado deixa de valer.
 7. **Revogar acesso** (só o dono, com confirmação): encerra as sessões abertas e anula os links pendentes na hora. Liberar de novo devolve o acesso.
+8. **O contato pede um link novo** (RF-05), quando o e-mail do Hub está ligado (`docs/email.md`): nas páginas "Seu acesso não está ativo" e "Você saiu do portal", ele escreve o e-mail do convite e recebe um link de uso único, válido por 30 minutos. Só recebe quem o dono já liberou (convidado ou com acesso), de cliente com o portal ligado e não arquivado; sem acesso, revogado, com os dados excluídos ou e-mail que não existe, nada sai, e a tela responde sempre o mesmo (ninguém descobre quem tem acesso). Limites: 3 pedidos por contato por hora e 30 por workspace a cada 10 minutos. O link pedido anula os outros ainda não usados do contato. Quem é contato de dois clientes recebe um link de cada. O histórico registra `portal.link_requested`, como o próprio Hub, sem o link. Com o e-mail desligado, as páginas dizem para pedir o link a quem convidou.
 
 **Preparação do portal (OB-13).** A mesma tela tem a lista do que já está pronto para o cliente ver e do que falta, contada do próprio banco: contatos cadastrados, acesso liberado, aceite do uso dos dados e, em cada projeto ativo do cliente, o objetivo escrito para o cliente (com o atalho para Editar projeto), quantas entregas e frentes aparecem no portal e o aviso das entregas marcadas para o cliente que estão sem o título para ele (essas não aparecem).
 
@@ -67,7 +68,7 @@ Na mesma tela (Clientes → Contatos e portal), só o dono: "Exportar os dados d
 
 ## Arquivos entregues
 
-- **A equipe entrega** na Visão geral do projeto, na seção "Arquivos entregues ao cliente" (aparece quando o cliente tem o portal ligado ou já há arquivos). Entregar e tirar é do dono ou da administração (ação `attachment.write_client`; a equipe comum vê e abre); agente não entrega (o banco recusa). Mesmas regras dos anexos das tarefas: até 10 MB, só tipos comuns de trabalho (imagem, PDF, texto, CSV, planilha, documento, zip), conferidos pelos primeiros bytes; até 50 arquivos por projeto.
+- **A equipe entrega** na Visão geral do projeto, na seção "Arquivos entregues ao cliente" (aparece quando o cliente tem o portal ligado ou já há arquivos). Entregar e tirar é do dono ou da administração (ação `attachment.write_client`; a equipe comum vê e abre); agente não entrega (o banco recusa). Mesmas regras dos anexos das tarefas: até 25 MB, só tipos comuns de trabalho (imagem, PDF, texto, CSV, planilha, documento, zip), conferidos pelos primeiros bytes; até 50 arquivos por projeto.
 - **O cliente baixa** pela página do projeto, por um endereço do próprio portal (`/portal/<cliente>/<código>/arquivos/<id>`), que exige a sessão do cliente e lê com o ator de cliente: a RLS só entrega o conteúdo dos arquivos marcados para ele. Imagem e PDF abrem no navegador; o resto baixa; nada é interpretado como página (`nosniff`, `no-store`).
 - Tirar o arquivo tira do portal na hora; o histórico guarda quem entregou e quem tirou, com o nome do arquivo.
 
@@ -102,13 +103,9 @@ Roda no `npm test` e no CI, com a sessão de verdade de um contato:
 - **Pelas leituras do portal:** no cenário do teste, todo texto interno leva a marca INTERNO; a lista de projetos e a página do projeto não podem trazer a marca, nenhum código de tarefa (`HUB-n`) nem nome de agente.
 - **No navegador** (`app/e2e/portal.spec.ts`): a página do projeto de exemplo mostra as entregas e as frentes marcadas para o cliente e não mostra frentes internas, tarefas, agentes, o objetivo interno nem códigos de tarefa; com a revisão de acessibilidade (axe) de cada página do portal.
 
-## Ainda não (próximos passos)
-
-- O contato pedir um link novo sozinho, pelo e-mail: o envio de e-mail existe (`docs/email.md`), mas o pedido do contato ainda não.
-
 ## Onde está no código
 
-- Banco: `supabase/migrations/hub_gestao_0015_portal_access.sql` (acesso), `hub_gestao_0016_portal_milestone_revisions.sql` (contagem de revisões de data) e `hub_gestao_0017_portal_client_channel.sql` (o cliente escreve no canal) e `hub_gestao_0018_portal_milestone_receipt.sql` (confirmar recebimento); o logo do cliente em `hub_gestao_0022_client_logos.sql`.
+- Banco: `supabase/migrations/hub_gestao_0015_portal_access.sql` (acesso), `hub_gestao_0016_portal_milestone_revisions.sql` (contagem de revisões de data) e `hub_gestao_0017_portal_client_channel.sql` (o cliente escreve no canal) e `hub_gestao_0018_portal_milestone_receipt.sql` (confirmar recebimento); o link pedido pelo contato em `hub_gestao_0025_portal_link_request.sql`; o logo do cliente em `hub_gestao_0022_client_logos.sql`.
 - Núcleo: `app/src/modules/portal/access.ts` (contatos, liberar, gerar link, revogar) e `views.ts` (leituras do portal); sessão em `app/src/lib/portal/session.ts` e `token.ts`; o canal em `app/src/modules/comments/client-channel.ts` (leitura e resposta da equipe e o aviso); os arquivos em `app/src/modules/attachments/client-files.ts`.
 - Telas: `app/src/app/portal/` (entrar, aceite, projetos, a página de cada projeto em `[cliente]/[codigo]`, sair, sem acesso; as peças comuns em `_ui/`) e `app/src/app/(interno)/clientes/[slug]/portal/` (a tela da equipe).
 - Testes: `app/src/modules/portal/portal.test.ts` (o caminho completo do acesso no banco), `leak.test.ts` (o teste de vazamento), `form.test.ts` da tela da equipe e `app/e2e/portal.spec.ts` (o dono libera, o contato entra num navegador sem a sessão da equipe, aceita, vê os projetos e a página do projeto sem nada interno, sai; o link não vale de novo; o dono revoga; com a revisão de acessibilidade das páginas do portal).

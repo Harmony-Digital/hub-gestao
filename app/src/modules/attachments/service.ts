@@ -14,11 +14,11 @@ import { lockTask } from "@/modules/tasks/service";
 
 /**
  * Anexos da tarefa (painel lateral, M3). O conteúdo fica em `attachment_contents`, no
- * schema do Hub (migração 0011), até 10 MB por arquivo e 20 por tarefa. Só tipos comuns
+ * schema do Hub (migração 0011), até 25 MB por arquivo (0026) e 20 por tarefa. Só tipos comuns
  * de trabalho; nada que o navegador execute (HTML, SVG, scripts).
  */
 
-export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 const MAX_PER_TASK = 20;
 
 /** Tipo aceito → extensões. O tipo gravado vem desta lista, nunca do que o navegador diz. */
@@ -159,7 +159,7 @@ export function checkUpload(file: { name: string; bytes: Uint8Array }): {
   }
   if (file.bytes.length === 0) throw badRequest("O arquivo está vazio.");
   if (file.bytes.length > MAX_ATTACHMENT_BYTES) {
-    throw unprocessable("O arquivo passou de 10 MB.");
+    throw unprocessable("O arquivo passou de 25 MB.");
   }
   if (!signatureOk(kind.mime, file.bytes)) {
     throw unprocessable(

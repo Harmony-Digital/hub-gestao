@@ -39,8 +39,8 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   experimental: {
-    // Anexo de tarefa: até 10 MB por arquivo (mais a folga do envio multipart).
-    serverActions: { bodySizeLimit: "11mb" },
+    // Anexo de tarefa: até 25 MB por arquivo (mais a folga do envio multipart).
+    serverActions: { bodySizeLimit: "26mb" },
   },
   turbopack: {
     rules: {

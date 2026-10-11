@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   businessDaysBetween,
   computeHealth,
+  driftForecast,
   riskAction,
   risksFrom,
 } from "./rule";
@@ -150,5 +151,90 @@ describe("riscos com ação sugerida (RF-24)", () => {
       },
     ]);
     expect(risksFrom(null, "VIT")).toEqual([]);
+  });
+});
+
+describe("deriva prevista (PRD §5.7)", () => {
+  const forecast = (
+    done_recent: number,
+    upcoming: { code: string; slack_days: number; remaining: number }[],
+  ) => ({ done_recent, upcoming });
+
+  it("compara o tempo que falta, no ritmo das últimas 2 semanas, com a folga", () => {
+    // 7 concluídas em 14 dias: meia tarefa por dia; 10 abertas precisam de 20 dias.
+    expect(
+      driftForecast(
+        forecast(7, [
+          { code: "M2", slack_days: 15, remaining: 10 },
+          { code: "M3", slack_days: 40, remaining: 10 },
+        ]),
+      ),
+    ).toEqual([{ code: "M2", slack_days: 15, remaining: 10, needed_days: 20 }]);
+    // Cabe na folga, ou não tem tarefa aberta: nada.
+    expect(
+      driftForecast(
+        forecast(14, [
+          { code: "M2", slack_days: 10, remaining: 10 },
+          { code: "M3", slack_days: 0, remaining: 0 },
+        ]),
+      ),
+    ).toEqual([]);
+  });
+
+  it("sem nada concluído, só acusa o marco que vence dentro das 2 semanas", () => {
+    expect(
+      driftForecast(
+        forecast(0, [
+          { code: "M1", slack_days: 5, remaining: 3 },
+          { code: "M2", slack_days: 30, remaining: 8 },
+        ]),
+      ),
+    ).toEqual([{ code: "M1", slack_days: 5, remaining: 3, needed_days: null }]);
+  });
+
+  it("vira amarelo, com a frase, a ação e os outros marcos", () => {
+    const result = computeHealth(
+      {
+        ...base,
+        forecast: forecast(7, [
+          { code: "M2", slack_days: 15, remaining: 10 },
+          { code: "M3", slack_days: 20, remaining: 30 },
+        ]),
+      },
+      now,
+    );
+    expect(result.health).toBe("attention");
+    expect(result.signals).toEqual([
+      {
+        kind: "drift_forecast",
+        text: "No ritmo das últimas 2 semanas, o M2 precisa de cerca de 20 dias e vence em 15 dias. Outro marco também.",
+      },
+    ]);
+    expect(riskAction("drift_forecast", "VIT")).toEqual({
+      label: "Reveja o escopo ou a data do marco, ou reforce as frentes dele.",
+      href: "/projetos/VIT",
+    });
+    expect(
+      computeHealth(
+        {
+          ...base,
+          forecast: forecast(0, [{ code: "M1", slack_days: 0, remaining: 1 }]),
+        },
+        now,
+      ).reasons,
+    ).toEqual([
+      "O M1 vence hoje com 1 tarefa aberta, e nada foi concluído nas últimas 2 semanas.",
+    ]);
+    // Vermelho continua na frente.
+    expect(
+      computeHealth(
+        {
+          ...base,
+          late_milestones: 1,
+          forecast: forecast(0, [{ code: "M2", slack_days: 3, remaining: 2 }]),
+        },
+        now,
+      ).signals.map((s) => s.kind),
+    ).toEqual(["late_milestones", "drift_forecast"]);
   });
 });

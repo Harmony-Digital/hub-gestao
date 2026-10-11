@@ -18,7 +18,7 @@ Horário de silêncio para avisos proativos: 23h às 8h (o aviso espera as 8h). 
 ## Como explicar
 
 1. `hub_get_project` do projeto: a saúde, os motivos (`health_reason`) e os próximos marcos.
-2. Se o motivo cita tarefas (atrasadas, bloqueadas, dependência), `hub_list_tasks` com o filtro certo (`blocked: true`, `due_before`) para dar o exemplo concreto.
+2. Se o motivo cita tarefas (atrasadas, bloqueadas, dependência), `hub_list_tasks` com o filtro certo (`blocked: true`, `due_before`) para dar o exemplo concreto. Na deriva prevista ("No ritmo das últimas 2 semanas, o M2 precisa de cerca de…"), os números estão no recurso `hub://projects/{code}/health` (`inputs.tasks_done_last_14_days` e `inputs.drifting_milestones`: tarefas abertas, folga e dias necessários de cada marco).
 3. Uma frase de explicação e uma de ação, com os números do Hub:
    - "LOJ foi para Atenção: 3 tarefas do M2 estão atrasadas, a mais antiga há 4 dias úteis (HUB-41). Sugestão: o Coordenador redistribui a frente de integração hoje."
    - "SIT voltou a Saudável: os bloqueios da frente de pauta foram resolvidos."

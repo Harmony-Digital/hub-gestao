@@ -4,11 +4,13 @@
  * Vermelho (at_risk): marco atrasado, mais de 25% das tarefas abertas bloqueadas, ou
  * dependência quebrada (frente que começou antes de terminar a frente de que depende,
  * `workstreams/dependency-rule.ts`).
- * Amarelo (attention): de 10% a 25% bloqueadas, ou aprovação pendente há mais de 3 dias úteis.
+ * Amarelo (attention): marco com deriva prevista (no ritmo das últimas duas semanas, o
+ * trabalho que falta não cabe na folga até a data, `driftForecast`), de 10% a 25%
+ * bloqueadas, ou aprovação pendente há mais de 3 dias úteis.
  * Verde (healthy): nenhum dos sinais acima.
  *
  * Cada sinal tem um tipo (`HealthSignal`) e uma ação sugerida (`riskAction`), que o Hoje
- * mostra ao lado do risco (RF-24). Ainda não entra: deriva prevista pelo ritmo.
+ * mostra ao lado do risco (RF-24).
  */
 
 export type Health = "healthy" | "attention" | "at_risk";
@@ -20,12 +22,77 @@ export type HealthInputs = {
   /** Frentes que começaram antes de terminar a frente de que dependem. */
   broken_dependencies: number;
   oldest_pending_approval_at: Date | string | null;
+  /** Para a deriva prevista (opcional: sem ela, o sinal não entra). */
+  forecast?: ForecastInputs;
 };
+
+/** Janela do ritmo: as tarefas concluídas nos últimos 14 dias. */
+export const FORECAST_WINDOW_DAYS = 14;
+
+export type ForecastInputs = {
+  /** Tarefas de primeiro nível concluídas no projeto nos últimos 14 dias. */
+  done_recent: number;
+  /** Marcos ainda no prazo (não atrasados), com as tarefas abertas das frentes deles. */
+  upcoming: { code: string; slack_days: number; remaining: number }[];
+};
+
+export type MilestoneDrift = {
+  code: string;
+  remaining: number;
+  slack_days: number;
+  /** Dias de que o marco precisa no ritmo atual; null quando o ritmo é zero. */
+  needed_days: number | null;
+};
+
+/**
+ * Marcos com deriva prevista (PRD §5.7: ritmo atual × trabalho restante > folga). Ritmo
+ * é o que o projeto concluiu na janela; com ritmo zero, só conta o marco que vence dentro
+ * da janela (projeto que acabou de começar não acende o sinal à toa). Marco sem tarefa
+ * aberta não deriva.
+ */
+export function driftForecast(forecast: ForecastInputs): MilestoneDrift[] {
+  const perDay = forecast.done_recent / FORECAST_WINDOW_DAYS;
+  return forecast.upcoming.flatMap((m): MilestoneDrift[] => {
+    if (m.remaining <= 0) return [];
+    if (perDay === 0) {
+      return m.slack_days < FORECAST_WINDOW_DAYS
+        ? [{ ...m, needed_days: null }]
+        : [];
+    }
+    const needed = Math.ceil(m.remaining / perDay);
+    return needed > m.slack_days ? [{ ...m, needed_days: needed }] : [];
+  });
+}
+
+const days = (n: number) => (n === 1 ? "1 dia" : `${n} dias`);
+
+function driftText(drifts: MilestoneDrift[]): string {
+  const [first] = drifts;
+  const more =
+    drifts.length === 2
+      ? " Outro marco também."
+      : drifts.length > 2
+        ? ` Outros ${drifts.length - 1} marcos também.`
+        : "";
+  const until =
+    first.slack_days === 0
+      ? "vence hoje"
+      : `vence em ${days(first.slack_days)}`;
+  if (first.needed_days === null) {
+    const open =
+      first.remaining === 1
+        ? "1 tarefa aberta"
+        : `${first.remaining} tarefas abertas`;
+    return `O ${first.code} ${until} com ${open}, e nada foi concluído nas últimas 2 semanas.${more}`;
+  }
+  return `No ritmo das últimas 2 semanas, o ${first.code} precisa de cerca de ${days(first.needed_days)} e ${until}.${more}`;
+}
 
 /** Os sinais que a regra conhece; cada um tem uma ação sugerida no Hoje (RF-24). */
 export type HealthSignalKind =
   | "late_milestones"
   | "broken_dependencies"
+  | "drift_forecast"
   | "blocked_tasks"
   | "stale_approval";
 
@@ -76,6 +143,11 @@ export function computeHealth(input: HealthInputs, now: Date): HealthResult {
           ? "1 frente começou antes de terminar a frente de que depende."
           : `${input.broken_dependencies} frentes começaram antes de terminar as frentes de que dependem.`,
     });
+  }
+
+  const drifts = input.forecast ? driftForecast(input.forecast) : [];
+  if (drifts.length > 0) {
+    yellow.push({ kind: "drift_forecast", text: driftText(drifts) });
   }
 
   const ratio =
@@ -135,6 +207,12 @@ export function riskAction(
           "Veja qual frente começou antes da hora e combine a ordem com quem cuida dela.",
         href: `/projetos/${projectCode}`,
       };
+    case "drift_forecast":
+      return {
+        label:
+          "Reveja o escopo ou a data do marco, ou reforce as frentes dele.",
+        href: `/projetos/${projectCode}`,
+      };
     case "blocked_tasks":
       return {
         label:
@@ -157,6 +235,7 @@ export type Risk = {
 const SIGNAL_KINDS = new Set<HealthSignalKind>([
   "late_milestones",
   "broken_dependencies",
+  "drift_forecast",
   "blocked_tasks",
   "stale_approval",
 ]);

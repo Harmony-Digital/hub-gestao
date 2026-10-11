@@ -3,7 +3,8 @@
 O Hub manda e-mail pelo Resend (PRD RF-33; D9), sempre com o clique de alguém:
 
 - **convite do portal:** Clientes → o cliente → Contatos e portal → "Liberar acesso" ou "Gerar novo link" → **Enviar por e-mail**, só o dono. Vai a mensagem que ele revisou na tela, com o link de uso único;
-- **e-mail de teste:** Configurações → E-mail do Hub → **Enviar um e-mail de teste para mim**, só o dono e só para o próprio endereço.
+- **e-mail de teste:** Configurações → E-mail do Hub → **Enviar um e-mail de teste para mim**, só o dono e só para o próprio endereço;
+- **link pedido pelo contato** (RF-05): o contato que o dono já liberou pede um link novo na entrada do portal ("Receber um link novo") e recebe, no e-mail cadastrado, um link de uso único válido por 30 minutos. O clique é do próprio contato, e o e-mail só vai para ele (`docs/portal.md`, Acesso).
 
 Até o servidor ter `RESEND_API_KEY` e `HUB_EMAIL_FROM`, o envio fica desligado: os botões aparecem desligados e dizem por quê, e o dono continua copiando o convite e mandando por onde preferir. O Hub nunca registra endereço, assunto nem corpo dos e-mails. O histórico guarda que o convite saiu, com o id do Resend, nunca o link.
 
