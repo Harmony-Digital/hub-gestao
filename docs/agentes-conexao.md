@@ -68,6 +68,7 @@ O servidor mostra só as ferramentas que a chave pode usar. A primeira chamada �
 | `hub_request_approval`, `hub_list_approvals` | Pedir decisão e acompanhar |
 | `hub_draft_status_report` | Rascunho de status, que vira pedido de aprovação |
 | `hub_log_time`, `hub_search`, `hub_sync_plan` | Tempo, busca e exportação do `plan.md` |
+| `hub_get_access_audit` | Auditoria de acesso e segurança (AC-14): os pontos para o dono olhar, com o que fazer; precisa de `agents:read` e acesso a todos os projetos (também em `GET /api/v1/audit/access`) |
 | `hub_get_project_time` | Tempo do projeto: por pessoa ou agente e por frente, estimado contra registrado e as tarefas acima da estimativa (o TO-15 lê daqui; também em `GET /api/v1/projects/{code}/time`) |
 | `hub_list_custom_fields` | Campos personalizados das tarefas do projeto: nome, tipo (texto, número, seleção, data ou URL) e as opções da seleção (também em `GET /api/v1/projects/{code}/custom-fields`). O valor de cada tarefa vem em `custom_fields` no `hub_get_task` |
 

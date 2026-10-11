@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ActivityExport } from "@/modules/activity/export";
 import { MeDto } from "@/modules/agents/service";
+import { AccessAuditDto } from "@/modules/audit/access";
 import {
   ApprovalDto,
   ApprovalList,
@@ -90,6 +91,7 @@ const ID: Param = {
 /** Esquemas de resposta e de corpo, com o nome que aparece em components.schemas. */
 const RESPONSES = {
   Me: MeDto,
+  AccessAudit: AccessAuditDto,
   ProjectList,
   ProjectDetail,
   Plan: PlanDto,
@@ -152,6 +154,16 @@ export const API_SPECS: Spec[] = [
     description:
       "Identidade da chave, workspace, projetos permitidos, escopos e orçamento. Primeira chamada de toda sessão.",
     response: "Me",
+  },
+  {
+    method: "get",
+    path: "/audit/access",
+    tag: "Identidade",
+    summary: "Auditoria de acesso e segurança",
+    description:
+      "AC-14: chaves de agente (idade, uso, escopo, vencimento), pessoas e contatos sem atividade, aprovações paradas, recusas, gasto de IA, chaves de IA antigas e webhooks falhando, com o que o dono pode fazer. Só lê; quem revoga e troca é o dono. Precisa de chave com acesso a todos os projetos.",
+    scope: "agents:read",
+    response: "AccessAudit",
   },
   {
     method: "get",

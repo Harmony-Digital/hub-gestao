@@ -37,6 +37,7 @@ export type Action =
   | "report.draft"
   | "report.publish"
   | "agent.read"
+  | "audit.read"
   | "agent.manage"
   | "agent.keys"
   | "sync.plan"
@@ -68,6 +69,7 @@ const AGENT_SCOPE: Partial<Record<Action, string>> = {
   "comment.read": "projects:read",
   "comment.write": "comments:write",
   "time.write": "time:write",
+  "audit.read": "agents:read",
   "approval.read": "projects:read",
   "approval.request": "approvals:request",
   "report.read": "projects:read",

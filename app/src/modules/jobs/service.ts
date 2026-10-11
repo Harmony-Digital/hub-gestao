@@ -18,6 +18,7 @@ import { REWRITE_JOB, rewriteForClient } from "@/modules/client-text/writer";
 import { notifyOwners, notifyProfile } from "@/modules/notifications";
 import { noteJobFailed, watchDenials } from "@/modules/ops/alerts";
 import { applyRetention } from "@/modules/privacy/service";
+import { weeklyAuditNotice } from "@/modules/audit/access";
 import { reopenTask } from "@/modules/tasks/service";
 
 /**
@@ -35,6 +36,7 @@ export type JobType =
   | "idempotency-cleanup"
   | "ops-watch"
   | "retention"
+  | "access-audit"
   | typeof REWRITE_JOB;
 
 /** Jobs periódicos e o intervalo mínimo entre duas execuções. */
@@ -47,6 +49,7 @@ export const PERIODIC_JOBS: { type: JobType; everyMinutes: number }[] = [
   { type: "idempotency-cleanup", everyMinutes: 60 },
   { type: "ops-watch", everyMinutes: 15 },
   { type: "retention", everyMinutes: 24 * 60 },
+  { type: "access-audit", everyMinutes: 7 * 24 * 60 },
 ];
 
 export type JobDeps = {
@@ -131,6 +134,9 @@ async function runJob(
     case "retention":
       // LGPD: apaga os registros operacionais antigos (prazos em docs/privacidade.md).
       return inTx(ctx, (t) => applyRetention(t));
+    case "access-audit":
+      // AC-14: a auditoria da semana vira um aviso na caixa de entrada do dono.
+      return inTx(ctx, (t) => weeklyAuditNotice(t, now));
     case REWRITE_JOB:
       // RC-12: a IA fica fora de transação; sem Redator ligado, o pedido segue como está.
       return rewriteForClient(

@@ -38,7 +38,7 @@ export function groupOf(type: string): NotificationGroup | null {
   }
   if (type.startsWith("agent.")) return "agents";
   if (type.startsWith("client.")) return "client";
-  if (type.startsWith("system.")) return "system";
+  if (type.startsWith("system.") || type.startsWith("audit.")) return "system";
   return null;
 }
 
@@ -202,6 +202,15 @@ export function describeNotification(
         text: `O job "${str(payload.label) ?? "do relógio"}" falhou depois de ${String(payload.attempts ?? "várias")} tentativas`,
         detail: str(payload.detail),
         href: "/agentes",
+      };
+    case "audit.weekly":
+      return {
+        text:
+          Number(payload.findings ?? 0) === 0
+            ? "Auditoria semanal: nada para olhar nas chaves, acessos e custos"
+            : `Auditoria semanal: ${String(payload.findings)} ${Number(payload.findings) === 1 ? "ponto" : "pontos"} para olhar${Number(payload.high ?? 0) > 0 ? ` (${String(payload.high)} importantes)` : ""}`,
+        detail: str(payload.summary),
+        href: "/agentes/auditoria",
       };
     case "system.deploy_failed":
       return {

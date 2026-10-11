@@ -163,6 +163,20 @@ Ensaio em 2026-10-11, num Postgres 16 descartável no computador, com as 20 migr
 - **Revogar uma chave:** Sala de Controle → a chave → Revogar. Dali em diante, 401. Não tem volta: para continuar, gere outra chave.
 - **Agente interno com IA** (Concierge, Planejador, Redator): pausar o agente ou revogar a chave de IA dele (Chaves de IA). As telas passam a dizer que a IA está desligada, e o resto do Hub segue (falha fechada).
 
+## Auditoria semanal e rotação de chaves
+
+Toda segunda, o Hub confere as chaves, os acessos e os custos e deixa o aviso "Auditoria semanal" na caixa de entrada do dono. A tela é `/agentes/auditoria` (atalho na Sala de Controle). Cada ponto vem com o que fazer, e quem faz é o dono: o Hub não revoga nem troca nada sozinho, só recusa as chaves vencidas.
+
+Política de rotação:
+
+- **Chave de agente:** trocar a cada 90 dias. Revogar a que está parada há 30 dias ou a que nunca foi usada depois de 14. Gerar a próxima antes de vencer. Na troca de pessoa responsável pelo agente, trocar na hora.
+- **Chave de IA do provedor:** trocar a cada 180 dias, e na hora em que alguém que teve acesso a ela sair.
+- **Segredos do servidor** (`CRON_SECRET`, `HUB_ALERT_SECRET`, `GITHUB_WEBHOOK_SECRET` e os segredos de webhook): trocar quando alguém com acesso à VPS ou ao GitHub sair, ou em suspeita de vazamento.
+- **Acesso de pessoa da equipe:** suspender quando ela sair. A auditoria aponta quem não grava nada há 60 dias.
+- **Contato do portal:** revogar quando deixar de acompanhar o projeto. A auditoria aponta o acesso parado há 90 dias.
+
+Como trocar cada um: seção seguinte.
+
 ## Trocar um segredo
 
 Em suspeita de vazamento, trocar primeiro e investigar depois. Registrar a troca no `PLAN.md`, sem o valor. Depois de mudar o `.env.production`, recriar o contêiner para ele ler de novo (com a ordem do Fábio; a próxima publicação também recria):

@@ -11,6 +11,7 @@ import {
   withIdempotency,
 } from "@/lib/idempotency";
 import { MeDto, whoami, withActingRole } from "@/modules/agents/service";
+import { accessAudit, AccessAuditDto } from "@/modules/audit/access";
 import {
   ApprovalFilter,
   ApprovalList,
@@ -238,6 +239,21 @@ export function buildMcpServer(
     },
     async () => read((t) => today(t)),
   );
+
+  if (has("agents:read")) {
+    server.registerTool(
+      "hub_get_access_audit",
+      {
+        title: "Auditoria de acesso e segurança",
+        description:
+          "AC-14: os pontos para o dono olhar (chaves de agente antigas, paradas, amplas ou vencendo; pessoas e contatos sem atividade; aprovações paradas; recusas; gasto de IA; chaves de IA antigas; webhooks falhando), cada um com o que fazer. Só lê: quem revoga e troca é o dono. Precisa de chave com acesso a todos os projetos.",
+        inputSchema: z.strictObject({}),
+        outputSchema: AccessAuditDto,
+        annotations: readOnly,
+      },
+      async () => read((t) => accessAudit(t)),
+    );
+  }
 
   if (has("projects:read")) {
     server.registerTool(

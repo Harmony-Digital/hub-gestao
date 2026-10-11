@@ -88,6 +88,46 @@
         }
       }
     },
+    "/audit/access": {
+      "get": {
+        "tags": [
+          "Identidade"
+        ],
+        "summary": "Auditoria de acesso e segurança",
+        "description": "AC-14: chaves de agente (idade, uso, escopo, vencimento), pessoas e contatos sem atividade, aprovações paradas, recusas, gasto de IA, chaves de IA antigas e webhooks falhando, com o que o dono pode fazer. Só lê; quem revoga e troca é o dono. Precisa de chave com acesso a todos os projetos. Escopo da chave: `agents:read`.",
+        "operationId": "getAuditAccess",
+        "responses": {
+          "200": {
+            "description": "Sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessAudit"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "423": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/projects": {
       "get": {
         "tags": [
@@ -3540,6 +3580,122 @@
           "all_projects",
           "departments",
           "budget"
+        ],
+        "additionalProperties": false
+      },
+      "AccessAudit": {
+        "$id": "#/components/schemas/AccessAudit",
+        "type": "object",
+        "properties": {
+          "generated_at": {
+            "type": "string"
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "active_keys": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "team_members": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "portal_contacts_with_access": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "pending_approvals": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "denials_last_7_days": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "ai_spent_usd_month": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "active_keys",
+              "team_members",
+              "portal_contacts_with_access",
+              "pending_approvals",
+              "denials_last_7_days",
+              "ai_spent_usd_month"
+            ],
+            "additionalProperties": false
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "key_old",
+                    "key_idle",
+                    "key_unused",
+                    "key_broad",
+                    "key_expiring",
+                    "key_paused_agent",
+                    "member_idle",
+                    "contact_idle",
+                    "approval_old",
+                    "denials",
+                    "ai_budget",
+                    "ai_credential_old",
+                    "webhook_failing"
+                  ]
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "high",
+                    "medium",
+                    "low"
+                  ]
+                },
+                "subject": {
+                  "type": "string"
+                },
+                "detail": {
+                  "type": "string"
+                },
+                "action": {
+                  "type": "string",
+                  "description": "O que o dono pode fazer, em PT-BR."
+                },
+                "href": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "kind",
+                "severity",
+                "subject",
+                "detail",
+                "action",
+                "href"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "generated_at",
+          "counts",
+          "findings"
         ],
         "additionalProperties": false
       },
