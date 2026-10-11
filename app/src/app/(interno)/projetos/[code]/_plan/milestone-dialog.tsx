@@ -160,7 +160,15 @@ function MilestoneForm({
           </Field>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field id={`${id}-status`} label="Status">
+            <Field
+              id={`${id}-status`}
+              label="Status"
+              hint={
+                gate
+                  ? "Com GATE: em Entregue, aparece o Pedir aceite na Visão geral."
+                  : "Sem GATE: Entregue já fecha o marco."
+              }
+            >
               <select
                 id={`${id}-status`}
                 name="status"
