@@ -98,7 +98,7 @@ Teste mensal de restauração: `hub-restore-test.sh` restaura o dump mais recent
 
 ## Passos do Fábio em um clique
 
-Rodam no Mac do Fábio, na pasta do repositório (botão Rodar), com o acesso dele à VPS (`ssh vps-harmony`) e ao GitHub (conta `fabioalmeidadigital`). Cada um diz o que faz no começo do arquivo e para no primeiro erro.
+Rodam no Mac do Fábio, na pasta do repositório (botão Rodar), com o acesso dele à VPS (`ssh vps-harmony`) e ao GitHub (conta `fabioalmeidadigital`). Cada um diz o que faz no começo do arquivo e para no primeiro erro. Os que recriam o contêiner esperam a publicação em andamento terminar (a mesma trava do `hub-deploy.sh`), para nunca voltar o contêiner para a versão anterior.
 
 | Script | O que faz |
 |---|---|

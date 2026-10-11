@@ -32,6 +32,10 @@ config=/opt/hub-gestao/config/docker-compose.yml
 envfile=/opt/hub-gestao/shared/.env.production
 casa="$(getent passwd "${SUDO_USER:?rodar com sudo}" | cut -d: -f6)"
 novo="$casa/hub-gestao-staging/docker-compose.yml"
+# A mesma trava da publicação (hub-deploy.sh): nunca recriar no meio de uma publicação,
+# o que poderia voltar o contêiner para a versão anterior.
+exec 9>/run/lock/hub-gestao-deploy.lock
+flock -w 900 9 || { echo "Há uma publicação em andamento há mais de 15 minutos; rode de novo depois." >&2; exit 1; }
 sha="$(cat /opt/hub-gestao/shared/current-sha)"
 [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Versão atual ilegível." >&2; exit 1; }
 export HUB_IMAGE_TAG="$sha"
