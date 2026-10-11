@@ -34,6 +34,7 @@ export type ProjectFormInitial = {
   planPath: string;
   requireEvidence: boolean;
   clientCanConfirmReceipt: boolean;
+  emailClientReports: boolean;
   departments: string[];
   updatedAt: string;
 };
@@ -380,6 +381,17 @@ export function ProjectForm({
           />
           O cliente pode confirmar o recebimento das entregas no portal (o
           aceite do marco continua com você).
+        </label>
+        <label className="flex items-start gap-2 text-sm text-ink">
+          <input
+            type="checkbox"
+            name="email_client_reports"
+            defaultChecked={initial.emailClientReports}
+            disabled={pending}
+            className="mt-0.5 size-4 accent-[var(--color-brand)]"
+          />
+          O relatório aprovado para o cliente vai também por e-mail aos contatos
+          com acesso ao portal (quando o e-mail do Hub estiver ligado).
         </label>
         <div className="grid gap-4 sm:grid-cols-[1fr_16rem]">
           <Field id={id("repo")} label="Repositório (opcional)">

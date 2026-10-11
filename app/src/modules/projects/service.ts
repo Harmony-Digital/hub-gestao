@@ -26,7 +26,7 @@ const PROJECT_SELECT = `
          p.status, p.phase, p.health, p.progress_pct, p.task_count, p.open_task_count,
          p.blocked_task_count, p.start_date, p.target_date, p.repo_url, p.plan_path, p.updated_at,
          p.objective_internal, p.objective_client, p.health_reason, p.require_evidence,
-         p.client_can_confirm_receipt, p.owner_profile_id,
+         p.client_can_confirm_receipt, p.email_client_reports, p.owner_profile_id,
          (select pr.full_name from ${S}.profiles pr where pr.id = p.owner_profile_id) as owner_name,
          p.pm_agent_id,
          (select ag.name from ${S}.agents ag where ag.id = p.pm_agent_id) as pm_agent_name
@@ -57,6 +57,7 @@ type ProjectRow = {
   health_reason: Record<string, unknown>;
   require_evidence: boolean;
   client_can_confirm_receipt: boolean;
+  email_client_reports: boolean;
   owner_profile_id: string | null;
   owner_name: string | null;
   pm_agent_id: string | null;
@@ -126,6 +127,7 @@ export async function getProject(
     health_reason: r.health_reason ?? {},
     require_evidence: r.require_evidence,
     client_can_confirm_receipt: r.client_can_confirm_receipt,
+    email_client_reports: r.email_client_reports,
     owner: r.owner_profile_id
       ? actorRef("user", r.owner_profile_id, r.owner_name)
       : null,

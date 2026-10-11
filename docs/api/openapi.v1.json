@@ -4140,6 +4140,10 @@
           "client_can_confirm_receipt": {
             "type": "boolean"
           },
+          "email_client_reports": {
+            "type": "boolean",
+            "description": "O relatório aprovado para o cliente vai também por e-mail aos contatos."
+          },
           "owner": {
             "anyOf": [
               {
@@ -4276,6 +4280,7 @@
           "health_reason",
           "require_evidence",
           "client_can_confirm_receipt",
+          "email_client_reports",
           "owner",
           "pm_agent",
           "departments",

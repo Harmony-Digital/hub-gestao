@@ -15,6 +15,8 @@ import { businessDaysBetween } from "@/modules/health/rule";
 import { refreshAgentSpend, type LlmDeps } from "@/lib/llm";
 import { attempt } from "@/modules/attempt";
 import { REWRITE_JOB, rewriteForClient } from "@/modules/client-text/writer";
+import { REPORT_EMAIL_JOB, sendReportEmails } from "@/modules/reports/email";
+import type { EmailConfig } from "@/lib/email";
 import { notifyOwners, notifyProfile } from "@/modules/notifications";
 import {
   noteJobFailed,
@@ -41,7 +43,8 @@ export type JobType =
   | "ops-watch"
   | "retention"
   | "access-audit"
-  | typeof REWRITE_JOB;
+  | typeof REWRITE_JOB
+  | typeof REPORT_EMAIL_JOB;
 
 /** Jobs periódicos e o intervalo mínimo entre duas execuções. */
 export const PERIODIC_JOBS: { type: JobType; everyMinutes: number }[] = [
@@ -62,6 +65,8 @@ export type JobDeps = {
   encryptionKey?: Buffer | null;
   /** IA dos jobs que escrevem (nos testes, o modelo simulado). */
   llm?: LlmDeps;
+  /** E-mail dos jobs que mandam e-mail (nos testes, a configuração e o envio simulados). */
+  email?: { config?: EmailConfig | null; fetch?: typeof fetch };
 };
 
 export type JobOutcome = {
@@ -151,6 +156,13 @@ async function runJob(
         ctx,
         String(job.payload.approval_id ?? ""),
         deps.llm,
+      );
+    case REPORT_EMAIL_JOB:
+      // RF-34: o relatório aprovado vai por e-mail aos contatos (fora de transação).
+      return sendReportEmails(
+        ctx,
+        String(job.payload.report_id ?? ""),
+        deps.email,
       );
     default:
       throw new Error(`Tipo de job desconhecido: ${job.type}`);

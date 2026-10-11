@@ -84,6 +84,7 @@ export type ProjectFormValue = {
     plan_path: string | null;
     require_evidence: boolean;
     client_can_confirm_receipt: boolean;
+    email_client_reports: boolean;
     departments: string[];
   };
 };
@@ -198,6 +199,7 @@ export function parseProjectForm(form: FormData): Parsed<ProjectFormValue> {
         require_evidence: text(form, "require_evidence") === "on",
         client_can_confirm_receipt:
           text(form, "client_can_confirm_receipt") === "on",
+        email_client_reports: text(form, "email_client_reports") === "on",
         departments,
       },
     },

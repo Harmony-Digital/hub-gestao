@@ -75,6 +75,7 @@ async function NewProject() {
         planPath: "",
         requireEvidence: true,
         clientCanConfirmReceipt: false,
+        emailClientReports: false,
         departments: [],
         updatedAt: "",
       }}

@@ -125,6 +125,11 @@ export const ProjectDetail = ProjectSummary.extend({
   health_reason: z.record(z.string(), z.unknown()),
   require_evidence: z.boolean(),
   client_can_confirm_receipt: z.boolean(),
+  email_client_reports: z
+    .boolean()
+    .describe(
+      "O relatório aprovado para o cliente vai também por e-mail aos contatos.",
+    ),
   owner: ActorRef.nullable(),
   pm_agent: ActorRef.nullable(),
   departments: z.array(z.object({ slug: z.string(), name: z.string() })),

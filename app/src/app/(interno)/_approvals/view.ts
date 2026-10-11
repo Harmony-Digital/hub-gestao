@@ -405,7 +405,11 @@ export function approvalResult(effect: Record<string, unknown>): string {
   if (effect.workstream_visibility === "client") {
     return "A frente agora aparece para o cliente.";
   }
-  if (effect.report_published === true) return "O relatório foi publicado.";
+  if (effect.report_published === true) {
+    return effect.report_email_queued === true
+      ? "O relatório foi publicado e vai também por e-mail aos contatos."
+      : "O relatório foi publicado.";
+  }
   if (typeof effect.milestone === "string") {
     return `O marco ${effect.milestone} foi criado.`;
   }
