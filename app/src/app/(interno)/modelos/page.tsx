@@ -127,6 +127,36 @@ function TemplateCard({
           ? ` · ${plural(tpl.counts.subtasks, "subtarefa", "subtarefas")}`
           : ""}
       </p>
+      {tpl.statuses ? (
+        <p className="text-sm text-ink-2">
+          Status das tarefas: {tpl.statuses.map((st) => st.name).join(", ")}.
+        </p>
+      ) : null}
+      {tpl.client ? (
+        <p className="text-sm text-ink-2">
+          Textos para o cliente:{" "}
+          {[
+            tpl.client.objective ? "o objetivo" : null,
+            Object.keys(tpl.client.milestones).length
+              ? plural(
+                  Object.keys(tpl.client.milestones).length,
+                  "marco",
+                  "marcos",
+                )
+              : null,
+            Object.keys(tpl.client.workstreams).length
+              ? plural(
+                  Object.keys(tpl.client.workstreams).length,
+                  "frente",
+                  "frentes",
+                )
+              : null,
+          ]
+            .filter(Boolean)
+            .join(", ")}
+          .
+        </p>
+      ) : null}
       {tpl.departments.length > 0 ? (
         <ul className="flex flex-wrap gap-1.5" aria-label="Departamentos">
           {tpl.departments.map((d) => (

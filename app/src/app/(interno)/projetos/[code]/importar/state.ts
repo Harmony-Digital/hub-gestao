@@ -15,6 +15,8 @@ export type ImportState =
         summary: SyncSummary;
         milestones: { code: string; title: string; status: string }[];
         conflicts: SyncConflict[];
+        /** Textos para o cliente do modelo que entraram (RF-36). */
+        clientTexts: number;
       };
     };
 

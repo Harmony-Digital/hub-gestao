@@ -22,11 +22,14 @@ export function ImportPlanForm({
   projectCode,
   planPath,
   initialText = "",
+  templateId = null,
 }: {
   projectCode: string;
   planPath: string;
   /** Texto inicial do campo (a proposta do Planejador, por exemplo). */
   initialText?: string;
+  /** Modelo de onde veio o texto: os textos para o cliente dele entram junto (RF-36). */
+  templateId?: string | null;
 }) {
   const id = useId();
   const [text, setText] = useState(initialText);
@@ -47,6 +50,9 @@ export function ImportPlanForm({
         className="flex flex-col gap-4 rounded-2xl border border-line bg-card p-4 sm:p-5"
       >
         <input type="hidden" name="project" value={projectCode} />
+        {templateId ? (
+          <input type="hidden" name="modelo" value={templateId} />
+        ) : null}
         <div className="flex flex-col gap-1.5">
           <label
             htmlFor={`${id}-texto`}
@@ -192,6 +198,15 @@ function Outcome({ result, planPath }: { result: Result; planPath: string }) {
             ))}
           </ul>
         </div>
+      ) : null}
+      {!result.dryRun && result.clientTexts > 0 ? (
+        <p className="text-sm text-ink">
+          {result.clientTexts === 1
+            ? "1 texto para o cliente veio do modelo"
+            : `${result.clientTexts} textos para o cliente vieram do modelo`}{" "}
+          (marcos e frentes que ainda não tinham). Mostrar uma frente ao cliente
+          continua sendo pedido de aprovação.
+        </p>
       ) : null}
       {!result.dryRun ? (
         <PlanFile markdown={result.markdown} planPath={planPath} />
