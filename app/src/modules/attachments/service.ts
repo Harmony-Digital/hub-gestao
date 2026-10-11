@@ -143,12 +143,14 @@ export async function attachmentsOf(
   return rows.map(toDto);
 }
 
-export async function addAttachment(
-  t: TxCtx,
-  code: string,
-  file: { name: string; bytes: Uint8Array },
-): Promise<AttachmentDto> {
-  const task = await lockTask(t, code, "task.write");
+/**
+ * Confere o arquivo enviado: tipo aceito pela extensão, tamanho e os primeiros bytes. O
+ * nome e o tipo gravados saem daqui, nunca do que o navegador diz.
+ */
+export function checkUpload(file: { name: string; bytes: Uint8Array }): {
+  filename: string;
+  mime: string;
+} {
   const kind = fileKind(file.name);
   if (!kind) {
     throw unprocessable(
@@ -164,6 +166,34 @@ export async function addAttachment(
       `O conteúdo de ${kind.filename} não corresponde ao tipo do arquivo.`,
     );
   }
+  return kind;
+}
+
+/** Grava o conteúdo do anexo, com o hash, na tabela da migração 0011. */
+export async function storeContent(
+  t: TxCtx,
+  attachmentId: string,
+  bytes: Uint8Array,
+): Promise<void> {
+  await t.tx.query(
+    `insert into ${S}.attachment_contents (attachment_id, workspace_id, sha256, content)
+     values ($1, $2, $3, $4)`,
+    [
+      attachmentId,
+      t.actor.workspaceId,
+      createHash("sha256").update(bytes).digest("hex"),
+      Buffer.from(bytes),
+    ],
+  );
+}
+
+export async function addAttachment(
+  t: TxCtx,
+  code: string,
+  file: { name: string; bytes: Uint8Array },
+): Promise<AttachmentDto> {
+  const task = await lockTask(t, code, "task.write");
+  const kind = checkUpload(file);
   const count = await maybeOne<{ n: number }>(
     t,
     `select count(*)::int as n from ${S}.attachments where entity_type = 'task' and entity_id = $1`,
@@ -192,16 +222,7 @@ export async function addAttachment(
       t.actor.id,
     ],
   );
-  await t.tx.query(
-    `insert into ${S}.attachment_contents (attachment_id, workspace_id, sha256, content)
-     values ($1, $2, $3, $4)`,
-    [
-      row!.id,
-      t.actor.workspaceId,
-      createHash("sha256").update(file.bytes).digest("hex"),
-      Buffer.from(file.bytes),
-    ],
-  );
+  await storeContent(t, row!.id, file.bytes);
   await audit(t, {
     action: "attachment.added",
     entityType: "task",
@@ -223,26 +244,37 @@ type Located = {
   task_id: string;
 };
 
-async function locate(t: TxCtx, id: string): Promise<Located> {
+async function locate(
+  t: TxCtx,
+  id: string,
+  anyEntity = false,
+): Promise<Located & { entity_type: string }> {
   if (!Uuid.safeParse(id).success) throw badRequest("Anexo inválido.");
-  const row = await maybeOne<Located>(
+  const row = await maybeOne<Located & { entity_type: string }>(
     t,
-    `select a.id, a.filename, a.mime, a.project_id, a.entity_id as task_id
+    `select a.id, a.filename, a.mime, a.project_id, a.entity_id as task_id, a.entity_type
        from ${S}.attachments a
-      where a.id = $1 and a.entity_type = 'task'`,
-    [id],
+      where a.id = $1 and ($2 or a.entity_type = 'task')`,
+    [id, anyEntity],
   );
   if (!row) throw notFound("Anexo não encontrado.");
   return row;
 }
 
-/** Conteúdo para download, com a leitura de tarefas conferida no projeto. */
+/**
+ * Conteúdo para download pela equipe: anexo de tarefa (leitura de tarefas no projeto) ou
+ * arquivo do projeto, como os entregues ao cliente (leitura do projeto).
+ */
 export async function readAttachment(
   t: TxCtx,
   id: string,
 ): Promise<{ filename: string; mime: string; content: Buffer }> {
-  const a = await locate(t, id);
-  await authorizeProjectId(t, a.project_id, "task.read");
+  const a = await locate(t, id, true);
+  await authorizeProjectId(
+    t,
+    a.project_id,
+    a.entity_type === "task" ? "task.read" : "project.read",
+  );
   const row = await maybeOne<{ content: Uint8Array }>(
     t,
     `select content from ${S}.attachment_contents where attachment_id = $1`,

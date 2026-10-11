@@ -34,6 +34,11 @@ import {
   type ArchivedInProject,
 } from "@/modules/archive/service";
 import {
+  clientFiles,
+  type ClientFile,
+} from "@/modules/attachments/client-files";
+import { ACCEPTED_EXTENSIONS } from "@/modules/attachments/service";
+import {
   clientChannel,
   type ChannelMessage,
 } from "@/modules/comments/client-channel";
@@ -65,6 +70,7 @@ import { LiveRefresh } from "../../_live/live-refresh";
 import { RestoreButton } from "../../_archive/archive-controls";
 import { ArchivedSection, archivedWhen } from "../../_archive/archived-section";
 import { ReplyBox } from "./_channel/reply-box";
+import { ClientFilesEditor } from "./_files/files-editor";
 import { NewTaskButton } from "./_tasks/new-task";
 import { openTaskParam, PROJECT_CODE } from "./_tasks/params";
 import { ProjectHeader } from "./_tasks/project-header";
@@ -102,9 +108,10 @@ async function ProjectView({
   let pending: string[];
   let archived: ArchivedInProject;
   let channel: { portalEnabled: boolean; messages: ChannelMessage[] };
+  let files: ClientFile[];
   let marker: string;
   try {
-    ({ data, options, departments, pending, archived, channel, marker } =
+    ({ data, options, departments, pending, archived, channel, files, marker } =
       await inTx(ctx, async (t) => {
         const overview = await projectOverview(t, code);
         return {
@@ -114,6 +121,7 @@ async function ProjectView({
           pending: await pendingAcceptances(t, overview.project.id),
           archived: await archivedInProject(t, overview.project.id),
           channel: await clientChannel(t, code),
+          files: await clientFiles(t, code),
           marker: await projectChangeMarker(t, code),
         };
       }));
@@ -253,6 +261,37 @@ async function ProjectView({
           >
             <Operational data={data} hrefFor={hrefFor} />
           </Layer>
+
+          {channel.portalEnabled || files.length > 0 ? (
+            <section
+              id="arquivos-do-cliente"
+              aria-labelledby="arquivos-do-cliente-titulo"
+              className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-4 sm:p-5"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2
+                  id="arquivos-do-cliente-titulo"
+                  className="font-heading text-lg font-semibold text-navy"
+                >
+                  Arquivos entregues ao cliente
+                </h2>
+                <span className="inline-flex items-center gap-1 text-xs text-caption">
+                  <Eye aria-hidden="true" className="size-3.5" />O cliente vê e
+                  baixa no portal
+                </span>
+              </div>
+              <ClientFilesEditor
+                projectCode={code}
+                files={files}
+                accept={ACCEPTED_EXTENSIONS}
+                canSend={
+                  !archivedProject &&
+                  data.project.status !== "in_review" &&
+                  can(user.actor, "attachment.write_client")
+                }
+              />
+            </section>
+          ) : null}
 
           {channel.portalEnabled || channel.messages.length > 0 ? (
             <section

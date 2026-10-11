@@ -119,7 +119,7 @@ hub-gestao/
 └── .github/workflows/                 # ci.yml ("Qualidade") e deploy-vps.yml ("Publicação na VPS")
 ```
 
-As skills de gestão do Kratos ficam em `agents/hermes/` (cópia de referência; a instalação no Kratos é do Fábio) e a do importador em `agents/skills/`. O portal do cliente tem, por enquanto, o acesso por convite, a lista de projetos, a página de cada projeto e a conversa com a equipe (M6, `docs/portal.md`). Os testes de unidade e integração ficam ao lado do código (`*.test.ts`), não numa pasta `tests/`; os de ponta a ponta ficam em `app/e2e/`.
+As skills de gestão do Kratos ficam em `agents/hermes/` (cópia de referência; a instalação no Kratos é do Fábio) e a do importador em `agents/skills/`. O portal do cliente tem, por enquanto, o acesso por convite, a lista de projetos, a página de cada projeto, a conversa com a equipe e os arquivos entregues (M6, `docs/portal.md`). Os testes de unidade e integração ficam ao lado do código (`*.test.ts`), não numa pasta `tests/`; os de ponta a ponta ficam em `app/e2e/`.
 
 ### 5.2 Convenções
 

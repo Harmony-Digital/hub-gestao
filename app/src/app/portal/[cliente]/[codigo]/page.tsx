@@ -6,14 +6,16 @@ import { ChannelThread } from "@/components/channel-thread";
 import { Markdown } from "@/components/markdown";
 import { Pill, Progress } from "@/components/shell/pill";
 import { HubError } from "@/lib/errors";
-import { formatDate, formatTimestampDate } from "@/lib/format";
+import { formatBytes, formatDate, formatTimestampDate } from "@/lib/format";
 import { PHASES, type Tone } from "@/lib/labels";
 import { ProjectCode } from "@/modules/common";
 import { inTx } from "@/modules/context";
 import type { ChannelMessage } from "@/modules/comments/client-channel";
 import {
   portalChannel,
+  portalFiles,
   portalProject,
+  type PortalFile,
   type PortalMilestone,
   type PortalMilestoneStatus,
   type PortalProjectDetail,
@@ -63,13 +65,15 @@ async function Project({
   const back = { href: `/portal/${cliente}`, label: "Seus projetos" };
   let project: PortalProjectDetail | null = null;
   let messages: ChannelMessage[] = [];
+  let files: PortalFile[] = [];
   if (ProjectCode.safeParse(codigo).success) {
     try {
-      ({ project, messages } = await inTx(
+      ({ project, messages, files } = await inTx(
         await portalContext(session),
         async (t) => ({
           project: await portalProject(t, codigo),
           messages: await portalChannel(t, codigo),
+          files: await portalFiles(t, codigo),
         }),
       ));
     } catch (err) {
@@ -184,6 +188,41 @@ async function Project({
           <Workstreams items={project.otherWorkstreams} />
         </section>
       ) : null}
+
+      <section aria-labelledby="arquivos" className="flex flex-col gap-3">
+        <h2
+          id="arquivos"
+          className="font-heading text-xl font-semibold text-navy"
+        >
+          Arquivos entregues
+        </h2>
+        {files.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-line p-5 text-ink-2">
+            Os arquivos que a equipe entregar aparecem aqui.
+          </p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-line rounded-2xl border border-line bg-card">
+            {files.map((f) => (
+              <li
+                key={f.id}
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3"
+              >
+                <a
+                  href={`/portal/${cliente}/${project.code}/arquivos/${f.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="min-w-0 flex-1 basis-48 font-medium break-words text-info-fg underline-offset-2 hover:underline"
+                >
+                  {f.filename}
+                </a>
+                <span className="text-sm text-caption">
+                  {formatBytes(f.sizeBytes)} · {formatTimestampDate(f.at)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section aria-labelledby="relatorios" className="flex flex-col gap-3">
         <h2

@@ -274,3 +274,76 @@ export async function portalChannel(
   ]);
   return rows.reverse().map(toMessage);
 }
+
+// Arquivos entregues ---------------------------------------------------------------------
+
+export type PortalFile = {
+  id: string;
+  filename: string;
+  mime: string;
+  sizeBytes: number;
+  at: string;
+};
+
+/** Os arquivos que a equipe entregou no projeto (a RLS só mostra os do cliente). */
+export async function portalFiles(
+  t: TxCtx,
+  code: string,
+): Promise<PortalFile[]> {
+  assertClient(t.actor);
+  const rows = await many<{
+    id: string;
+    filename: string;
+    mime: string;
+    size_bytes: number;
+    created_at: Date | string;
+  }>(
+    t,
+    `select a.id, a.filename, a.mime, a.size_bytes::int as size_bytes, a.created_at
+       from ${S}.attachments a
+       join ${S}.projects p on p.id = a.project_id
+      where p.code = $1 and a.entity_type = 'project'
+      order by a.created_at desc, a.id desc`,
+    [code],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    filename: r.filename,
+    mime: r.mime,
+    sizeBytes: Number(r.size_bytes),
+    at: iso(r.created_at),
+  }));
+}
+
+/** O conteúdo de um arquivo entregue, para o download no portal (sob a RLS do cliente). */
+export async function readPortalFile(
+  t: TxCtx,
+  code: string,
+  id: string,
+): Promise<{ filename: string; mime: string; content: Buffer }> {
+  assertClient(t.actor);
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+  ) {
+    throw notFound("Arquivo não encontrado.");
+  }
+  const row = await maybeOne<{
+    filename: string;
+    mime: string;
+    content: Uint8Array;
+  }>(
+    t,
+    `select a.filename, a.mime, ac.content
+       from ${S}.attachments a
+       join ${S}.projects p on p.id = a.project_id
+       join ${S}.attachment_contents ac on ac.attachment_id = a.id
+      where a.id = $1 and p.code = $2 and a.entity_type = 'project'`,
+    [id, code],
+  );
+  if (!row) throw notFound("Arquivo não encontrado.");
+  return {
+    filename: row.filename,
+    mime: row.mime,
+    content: Buffer.from(row.content),
+  };
+}
