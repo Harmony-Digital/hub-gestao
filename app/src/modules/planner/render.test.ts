@@ -13,9 +13,9 @@ import {
 const CTX: PlannerContext = {
   today: "2026-10-10",
   project: {
-    code: "CER",
-    name: "Certato",
-    client: "MMA",
+    code: "LOJ",
+    name: "Loja Virtual",
+    client: "Comércio Modelo",
     objective: "Relatórios de governo\nsem retrabalho.",
   },
   milestones: [
@@ -90,7 +90,7 @@ describe("Planejador: a proposta no formato do plan.md", () => {
     ]);
     expect(plan.markdown).toBe(
       [
-        "# Plano de Certato",
+        "# Plano de Loja Virtual",
         "",
         "> Proposta do Planejador (PL-11) em 10/10/2026, a partir do documento enviado. Nada foi criado no Hub: confira, edite e importe. Prazos e textos para o cliente são sugestões.",
         "",
@@ -207,7 +207,7 @@ describe("Planejador: a proposta no formato do plan.md", () => {
     const message = plannerMessage(CTX, "  O cliente quer relatórios.  ");
     expect(message.split("\n")).toEqual([
       "HOJE: sábado, 2026-10-10",
-      "PROJETO: CER · Certato · cliente MMA",
+      "PROJETO: LOJ · Loja Virtual · cliente Comércio Modelo",
       "OBJETIVO DO PROJETO: Relatórios de governo sem retrabalho.",
       "MARCOS EXISTENTES:",
       "- M1 · Fundação",

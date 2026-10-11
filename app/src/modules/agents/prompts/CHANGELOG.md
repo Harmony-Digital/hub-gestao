@@ -14,6 +14,7 @@ Histórico dos prompts que o Hub usa nas chamadas de IA (`src/lib/llm`). Regras:
 
 ## CO-10/interpretar
 
+- v2 · 2026-10-10 · `01a623a3544b` · O exemplo de pedido de aprovação citava um cliente real; trocado por um exemplo genérico ("aprova o relatório de status do site"). Mesmo comportamento.
 - v1 · 2026-10-10 · `43400f56ca4f` · Primeira versão do Concierge: converte o pedido (falado ou digitado) numa ação só (criar ou mudar tarefa, comentar, apontar um pedido de aprovação, pergunta respondida com dados do Hub, abrir uma tela), com as regras de datas a partir de hoje e sem inventar projeto, pessoa ou prazo.
 
 ## PL-11/propor

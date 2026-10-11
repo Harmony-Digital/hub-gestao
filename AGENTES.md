@@ -147,7 +147,7 @@ Mesmo contrato do EX-06, com departamento e tipo de evidência próprios:
 
 ### CO-10 · Concierge do Hub
 
-- **Missão**: ser a interface em linguagem natural (texto e **voz**) do Hub: "cria uma tarefa de ajustar o hero no site do Leonardo para sexta", "o que está travado no projeto Certato?", "aprova o status da ACM". Converte em ações estruturadas, **mostra a prévia e só executa após confirmação**.
+- **Missão**: ser a interface em linguagem natural (texto e **voz**) do Hub: "cria uma tarefa de ajustar o topo do site da clínica para sexta", "o que está travado no projeto da loja virtual?", "aprova o relatório de status do site". Converte em ações estruturadas, **mostra a prévia e só executa após confirmação**.
 - **Tipo / runtime**: C, dentro do app (barra `⌘K`). Modelo configurável na tela Agentes (D5); sugestão inicial: Claude `claude-sonnet-5-5` para interpretação e `claude-haiku-5-5` para classificação de intenção. Ditado por Web Speech API com transcrição opcional no servidor.
 - **Entradas**: fala/texto do usuário, contexto da tela (projeto aberto), permissões do usuário logado (o Concierge age **em nome do humano**, com os limites do humano, e registra `source = ui`, `via = concierge`).
 - **Saídas**: ação estruturada (criar/atualizar tarefa, comentar, abrir aprovação, navegar, responder pergunta com dados).
