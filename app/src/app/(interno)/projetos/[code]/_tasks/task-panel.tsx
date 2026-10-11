@@ -153,11 +153,13 @@ async function PanelContent({
         code={task.code}
         version={task.version}
         assignee={assigneeValue(task.assignee)}
+        startDate={task.start_date}
         dueDate={task.due_date}
         late={late}
         priority={task.priority}
         workstreamId={task.workstream?.id ?? null}
         estimateMinutes={task.estimate_minutes}
+        externalRef={task.external_ref}
         assignees={data.assignees}
         workstreams={data.workstreams}
       />
