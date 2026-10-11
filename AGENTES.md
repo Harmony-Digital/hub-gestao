@@ -193,6 +193,7 @@ Mesmo contrato do EX-06, com departamento e tipo de evidência próprios:
 - **Saídas**: relatório semanal no inbox do Fábio com ações sugeridas (revogar chave X, reduzir escopo Y); pedidos `agent_key` quando exigir decisão.
 - **Red lines**: não revoga nem altera sozinho (exceto chaves expiradas, que o Hub bloqueia por regra).
 - **Fase**: M8.
+- **No Hub (PR #79)**: as regras rodam em código (`app/src/modules/audit/access.ts`) e aparecem em `/agentes/auditoria` (atalho na Sala de Controle), com o que fazer em cada ponto: chave de agente com mais de 90 dias, parada há 30, nunca usada depois de 14, com escopo amplo ou vencendo em 14 dias, e de agente pausado; pessoa da equipe sem gravar nada há 60 dias; contato com acesso parado há 90; aprovação parada há mais de 3 dias úteis; recusas da semana; gasto de IA acima de 80% do orçamento; chave de IA com mais de 180 dias; webhook com falha na semana. Toda segunda, o job `access-audit` deixa o aviso "Auditoria semanal" na caixa de entrada do dono. Para agentes: `hub_get_access_audit` (MCP) e `GET /api/v1/audit/access`, com `agents:read` e acesso a todos os projetos. A skill `agents/hermes/skills/gestao-hub/auditor-de-acesso` leva o resumo ao Telegram. **Para ligar** (Fábio): copiar a skill para o Kratos, o papel AC-14 no cadastro dele e a rotina de segunda às 10h no Hermes (a chave do Kratos já tem `agents:read` e todos os projetos). A política de rotação está em `docs/operacao.md`.
 
 ### TO-15 · Controlador de Tempo e Orçamento
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
-import { Bot } from "lucide-react";
+import { Bot, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
 import { Pill, Progress } from "@/components/shell/pill";
 import { can } from "@/lib/authorize";
@@ -118,6 +119,17 @@ async function AgentsConsoleView({
   return (
     <div className="flex flex-col gap-8">
       <LiveRefresh src="/agentes/mudancas" marker={marker} />
+      {can(ctx.actor, "audit.read") ? (
+        <p className="-mb-4 text-sm">
+          <Link
+            href="/agentes/auditoria"
+            className="inline-flex items-center gap-1.5 font-medium text-navy underline underline-offset-2"
+          >
+            <ShieldCheck aria-hidden="true" className="size-4" />
+            Auditoria de acesso: chaves, acessos e custos
+          </Link>
+        </p>
+      ) : null}
       <ControlRoomView room={room} filter={filter} now={now} />
 
       <section aria-labelledby="agentes-titulo" className="flex flex-col gap-6">

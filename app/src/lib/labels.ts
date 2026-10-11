@@ -145,6 +145,7 @@ export const JOB_TYPE: Record<string, string> = {
   "client-text-rewrite": "Reescrita do texto para o cliente (RC-12)",
   "ops-watch": "Vigia das recusas de acesso",
   retention: "Limpeza dos registros antigos (LGPD)",
+  "access-audit": "Auditoria semanal de acesso (AC-14)",
 };
 
 export const AGENT_ROLE: Record<string, string> = {
