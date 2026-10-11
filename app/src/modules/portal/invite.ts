@@ -66,3 +66,24 @@ export function inviteHasLink(
     link.startsWith(base) && link.length > base.length && text.includes(link)
   );
 }
+
+/** O e-mail com o link que o próprio contato pediu na entrada do portal (RF-05). */
+export function requestedLinkEmail(input: {
+  contactName: string;
+  clientName: string;
+  orgName: string;
+  url: string;
+  minutes: number;
+}): { subject: string; text: string } {
+  return {
+    subject: `Seu link de acesso ao portal da ${input.orgName}`,
+    text: [
+      `Olá, ${firstName(input.contactName)}!`,
+      "",
+      `Você pediu um link para entrar no portal da ${input.orgName} (${input.clientName}). Ele vale uma vez, pelos próximos ${input.minutes} minutos:`,
+      input.url,
+      "",
+      "Se não foi você quem pediu, pode ignorar esta mensagem: ninguém entra sem este link.",
+    ].join("\n"),
+  };
+}

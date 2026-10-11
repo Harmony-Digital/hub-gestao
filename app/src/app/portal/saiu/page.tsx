@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { LinkRequestSlot } from "../_ui/link-request-slot";
 
 export const metadata: Metadata = { title: "Até logo" };
 
@@ -11,9 +13,9 @@ export default function SaiuPage() {
       <h1 className="font-heading text-2xl font-semibold text-navy">
         Você saiu do portal
       </h1>
-      <p className="text-ink-2">
-        Para entrar de novo, use um link novo da equipe da Harmony.
-      </p>
+      <Suspense fallback={null}>
+        <LinkRequestSlot fallback="Para entrar de novo, peça um link novo para a equipe que te convidou." />
+      </Suspense>
     </main>
   );
 }

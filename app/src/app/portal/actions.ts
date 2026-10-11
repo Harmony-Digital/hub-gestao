@@ -1,12 +1,16 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { appUrl } from "@/lib/auth/config";
 import { getDb } from "@/lib/db";
+import { emailConfig, sendEmail } from "@/lib/email";
 import { apiKeyPepper } from "@/lib/env";
 import { log } from "@/lib/log";
+import { safeError } from "@/lib/log-safe";
 import {
   confirmPortalReceipt,
   currentPortalSession,
@@ -16,12 +20,19 @@ import {
   postPortalComment,
   recordPortalConsent,
   redeemPortalLink,
+  REQUESTED_LINK_MINUTES,
+  requestPortalLinks,
 } from "@/lib/portal/session";
+import { requestedLinkEmail } from "@/modules/portal/invite";
 import { noteClientMessage } from "@/modules/comments/client-channel";
 import { noteReceiptConfirmed } from "@/modules/milestones/receipt";
 import { inTx } from "@/modules/context";
 import { systemActor } from "@/modules/jobs/service";
-import { parseMessageForm, type MessageState } from "./message-form";
+import {
+  parseLinkRequestForm,
+  parseMessageForm,
+  type MessageState,
+} from "./message-form";
 
 /** Usa o link de uso único: abre a sessão (cookie do portal) e leva ao portal do cliente. */
 export async function entrarNoPortal(form: FormData): Promise<void> {
@@ -35,6 +46,64 @@ export async function entrarNoPortal(form: FormData): Promise<void> {
     portalCookieOptions(7 * 24 * 3600),
   );
   redirect(`/portal/${redeemed.clientSlug}`);
+}
+
+/** Endereço público do Hub (NEXT_PUBLIC_APP_URL); sem ele, só no computador, o do pedido. */
+async function linkBase(): Promise<string> {
+  const configured = appUrl();
+  if (configured) return configured;
+  const host = (await headers()).get("host") ?? "localhost:3000";
+  const local = /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host);
+  return `${local ? "http" : "https"}://${host}`;
+}
+
+const LINK_REQUESTED = `Se este e-mail tiver acesso liberado ao portal, o link chega em alguns minutos. Ele vale uma vez, por ${REQUESTED_LINK_MINUTES} minutos.`;
+
+/**
+ * O contato pede um link novo pelo e-mail (RF-05). A resposta é sempre a mesma, exista
+ * ou não o e-mail, e o envio sai depois da resposta: quem pede não descobre quem tem
+ * acesso. Só recebe quem o dono já liberou (D9).
+ */
+export async function pedirLinkPorEmail(
+  _previous: MessageState,
+  form: FormData,
+): Promise<MessageState> {
+  const parsed = parseLinkRequestForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  if (!emailConfig()) {
+    return {
+      status: "error",
+      message:
+        "O envio do link por e-mail ainda não está ligado. Peça um novo link para quem te convidou.",
+    };
+  }
+  const links = await requestPortalLinks(await getDb(), parsed.value.email, {
+    pepper: apiKeyPepper(),
+    appUrl: await linkBase(),
+  });
+  if (links.length) {
+    after(async () => {
+      for (const link of links) {
+        const message = requestedLinkEmail({
+          ...link,
+          minutes: REQUESTED_LINK_MINUTES,
+        });
+        try {
+          const sent = await sendEmail({
+            to: link.email,
+            subject: message.subject,
+            text: message.text,
+            fromName: link.orgName,
+          });
+          if (!sent.ok)
+            log.warn({ reason: sent.reason }, "link pedido: e-mail não saiu");
+        } catch (err) {
+          log.error({ err: safeError(err) }, "link pedido: e-mail não saiu");
+        }
+      }
+    });
+  }
+  return { status: "ok", message: LINK_REQUESTED };
 }
 
 /** Consentimento LGPD no primeiro acesso. */

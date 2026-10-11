@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { LinkRequestSlot } from "../_ui/link-request-slot";
 
 export const metadata: Metadata = { title: "Acesso" };
 
@@ -14,8 +16,10 @@ export default function SemAcessoPage() {
       </h1>
       <p className="text-ink-2">
         O link pode ter vencido ou já ter sido usado, ou a sua sessão terminou.
-        Peça um novo link para a equipe da Harmony.
       </p>
+      <Suspense fallback={null}>
+        <LinkRequestSlot fallback="Peça um novo link para a equipe que te convidou." />
+      </Suspense>
     </main>
   );
 }
