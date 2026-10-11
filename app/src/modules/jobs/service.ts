@@ -12,8 +12,9 @@ import {
 } from "@/modules/context";
 import { refreshAllHealth } from "@/modules/health/service";
 import { businessDaysBetween } from "@/modules/health/rule";
-import { refreshAgentSpend } from "@/lib/llm";
+import { refreshAgentSpend, type LlmDeps } from "@/lib/llm";
 import { attempt } from "@/modules/attempt";
+import { REWRITE_JOB, rewriteForClient } from "@/modules/client-text/writer";
 import { notifyOwners, notifyProfile } from "@/modules/notifications";
 import { reopenTask } from "@/modules/tasks/service";
 
@@ -29,7 +30,8 @@ export type JobType =
   | "evidence-check"
   | "agent-spend"
   | "webhook-dispatch"
-  | "idempotency-cleanup";
+  | "idempotency-cleanup"
+  | typeof REWRITE_JOB;
 
 /** Jobs periódicos e o intervalo mínimo entre duas execuções. */
 export const PERIODIC_JOBS: { type: JobType; everyMinutes: number }[] = [
@@ -45,6 +47,8 @@ export type JobDeps = {
   now?: () => Date;
   fetch?: typeof fetch;
   encryptionKey?: Buffer | null;
+  /** IA dos jobs que escrevem (nos testes, o modelo simulado). */
+  llm?: LlmDeps;
 };
 
 export type JobOutcome = {
@@ -116,6 +120,13 @@ async function runJob(
       });
     case "webhook-dispatch":
       return dispatchWebhooks(ctx, deps);
+    case REWRITE_JOB:
+      // RC-12: a IA fica fora de transação; sem Redator ligado, o pedido segue como está.
+      return rewriteForClient(
+        ctx,
+        String(job.payload.approval_id ?? ""),
+        deps.llm,
+      );
     default:
       throw new Error(`Tipo de job desconhecido: ${job.type}`);
   }

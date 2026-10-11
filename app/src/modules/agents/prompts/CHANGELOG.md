@@ -19,3 +19,7 @@ Histórico dos prompts que o Hub usa nas chamadas de IA (`src/lib/llm`). Regras:
 ## PL-11/propor
 
 - v1 · 2026-10-10 · `b14e3a051c7f` · Primeira versão do Planejador: do documento (PRD, brief, transcrição) para marcos com critérios de aceite, frentes por departamento e tarefas iniciais, com prazos só quando o documento sustenta, textos para o cliente em segunda pessoa e as premissas e dúvidas à parte.
+
+## RC-12/redigir
+
+- v1 · 2026-10-10 · `61f6ba1a2bea` · Primeira versão do Redator do Cliente: reescreve no tom Harmony (segunda pessoa, resultado, sem jargão) o relatório de status para o cliente ou o título e a descrição de uma frente que vai ao portal, mantendo fatos, datas e números e tirando o que a verificação em código achou.

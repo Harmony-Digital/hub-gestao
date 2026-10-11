@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   approvalChecks,
   approvalDetails,
+  approvalRewrite,
   approvalEffect,
   decisionMessage,
   decisionView,
@@ -120,6 +121,35 @@ describe("pedido na tela", () => {
       checks: ["código de tarefa HUB-57"],
       reportBody: "Nesta semana, a **HUB-57** ficou pronta.",
     });
+  });
+
+  it("texto reescrito pelo RC-12 mostra a nota e o original, fora dos detalhes", () => {
+    const report = {
+      report_body: "Você ganhou o atendimento automático.",
+      original_body: "A HUB-57 ficou pronta.",
+      rewritten_by: "RC-12",
+      rewrite_notes: "Tirei o código da tarefa.",
+    };
+    expect(approvalRewrite(report)).toEqual({
+      notes: "Tirei o código da tarefa.",
+      original: "A HUB-57 ficou pronta.",
+    });
+    expect(approvalDetails(report)).toEqual([]);
+    const front = {
+      title_client: "Atendimento pelo WhatsApp",
+      original_title_client: "Fluxo do bot",
+      original_description_client: "Feito pelo Kratos.",
+      rewritten_by: "RC-12",
+      rewrite_notes: null,
+    };
+    expect(approvalRewrite(front)).toEqual({
+      notes: null,
+      original: "Fluxo do bot\n\nFeito pelo Kratos.",
+    });
+    expect(approvalDetails(front)).toEqual([
+      { label: "Título para o cliente", value: "Atendimento pelo WhatsApp" },
+    ]);
+    expect(approvalRewrite({ rewritten_by: "outro" })).toBeNull();
   });
 
   it("sem nome de quem pediu e com papel desconhecido, não quebra", () => {
