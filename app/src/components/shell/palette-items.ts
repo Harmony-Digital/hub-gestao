@@ -49,6 +49,11 @@ export const SCREENS: { href: string; label: string; keywords?: string }[] = [
   { href: "/projetos", label: "Projetos" },
   { href: "/aprovacoes", label: "Aprovações", keywords: "pedidos decidir" },
   {
+    href: "/relatorios",
+    label: "Relatórios",
+    keywords: "status semanal versoes cliente",
+  },
+  {
     href: "/caixa-de-entrada",
     label: "Caixa de entrada",
     keywords: "avisos notificacoes",
