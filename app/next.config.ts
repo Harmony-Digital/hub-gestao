@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { securityHeaders } from "./src/lib/security-headers";
 
 // Só no computador de quem programa e só quando pedido: observar os arquivos por consulta
 // periódica. Com muitos servidores abertos no Mac, o macOS esgota os observadores
@@ -12,10 +13,17 @@ const nextConfig: NextConfig = {
   // Imagem Docker enxuta para a VPS (padrão do Certato): gera .next/standalone com server.js.
   output: "standalone",
   poweredByHeader: false,
-  // Portal do cliente: fora dos buscadores e sem mandar o endereço (que pode levar o
-  // link de uso único) para outros sites.
+  // Cabeçalhos de segurança em todas as respostas (CSP, permissões, isolamento; M8). O
+  // portal do cliente ainda fica fora dos buscadores e sem mandar o endereço (que pode
+  // levar o link de uso único) para outros sites.
   async headers() {
     return [
+      {
+        source: "/:path*",
+        headers: securityHeaders(
+          process.env.NODE_ENV === "production" ? "production" : "development",
+        ),
+      },
       {
         source: "/portal/:path*",
         headers: [
