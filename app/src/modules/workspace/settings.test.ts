@@ -5,11 +5,14 @@ import { inTx } from "@/modules/context";
 import { agentActor, ctxFor, openTestHub, type TestHub } from "@/test/hub";
 import {
   addMember,
+  createDepartment,
   emailTestTarget,
+  removeDepartment,
   renameWorkspace,
   setDepartmentLead,
   setMemberRole,
   setMemberStatus,
+  updateDepartment,
   workspaceSettings,
 } from "./settings";
 
@@ -193,5 +196,118 @@ describe("configurações do workspace", () => {
     );
     expect(target.email).toBe(me.rows[0].email);
     expect(target.orgName).toBeTruthy();
+  });
+});
+
+describe("departamentos (RF-27)", () => {
+  it("cria no fim da lista, com o endereço tirado do nome; nome repetido é 409", async () => {
+    const created = await inTx(asOwner(), (t) =>
+      createDepartment(t, { name: "Pesquisa & Dados", color: "#1f6feb" }),
+    );
+    expect(created.slug).toBe("pesquisa-dados");
+    const settings = await inTx(asOwner(), (t) => workspaceSettings(t));
+    expect(settings.departments.at(-1)).toMatchObject({
+      id: created.id,
+      name: "Pesquisa & Dados",
+      slug: "pesquisa-dados",
+      color: "#1F6FEB",
+      usage: { projects: 0, workstreams: 0, agents: 0 },
+    });
+    expect(
+      await status(
+        inTx(asOwner(), (t) =>
+          createDepartment(t, { name: "pesquisa & dados", color: "#000000" }),
+        ),
+      ),
+    ).toBe(409);
+    // Outro nome que dá o mesmo endereço ganha um número no fim.
+    const twin = await inTx(asOwner(), (t) =>
+      createDepartment(t, { name: "Pesquisa / Dados", color: "#000000" }),
+    );
+    expect(twin.slug).toBe("pesquisa-dados-2");
+  });
+
+  it("renomeia e troca a cor sem mudar o endereço; remove só o que ninguém usa", async () => {
+    const { id } = await inTx(asOwner(), (t) =>
+      createDepartment(t, { name: "Eventos", color: "#AA5500" }),
+    );
+    await inTx(asOwner(), (t) =>
+      updateDepartment(t, id, { name: "Eventos e Feiras", color: "#00aa55" }),
+    );
+    const row = await h.raw.query<{
+      name: string;
+      slug: string;
+      color: string;
+    }>(`select name, slug, color from ${S}.departments where id = $1`, [id]);
+    expect(row.rows[0]).toEqual({
+      name: "Eventos e Feiras",
+      slug: "eventos",
+      color: "#00AA55",
+    });
+
+    // Em uso por uma frente: não remove e diz onde está.
+    await h.raw.query(
+      `update ${S}.workstreams set department_id = $2 where id = $1`,
+      [h.vitWorkstream, id],
+    );
+    const err = await inTx(asOwner(), (t) => removeDepartment(t, id)).catch(
+      (e: unknown) => e,
+    );
+    expect(err).toMatchObject({
+      status: 422,
+      detail: expect.stringContaining("1 frente"),
+    });
+    await h.raw.query(
+      `update ${S}.workstreams set department_id = null where id = $1`,
+      [h.vitWorkstream],
+    );
+    await inTx(asOwner(), (t) => removeDepartment(t, id));
+    expect(
+      (await h.raw.query(`select 1 from ${S}.departments where id = $1`, [id]))
+        .rows,
+    ).toEqual([]);
+    const history = await h.raw.query<{ action: string }>(
+      `select action from ${S}.activity_log
+        where entity_type = 'department' and entity_id = $1 order by created_at, id`,
+      [id],
+    );
+    expect(history.rows.map((r) => r.action)).toEqual([
+      "department.created",
+      "department.updated",
+      "department.removed",
+    ]);
+  });
+
+  it("equipe e agentes não mexem nos departamentos", async () => {
+    const { profileId } = await inTx(asOwner(), (t) =>
+      addMember(t, {
+        name: "Equipe Departamento",
+        email: "equipe.departamento@harmony.test",
+        role: "member",
+      }),
+    );
+    const member: UserActor = {
+      type: "user",
+      id: profileId,
+      scope: "internal",
+      role: "member",
+      workspaceId: h.ws,
+      name: "Equipe Departamento",
+    };
+    expect(
+      await status(
+        inTx(ctxFor(h, member, "ui"), (t) =>
+          createDepartment(t, { name: "Novo", color: "#000000" }),
+        ),
+      ),
+    ).toBe(403);
+    const agent = await agentActor(h, h.keys.todos);
+    expect(
+      await status(
+        inTx(ctxFor(h, agent), (t) =>
+          createDepartment(t, { name: "Novo", color: "#000000" }),
+        ),
+      ),
+    ).toBe(403);
   });
 });

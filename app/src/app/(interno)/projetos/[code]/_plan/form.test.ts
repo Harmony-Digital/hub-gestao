@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseAcceptanceForm,
   parseMilestoneForm,
+  parseMoveMilestoneForm,
   parseWorkstreamForm,
   workstreamChanges,
 } from "./form";
@@ -272,5 +273,40 @@ describe("pedido de aceite", () => {
       value: { id: ID },
     });
     expect(parseAcceptanceForm(form({ id: "M2" })).ok).toBe(false);
+  });
+});
+
+describe("GATE e ordem do marco (RF-09)", () => {
+  const ID = "4dc6721e-2ac8-463d-84cb-3b25ab170bbd";
+  const base = { project: "VIT", title: "Painel", status: "planned" };
+  const read = (extra: Record<string, string>) => {
+    const f = new FormData();
+    for (const [k, v] of Object.entries({ ...base, ...extra })) f.append(k, v);
+    return parseMilestoneForm(f);
+  };
+  it("a caixa do GATE só conta quando a janela mostra a caixa", () => {
+    const without = read({});
+    expect(without.ok && "gate_required" in without.value.input).toBe(false);
+    const on = read({ gate_section: "1", gate_required: "on" });
+    expect(on.ok && on.value.input.gate_required).toBe(true);
+    const off = read({ gate_section: "1" });
+    expect(off.ok && off.value.input.gate_required).toBe(false);
+  });
+  it("lê subir e descer; recusa o resto", () => {
+    const f = (values: Record<string, string>) => {
+      const data = new FormData();
+      for (const [k, v] of Object.entries(values)) data.append(k, v);
+      return data;
+    };
+    expect(parseMoveMilestoneForm(f({ id: ID, direction: "up" }))).toEqual({
+      ok: true,
+      value: { id: ID, direction: "up" },
+    });
+    expect(parseMoveMilestoneForm(f({ id: ID, direction: "left" })).ok).toBe(
+      false,
+    );
+    expect(parseMoveMilestoneForm(f({ id: "x", direction: "down" })).ok).toBe(
+      false,
+    );
   });
 });

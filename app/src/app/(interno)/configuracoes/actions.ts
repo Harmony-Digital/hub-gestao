@@ -7,14 +7,19 @@ import { actionContext, actionErrorMessage } from "@/lib/ui-context";
 import { inTx } from "@/modules/context";
 import {
   addMember,
+  createDepartment,
   emailTestTarget,
+  removeDepartment,
   renameWorkspace,
   setDepartmentLead,
   setMemberRole,
   setMemberStatus,
+  updateDepartment,
 } from "@/modules/workspace/settings";
 import {
+  parseDepartmentForm,
   parseDepartmentLeadForm,
+  parseDepartmentRemoveForm,
   parseMemberForm,
   parseMemberRoleForm,
   parseMemberStatusForm,
@@ -147,6 +152,49 @@ export async function enviarEmailTeste(): Promise<ActionState> {
     return sent.ok
       ? { status: "ok", message: `E-mail de teste enviado para ${me.email}.` }
       : { status: "error", message: sent.detail };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+/** Novo departamento ou edição do nome e da cor (RF-27). */
+export async function salvarDepartamento(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseDepartmentForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  const { id, ...fields } = parsed.value;
+  try {
+    if (id) {
+      await inTx(ctx, (t) => updateDepartment(t, id, fields));
+    } else {
+      await inTx(ctx, (t) => createDepartment(t, fields));
+    }
+    refresh();
+    return {
+      status: "ok",
+      message: id
+        ? `Departamento “${fields.name}” salvo.`
+        : `Departamento “${fields.name}” criado.`,
+    };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+export async function removerDepartamento(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseDepartmentRemoveForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  try {
+    await inTx(ctx, (t) => removeDepartment(t, parsed.value));
+    refresh();
+    return { status: "ok", message: "Departamento removido." };
   } catch (err) {
     return failure(err, ctx.requestId);
   }

@@ -70,3 +70,48 @@ test("o dono cuida da equipe e do responsável de um departamento", async ({
       .locator("option:checked"),
   ).toHaveText(name);
 });
+
+test("o dono cria, renomeia e remove um departamento sem uso (RF-27)", async ({
+  page,
+}) => {
+  const stamp = Date.now().toString(36);
+  const name = `Área ${stamp}`;
+  const renamed = `Área renomeada ${stamp}`;
+  await login(page);
+  await page.goto("/configuracoes");
+  await settle(page);
+
+  const departamentos = page.getByRole("region", { name: "Departamentos" });
+  const novo = await openDialog(
+    page,
+    departamentos.getByRole("button", { name: "Novo departamento" }),
+    "Novo departamento",
+  );
+  await novo.getByLabel("Nome").fill(name);
+  await novo.getByRole("button", { name: "Criar o departamento" }).click();
+  await expect(novo).toBeHidden();
+  const row = departamentos.getByRole("listitem").filter({ hasText: name });
+  await expect(row).toContainText("sem uso");
+  const href = await row.getByRole("link", { name }).getAttribute("href");
+
+  const editar = await openDialog(
+    page,
+    row.getByRole("button", { name: `Editar o departamento ${name}` }),
+    "Editar departamento",
+  );
+  await editar.getByLabel("Nome").fill(renamed);
+  await editar.getByRole("button", { name: "Salvar o departamento" }).click();
+  await expect(editar).toBeHidden();
+  const same = departamentos.getByRole("listitem").filter({ hasText: renamed });
+  // Renomear não muda o endereço do departamento.
+  await expect(same.getByRole("link", { name: renamed })).toHaveAttribute(
+    "href",
+    href!,
+  );
+
+  page.once("dialog", (confirm) => void confirm.accept());
+  await same
+    .getByRole("button", { name: `Remover o departamento ${renamed}` })
+    .click();
+  await expect(same).toHaveCount(0);
+});
