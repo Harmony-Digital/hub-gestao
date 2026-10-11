@@ -3191,6 +3191,7 @@
             ]
           },
           "status": {
+            "description": "Só vale para frente sem tarefa: com tarefas, o status sai delas (RF-12) e este campo é ignorado.",
             "type": "string",
             "enum": [
               "planned",
