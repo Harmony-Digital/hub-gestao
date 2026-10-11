@@ -90,7 +90,9 @@ O login usa o Supabase Auth compartilhado da Harmony, com cadastro aberto deslig
 
 ## Backup (decisão D8)
 
-`hub-backup.sh` gera todo dia um dump do schema `proj_hub_gestao`, confere que ele abre e guarda 14 dias em `/opt/hub-gestao/backups`. A cópia fora da VPS espera o destino que o Fábio escolher; o snapshot semanal da VPS e o teste mensal de restauração ficam no M8.
+`hub-backup.sh` gera todo dia um dump do schema `proj_hub_gestao`, confere que ele abre e guarda 14 dias em `/opt/hub-gestao/backups`. A Hostinger faz o backup semanal da VPS inteira, fora dela. A cópia diária fora da VPS espera o destino que o Fábio escolher.
+
+Teste mensal de restauração: `hub-restore-test.sh` restaura o dump mais recente num banco temporário, compara as contagens com a produção e apaga o banco temporário (não precisa instalar: roda de `/tmp`). Para uma restauração de verdade, `hub-db-grants.sql` devolve as permissões do papel do Hub depois da troca do schema. O passo a passo e o ensaio estão em `docs/operacao.md` (Backup e restauração).
 
 ## Operação
 
