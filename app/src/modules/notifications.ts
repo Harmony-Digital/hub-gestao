@@ -24,7 +24,7 @@ export const GROUP_LABEL: Record<NotificationGroup, string> = {
   assignment: "Tarefas passadas para você",
   approval: "Aprovações",
   blocked: "Bloqueios nos seus projetos",
-  agents: "Agentes: orçamento de IA e recusas de acesso",
+  agents: "Agentes: avisos, orçamento de IA e recusas de acesso",
   client: "Mensagens dos clientes no portal",
   system: "Operação do Hub: jobs, publicação e backups",
 };
@@ -182,6 +182,19 @@ export function describeNotification(
         detail: str(payload.title),
         href: "/aprovacoes?status=todas",
       };
+    case "agent.notice": {
+      const link = str(payload.link);
+      return {
+        text: `${str(payload.agent_name) ?? "Um agente"}: ${str(payload.title) ?? "aviso"}`,
+        detail: str(payload.body),
+        href:
+          link && /^\/(?!\/)/.test(link)
+            ? link
+            : project
+              ? `/projetos/${project}`
+              : null,
+      };
+    }
     case "agent.budget_exceeded":
       return {
         text:

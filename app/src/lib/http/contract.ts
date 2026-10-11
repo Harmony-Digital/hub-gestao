@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ActivityExport } from "@/modules/activity/export";
+import { AgentNoticeInput, AgentNoticeResult } from "@/modules/agent-notices";
 import { MeDto } from "@/modules/agents/service";
 import { AccessAuditDto } from "@/modules/audit/access";
 import {
@@ -123,6 +124,7 @@ const RESPONSES = {
     markdown: z.string(),
   }),
   SyncPlanResult,
+  AgentNoticeResult,
 } satisfies Record<string, z.ZodType>;
 
 const REQUESTS = {
@@ -145,6 +147,7 @@ const REQUESTS = {
   RequestApprovalRequest: RequestApprovalInput,
   DecideApprovalRequest: DecideApprovalInput,
   DraftReportRequest: DraftReportInput,
+  AgentNoticeRequest: AgentNoticeInput,
 } satisfies Record<string, z.ZodType>;
 
 export const API_SPECS: Spec[] = [
@@ -494,6 +497,19 @@ export const API_SPECS: Spec[] = [
     scope: "comments:write",
     body: "CommentOnTargetRequest",
     response: "Comment",
+    status: 201,
+    write: true,
+  },
+  {
+    method: "post",
+    path: "/notices",
+    tag: "Comentários",
+    summary: "Avisar na caixa de entrada do Hub",
+    description:
+      "O digest, um lembrete ou um alerta do agente na caixa de entrada dos donos (to: owners) ou de uma pessoa da equipe que enxergue o projeto citado. Até 30 por agente em 24 horas; a mesma dedupe_key não repete em 24 horas.",
+    scope: "comments:write",
+    body: "AgentNoticeRequest",
+    response: "AgentNoticeResult",
     status: 201,
     write: true,
   },

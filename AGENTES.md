@@ -83,7 +83,7 @@ Quatro tipos, um princípio: **a IA executa, o humano decide**.
 - **Gatilhos**: cron matinal (8h, dias úteis); evento `approval.decided` do tipo `replan`/`scope_change`/`milestone_proposal` aprovado (o `effect` do evento diz o que o Hub já aplicou); evento `task.blocked`; `workstream.updated`.
 - **Entradas**: árvore do projeto, carga por agente/pessoa (`v_department_load`), dependências, capacidade declarada dos executores.
 - **Saídas**: frentes e tarefas criadas (camadas 2 e 3), fila do dia por projeto e departamento, atribuições, digest matinal (Telegram via Hermes + inbox), lista de bloqueios com dono e próxima ação.
-- **Ferramentas MCP**: `hub_get_plan`, `hub_list_tasks`, `hub_create_workstream`, `hub_update_workstream`, `hub_create_task`, `hub_update_task`, `hub_comment`, `hub_request_approval` (quando precisa de um marco novo ou de decisão). O status da frente com tarefas sai delas (RF-12): para mudar o status, mude as tarefas.
+- **Ferramentas MCP**: `hub_get_plan`, `hub_list_tasks`, `hub_create_workstream`, `hub_update_workstream`, `hub_create_task`, `hub_update_task`, `hub_comment`, `hub_notify` (o digest na caixa de entrada), `hub_request_approval` (quando precisa de um marco novo ou de decisão). O status da frente com tarefas sai delas (RF-12): para mudar o status, mude as tarefas.
 - **Escopos**: `projects:read`, `tasks:read`, `tasks:write`, `workstreams:write`, `comments:write`, `approvals:request`.
 - **Red lines**: não conclui tarefas de outros; não muda visibilidade; não cria marcos; não reatribui tarefa em andamento sem comentar o motivo.
 - **Métricas**: tarefas sem responsável < 5%; bloqueios com dono em < 24h; fila do dia publicada até 8h15.
