@@ -106,7 +106,7 @@ hub-gestao/
 │   │                                  #   agentes e chaves criados pelo caminho real
 │   ├── e2e/                           # testes de ponta a ponta (Playwright) e playwright.config.ts
 │   └── scripts/cron-tick.mjs          # relógio dos jobs, chamado pelo timer da VPS
-├── supabase/migrations/ · seeds/      # hub_gestao_0001 a 0015 e o seed da Harmony
+├── supabase/migrations/ · seeds/      # hub_gestao_0001 a 0016 e o seed da Harmony
 ├── deploy/vps/                        # Dockerfile, compose, rota do Traefik, timers, publicação,
 │                                      #   backup e provisionamento (README com o passo a passo)
 ├── scripts/                           # conectar o Claude Code à produção e teste MCP de produção
@@ -119,7 +119,7 @@ hub-gestao/
 └── .github/workflows/                 # ci.yml ("Qualidade") e deploy-vps.yml ("Publicação na VPS")
 ```
 
-As skills de gestão do Kratos ficam em `agents/hermes/` (cópia de referência; a instalação no Kratos é do Fábio) e a do importador em `agents/skills/`. O portal do cliente tem, por enquanto, o acesso por convite e a lista de projetos (M6, `docs/portal.md`). Os testes de unidade e integração ficam ao lado do código (`*.test.ts`), não numa pasta `tests/`; os de ponta a ponta ficam em `app/e2e/`.
+As skills de gestão do Kratos ficam em `agents/hermes/` (cópia de referência; a instalação no Kratos é do Fábio) e a do importador em `agents/skills/`. O portal do cliente tem, por enquanto, o acesso por convite, a lista de projetos e a página de cada projeto (M6, `docs/portal.md`). Os testes de unidade e integração ficam ao lado do código (`*.test.ts`), não numa pasta `tests/`; os de ponta a ponta ficam em `app/e2e/`.
 
 ### 5.2 Convenções
 
@@ -135,7 +135,7 @@ As skills de gestão do Kratos ficam em `agents/hermes/` (cópia de referência;
 - **Textos para cliente** vivem em campos próprios (`title_client`, `description_client`, `summary_client`). Nunca derivar automaticamente do texto interno.
 - **UI**: shadcn/ui + Tailwind v4 com tokens Harmony (`PRD.md` §14). Sem emojis. Ícones `lucide-react`. Texto PT-BR. Acessível: foco visível, contraste AA, `lang="pt-BR"`, rótulos e avisos em PT-BR para leitor de tela.
 - **Telas que mudam dados**: cada ação de formulário lê o `FormData` com um parser puro e testado, roda o caso de uso numa transação e atualiza a tela; mudança concorrente (versão velha da tarefa, 412) atualiza a tela e avisa. Mensagens de erro para pessoas mostram o nome do campo em PT-BR. Detalhes e regras do Next.js 16 em `app/AGENTS.md`.
-- **Testes**: Vitest (unidade e integração) com banco local PGlite (o mesmo Postgres 17), RLS com dois workspaces e papel cliente, e contratos de API e MCP (snapshot do OpenAPI e da lista de tools). Playwright (`app/e2e/`, `npm run e2e`) para os fluxos críticos no navegador: a jornada criar tarefa → mover no Quadro → concluir com evidência → aprovar no Hoje, a revisão de acessibilidade com o axe (WCAG 2.1 A e AA, temas claro e escuro, celular), a de identidade (fontes, cores, sem emojis) e o acesso ao portal do cliente (liberar, entrar, aceitar, sair, revogar) rodam no CI. Previsto e ainda não feito: Testing Library (componentes).
+- **Testes**: Vitest (unidade e integração) com banco local PGlite (o mesmo Postgres 17), RLS com dois workspaces e papel cliente, o teste de vazamento do portal (`app/src/modules/portal/leak.test.ts`: o cliente, tabela por tabela, só lê o que é dele e está marcado para ele), e contratos de API e MCP (snapshot do OpenAPI e da lista de tools). Playwright (`app/e2e/`, `npm run e2e`) para os fluxos críticos no navegador: a jornada criar tarefa → mover no Quadro → concluir com evidência → aprovar no Hoje, a revisão de acessibilidade com o axe (WCAG 2.1 A e AA, temas claro e escuro, celular), a de identidade (fontes, cores, sem emojis) e o acesso ao portal do cliente (liberar, entrar, aceitar, sair, revogar) rodam no CI. Previsto e ainda não feito: Testing Library (componentes).
 - **Commits**: PT-BR, imperativo, descritivos. Exemplo: `Adiciona rollup de progresso por marco (HUB-57)`.
 
 ## 6. Segurança e acessos

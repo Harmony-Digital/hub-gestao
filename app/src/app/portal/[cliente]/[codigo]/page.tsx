@@ -1,0 +1,273 @@
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { connection } from "next/server";
+import { Suspense } from "react";
+import { Markdown } from "@/components/markdown";
+import { Pill, Progress } from "@/components/shell/pill";
+import { HubError } from "@/lib/errors";
+import { formatDate, formatTimestampDate } from "@/lib/format";
+import { PHASES, type Tone } from "@/lib/labels";
+import { ProjectCode } from "@/modules/common";
+import { inTx } from "@/modules/context";
+import {
+  portalProject,
+  type PortalMilestone,
+  type PortalMilestoneStatus,
+  type PortalProjectDetail,
+  type PortalWorkstream,
+} from "@/modules/portal/views";
+import { NoAccess, PortalTop } from "../../_ui/parts";
+import { portalContext, portalSessionFor } from "../../_ui/session";
+
+export const metadata: Metadata = { title: "Entregas do projeto" };
+
+/** Para o cliente: o aceite é do dono (D9); para quem acompanha, a entrega está concluída. */
+const MILESTONE: Record<PortalMilestoneStatus, { label: string; tone: Tone }> =
+  {
+    planned: { label: "Prevista", tone: "neutral" },
+    in_progress: { label: "Em andamento", tone: "info" },
+    delivered: { label: "Entregue", tone: "review" },
+    accepted: { label: "Concluída", tone: "ok" },
+  };
+
+export default function PortalProjetoPage({
+  params,
+}: PageProps<"/portal/[cliente]/[codigo]">) {
+  return (
+    <Suspense
+      fallback={
+        <div aria-busy="true" className="mx-auto w-full max-w-4xl px-4 py-10">
+          <div className="h-64 rounded-2xl bg-off-2" />
+        </div>
+      }
+    >
+      <Project params={params} />
+    </Suspense>
+  );
+}
+
+async function Project({
+  params,
+}: Pick<PageProps<"/portal/[cliente]/[codigo]">, "params">) {
+  await connection();
+  const { cliente, codigo } = await params;
+  const session = await portalSessionFor(cliente);
+  if (!session) return <NoAccess />;
+  // O aceite do uso dos dados vem antes de qualquer conteúdo.
+  if (!session.consentAt) redirect(`/portal/${cliente}`);
+
+  const back = { href: `/portal/${cliente}`, label: "Seus projetos" };
+  let project: PortalProjectDetail | null = null;
+  if (ProjectCode.safeParse(codigo).success) {
+    try {
+      project = await inTx(await portalContext(session), (t) =>
+        portalProject(t, codigo),
+      );
+    } catch (err) {
+      if (!(err instanceof HubError && err.status === 404)) throw err;
+    }
+  }
+  if (!project) {
+    return (
+      <main
+        id="conteudo"
+        className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6"
+      >
+        <PortalTop clientName={session.clientName} back={back} />
+        <h1 className="font-heading text-2xl font-semibold text-navy">
+          Projeto não encontrado
+        </h1>
+        <p className="text-ink-2">
+          Este endereço não leva a um projeto que você acompanha. Volte para a
+          lista dos seus projetos.
+        </p>
+      </main>
+    );
+  }
+
+  const phaseIndex = PHASES.findIndex((p) => p.key === project.phase);
+  return (
+    <main
+      id="conteudo"
+      className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6"
+    >
+      <PortalTop clientName={session.clientName} back={back} />
+
+      <section aria-labelledby="projeto" className="flex flex-col gap-4">
+        <h1
+          id="projeto"
+          className="font-heading text-3xl font-semibold text-navy"
+        >
+          {project.name}
+        </h1>
+        <ol aria-label="Fase do projeto" className="flex flex-wrap gap-2">
+          {PHASES.map((p, i) => (
+            <li
+              key={p.key}
+              aria-current={i === phaseIndex ? "step" : undefined}
+              className={`rounded-full border px-3 py-1 text-sm ${
+                i === phaseIndex
+                  ? "border-navy bg-navy font-semibold text-off"
+                  : i < phaseIndex
+                    ? "border-line bg-card text-ink-2"
+                    : "border-dashed border-line text-caption"
+              }`}
+            >
+              {p.label}
+              {i === phaseIndex ? (
+                <span className="sr-only"> (fase atual)</span>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+        {project.objective ? (
+          <p className="text-lg text-ink">{project.objective}</p>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-caption">Andamento</span>
+            <Progress
+              value={project.progressPct}
+              label={`Andamento de ${project.name}`}
+            />
+          </div>
+          {project.targetDate ? (
+            <p>
+              <span className="text-caption">Entrega final prevista: </span>
+              <span className="text-ink">{formatDate(project.targetDate)}</span>
+            </p>
+          ) : null}
+        </div>
+      </section>
+
+      <section aria-labelledby="entregas" className="flex flex-col gap-3">
+        <h2
+          id="entregas"
+          className="font-heading text-xl font-semibold text-navy"
+        >
+          Entregas
+        </h2>
+        {project.milestones.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-line p-5 text-ink-2">
+            As entregas deste projeto aparecem aqui assim que forem combinadas
+            com você.
+          </p>
+        ) : (
+          <ol className="flex flex-col gap-3">
+            {project.milestones.map((m, i) => (
+              <MilestoneCard key={i} milestone={m} />
+            ))}
+          </ol>
+        )}
+      </section>
+
+      {project.otherWorkstreams.length > 0 ? (
+        <section
+          aria-labelledby="outras-frentes"
+          className="flex flex-col gap-3"
+        >
+          <h2
+            id="outras-frentes"
+            className="font-heading text-xl font-semibold text-navy"
+          >
+            Outras frentes de trabalho
+          </h2>
+          <Workstreams items={project.otherWorkstreams} />
+        </section>
+      ) : null}
+
+      <section aria-labelledby="relatorios" className="flex flex-col gap-3">
+        <h2
+          id="relatorios"
+          className="font-heading text-xl font-semibold text-navy"
+        >
+          Relatórios de andamento
+        </h2>
+        {project.reports.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-line p-5 text-ink-2">
+            Os relatórios de andamento aparecem aqui quando forem publicados.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {project.reports.map((r, i) => (
+              <li
+                key={`${r.publishedAt}-${i}`}
+                className="rounded-2xl border border-line bg-card"
+              >
+                <details open={i === 0} className="group">
+                  <summary className="flex min-h-12 cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                    <span className="font-medium text-navy">
+                      De {formatDate(r.periodStart)} a {formatDate(r.periodEnd)}
+                    </span>
+                    <span className="text-sm text-caption">
+                      publicado em {formatTimestampDate(r.publishedAt)}
+                    </span>
+                  </summary>
+                  <div className="border-t border-line px-4 py-3">
+                    <Markdown text={r.bodyMd} />
+                  </div>
+                </details>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </main>
+  );
+}
+
+function MilestoneCard({ milestone: m }: { milestone: PortalMilestone }) {
+  const status = MILESTONE[m.status];
+  return (
+    <li className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-5">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <h3 className="min-w-0 flex-1 basis-56 font-heading text-lg font-semibold break-words text-navy">
+          {m.title}
+        </h3>
+        <Pill tone={status.tone}>{status.label}</Pill>
+      </div>
+      {m.description ? (
+        <p className="whitespace-pre-wrap text-ink">{m.description}</p>
+      ) : null}
+      <p className="text-sm text-ink-2">
+        {m.deliveredAt
+          ? `Entregue em ${formatTimestampDate(m.deliveredAt)}`
+          : m.dueDate
+            ? `Previsão: ${formatDate(m.dueDate)}`
+            : "Data a combinar"}
+        {!m.deliveredAt && m.revisions > 0
+          ? ` · data revista ${m.revisions === 1 ? "1 vez" : `${m.revisions} vezes`}`
+          : ""}
+      </p>
+      {m.workstreams.length > 0 ? (
+        <div className="flex flex-col gap-2 border-t border-line pt-3">
+          <p className="text-sm font-medium text-navy">Frentes de trabalho</p>
+          <Workstreams items={m.workstreams} />
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+function Workstreams({ items }: { items: PortalWorkstream[] }) {
+  return (
+    <ul className="flex flex-col gap-2">
+      {items.map((w, i) => (
+        <li
+          key={i}
+          className="flex flex-col gap-1.5 rounded-xl bg-off p-3 sm:flex-row sm:items-center sm:gap-4"
+        >
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="font-medium break-words text-ink">{w.title}</span>
+            {w.description ? (
+              <span className="text-sm break-words text-ink-2">
+                {w.description}
+              </span>
+            ) : null}
+          </div>
+          <Progress value={w.progressPct} label={`Andamento de ${w.title}`} />
+        </li>
+      ))}
+    </ul>
+  );
+}

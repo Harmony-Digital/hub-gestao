@@ -90,6 +90,18 @@ export function formatTimestampDay(timestamp: string): string {
   return dayFmt.format(new Date(timestamp));
 }
 
+const fullDayFmt = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: TZ,
+});
+
+/** Data completa de um instante, em Brasília: "2026-10-10T01:26:16Z" → "09/10/2026". */
+export function formatTimestampDate(timestamp: string): string {
+  return fullDayFmt.format(new Date(timestamp));
+}
+
 /** Iniciais para avatares: "Fábio Almeida" → "FA"; "Kratos" → "K". */
 export function initials(name: string | null | undefined): string {
   // Só palavras que começam com letra: "Codex (exemplo)" → "C", não "C(".
