@@ -390,6 +390,7 @@ describe("governança pela API", () => {
         type: "replan",
         project: "VIT",
         title: "Replanejar o M1 em uma semana",
+        payload: { milestones: [{ code: "M1", due_date: "2026-12-01" }] },
       },
     });
     expect(requested.status).toBe(201);

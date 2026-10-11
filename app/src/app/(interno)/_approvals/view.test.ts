@@ -83,6 +83,109 @@ describe("pedido na tela", () => {
     expect(approvalEffect("replan", {})).toMatch(/^nada muda sozinho/);
   });
 
+  it("pedidos que mudam o plano dizem o que muda ao aprovar (RF-25)", () => {
+    expect(
+      approvalEffect("milestone_proposal", {
+        title: "Relatórios mensais",
+        due_date: "2026-12-15",
+        title_client: null,
+      }),
+    ).toBe(
+      "o marco “Relatórios mensais” é criado, com data 15/12/2026, como Planejado, só para a equipe.",
+    );
+    expect(
+      approvalEffect("milestone_proposal", {
+        title: "Relatórios mensais",
+        title_client: "Relatórios do mês",
+      }),
+    ).toBe(
+      "o marco “Relatórios mensais” é criado, sem data, como Planejado, visível para o cliente como “Relatórios do mês”.",
+    );
+    const replan = {
+      milestones: [
+        { code: "M2", due_date: "2026-11-30" },
+        { code: "M3", due_date: "2026-12-15" },
+      ],
+      reason: "A integração atrasou.",
+    };
+    expect(approvalEffect("replan", replan)).toBe(
+      "as datas mudam: M2 para 30/11/2026, M3 para 15/12/2026; o motivo fica no histórico de datas.",
+    );
+    expect(approvalDetails(replan)).toEqual([
+      {
+        label: "Marcos",
+        value: "M2, data 30/11/2026 · M3, data 15/12/2026",
+      },
+      { label: "Motivo", value: "A integração atrasou." },
+    ]);
+    const scope = {
+      milestones: [
+        {
+          code: "M1",
+          title: "Atendente no WhatsApp",
+          acceptance_criteria: ["Responde", "Transfere"],
+        },
+      ],
+    };
+    expect(approvalEffect("scope_change", scope)).toBe(
+      "o título ou os critérios de aceite mudam em M1, como nos detalhes.",
+    );
+    expect(approvalDetails(scope)).toEqual([
+      {
+        label: "Marcos",
+        value:
+          "M1, título “Atendente no WhatsApp”, critérios: Responde; Transfere",
+      },
+    ]);
+    expect(approvalEffect("scope_change", { milestones: "M1" })).toMatch(
+      /^nada muda sozinho/,
+    );
+    // Pedido de antes do formato (sem o título do marco ou sem o texto): nada muda sozinho.
+    expect(approvalEffect("milestone_proposal", {})).toMatch(
+      /^nada muda sozinho/,
+    );
+    expect(approvalEffect("external_message", { body: " " })).toMatch(
+      /^nada muda sozinho/,
+    );
+  });
+
+  it("mensagem para o cliente aparece inteira, à parte, e sai em nome de quem aprova", () => {
+    const payload = {
+      body: "Olá! A entrega passa para **30/11**.",
+      checks: [{ kind: "task_code", term: "HUB-9" }],
+    };
+    const item = decisionView(
+      approval({ type: "external_message", payload }),
+      new Date("2026-10-10T15:00:00Z"),
+    );
+    expect(item).toMatchObject({
+      effect: "a mensagem abaixo é publicada no canal do cliente, em seu nome.",
+      messageBody: "Olá! A entrega passa para **30/11**.",
+      reportBody: null,
+      checks: ["código de tarefa HUB-9"],
+      details: [],
+    });
+    // Só o pedido de mensagem externa mostra o corpo como mensagem ao cliente.
+    expect(
+      decisionView(
+        approval({ type: "custom", payload: { body: "x" } }),
+        new Date("2026-10-10T15:00:00Z"),
+      ).messageBody,
+    ).toBeNull();
+  });
+
+  it("detalhes na ordem fixa, venha o pedido como vier (o jsonb não guarda a ordem)", () => {
+    expect(
+      approvalDetails({
+        title_client: "Relatórios do mês",
+        reason: "Atrasou.",
+        extra: "x",
+        milestones: [{ code: "M2", due_date: "2026-11-30" }],
+        title: "Relatórios",
+      }).map((d) => d.label),
+    ).toEqual(["Título", "Marcos", "Motivo", "Título para o cliente", "extra"]);
+  });
+
   it("detalhes: nomes em PT-BR, listas juntas, vazios fora", () => {
     expect(
       approvalDetails({
@@ -222,6 +325,26 @@ describe("formulário de decisão", () => {
         effect: { applied: true, project_status: "active" },
       }),
     ).toBe("Aprovado: “Aceite do M2”. O projeto ficou como Ativo.");
+    const approved = (effect: Record<string, unknown>) =>
+      decisionMessage({ ...base, status: "approved", effect });
+    expect(approved({ applied: true, milestone: "M4" })).toBe(
+      "Aprovado: “Aceite do M2”. O marco M4 foi criado.",
+    );
+    expect(
+      approved({
+        applied: true,
+        replanned: [
+          { code: "M2", from: "2026-11-15", to: "2026-11-30" },
+          { code: "M3", from: null, to: "2026-12-15" },
+        ],
+      }),
+    ).toBe("Aprovado: “Aceite do M2”. As datas mudaram em M2, M3.");
+    expect(approved({ applied: true, scope_changed: ["M1"] })).toBe(
+      "Aprovado: “Aceite do M2”. O escopo mudou em M1.",
+    );
+    expect(approved({ applied: true, client_message: ID })).toBe(
+      "Aprovado: “Aceite do M2”. A mensagem foi publicada no canal do cliente.",
+    );
     expect(
       decisionMessage({
         ...base,

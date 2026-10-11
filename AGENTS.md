@@ -249,7 +249,7 @@ Regras:
 
 > **D6 (2026-10-09):** na fase 1, todos os papéis abaixo são skills do **Kratos**, com uma única chave e o campo `papel` em cada escrita. Ele também é o importador dos projetos (D10).
 
-- **Gestor de Projetos**: lê marcos, saúde e riscos de todos os projetos do escopo; propõe replanejamento como **rascunho** (`hub_request_approval` do tipo `replan`); redige o resumo executivo semanal; nunca altera escopo sozinho.
+- **Gestor de Projetos**: lê marcos, saúde e riscos de todos os projetos do escopo; propõe replanejamento, mudança de escopo ou marco novo como **pedido** (`hub_request_approval` dos tipos `replan`, `scope_change` e `milestone_proposal`, cada um no formato dele), que o Hub aplica sozinho só quando o Fábio aprova; redige o resumo executivo semanal; nunca altera escopo sozinho.
 - **Coordenador Tático**: quebra marcos aprovados em frentes e tarefas (criação permitida na camada operacional e tática), prioriza a fila diária por departamento, atribui a agentes/pessoas, cobra bloqueios, publica o digest matinal no Telegram (via Hermes) e no inbox do Hub.
 - **Relator de Status**: gera rascunhos de status (interno e para cliente) a partir de dados reais; cada rascunho vira `approval` pendente. Só depois do "sim" do Fábio o Hub publica no portal ou envia.
 - **Guardião da Qualidade**: verifica conclusões (evidência, DoD, consistência `plan.md` ↔ Hub), reabre o que não tem prova, aponta tarefas duplicadas.

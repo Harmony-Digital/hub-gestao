@@ -60,6 +60,8 @@ export type DecisionItem = {
   checks: string[];
   /** Texto do relatório que será publicado (pedido de status). */
   reportBody: string | null;
+  /** Mensagem que vai ao canal do cliente, se aprovada (pedido external_message). */
+  messageBody: string | null;
   /** O Redator do Cliente (RC-12) reescreveu o texto: a nota e o texto de antes. */
   rewrite: { notes: string | null; original: string } | null;
 };
@@ -72,6 +74,47 @@ const NOTHING_AUTOMATIC =
 
 function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+type MilestoneChange = {
+  code: string;
+  due_date?: string;
+  title?: string;
+  acceptance_criteria?: string[];
+};
+
+/** Os marcos de um replanejamento ou mudança de escopo, do jeito que o pedido traz. */
+function milestoneChanges(payload: Record<string, unknown>): MilestoneChange[] {
+  if (!Array.isArray(payload.milestones)) return [];
+  return payload.milestones.flatMap((m) => {
+    if (!m || typeof m !== "object") return [];
+    const v = m as Record<string, unknown>;
+    if (typeof v.code !== "string") return [];
+    return [
+      {
+        code: v.code,
+        ...(typeof v.due_date === "string" ? { due_date: v.due_date } : {}),
+        ...(typeof v.title === "string" ? { title: v.title } : {}),
+        ...(Array.isArray(v.acceptance_criteria)
+          ? {
+              acceptance_criteria: v.acceptance_criteria.filter(
+                (c): c is string => typeof c === "string",
+              ),
+            }
+          : {}),
+      },
+    ];
+  });
+}
+
+/** "M2 para 30/11/2026, M3 para 15/12/2026". */
+function datesPhrase(changes: MilestoneChange[]): string {
+  return changes
+    .map(
+      (c) =>
+        `${c.code} para ${c.due_date ? formatDate(c.due_date) || c.due_date : "sem data"}`,
+    )
+    .join(", ");
 }
 
 export function approvalEffect(
@@ -91,6 +134,29 @@ export function approvalEffect(
       return payload.audience === "internal"
         ? "o relatório interno é publicado para a equipe."
         : "o relatório é publicado no portal do cliente.";
+    case "milestone_proposal": {
+      const title = text(payload.title);
+      if (!title) return NOTHING_AUTOMATIC;
+      const due = text(payload.due_date);
+      const visible = text(payload.title_client);
+      return `o marco “${title}” é criado${due ? `, com data ${formatDate(due) || due}` : ", sem data"}, como Planejado${visible ? `, visível para o cliente como “${visible}”` : ", só para a equipe"}.`;
+    }
+    case "replan": {
+      const changes = milestoneChanges(payload);
+      return changes.length
+        ? `as datas mudam: ${datesPhrase(changes)}; o motivo fica no histórico de datas.`
+        : NOTHING_AUTOMATIC;
+    }
+    case "scope_change": {
+      const codes = milestoneChanges(payload).map((c) => c.code);
+      return codes.length
+        ? `o título ou os critérios de aceite mudam em ${codes.join(", ")}, como nos detalhes.`
+        : NOTHING_AUTOMATIC;
+    }
+    case "external_message":
+      return text(payload.body)
+        ? "a mensagem abaixo é publicada no canal do cliente, em seu nome."
+        : NOTHING_AUTOMATIC;
     case "import_review": {
       const next = text(payload.next_status);
       const label =
@@ -104,18 +170,43 @@ export function approvalEffect(
   }
 }
 
+/**
+ * Os campos conhecidos, na ordem em que aparecem no cartão. O jsonb do Postgres não guarda
+ * a ordem das chaves: sem a ordem fixa, o "Motivo" sairia antes dos "Marcos".
+ */
 const DETAIL_LABELS: Record<string, string> = {
-  title_client: "Título para o cliente",
-  description_client: "Descrição para o cliente",
   title: "Título",
   due_date: "Data",
-  next_status: "Status depois da revisão",
   acceptance_criteria: "Critérios de aceite",
+  milestones: "Marcos",
+  reason: "Motivo",
+  title_client: "Título para o cliente",
+  description_client: "Descrição para o cliente",
+  next_status: "Status depois da revisão",
 };
+const DETAIL_ORDER = Object.keys(DETAIL_LABELS);
 
 function detailValue(key: string, value: unknown): string | null {
   if (key === "due_date" && typeof value === "string") {
     return formatDate(value) || value;
+  }
+  if (key === "milestones") {
+    const changes = milestoneChanges({ milestones: value });
+    if (!changes.length) return null;
+    return changes
+      .map((c) =>
+        [
+          c.code,
+          c.due_date ? `data ${formatDate(c.due_date) || c.due_date}` : null,
+          c.title ? `título “${c.title}”` : null,
+          c.acceptance_criteria
+            ? `critérios: ${c.acceptance_criteria.join("; ")}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(", "),
+      )
+      .join(" · ");
   }
   if (key === "next_status" && typeof value === "string") {
     return Object.hasOwn(PROJECT_STATUS, value)
@@ -145,6 +236,7 @@ function detailValue(key: string, value: unknown): string | null {
 const SHOWN_APART = new Set([
   "checks",
   "report_body",
+  "body",
   "audience",
   "original_body",
   "original_title_client",
@@ -198,7 +290,12 @@ export function approvalDetails(
   payload: Record<string, unknown>,
 ): { label: string; value: string }[] {
   const out: { label: string; value: string }[] = [];
-  for (const [key, raw] of Object.entries(payload)) {
+  const keys = [
+    ...DETAIL_ORDER.filter((key) => Object.hasOwn(payload, key)),
+    ...Object.keys(payload).filter((key) => !Object.hasOwn(DETAIL_LABELS, key)),
+  ];
+  for (const key of keys) {
+    const raw = payload[key];
     if (SHOWN_APART.has(key)) continue;
     const value = detailValue(key, raw);
     if (!value) continue;
@@ -244,6 +341,7 @@ export function decisionView(a: ApprovalLike, now: Date): DecisionItem {
     details: approvalDetails(a.payload),
     checks: approvalChecks(a.payload),
     reportBody: text(a.payload.report_body),
+    messageBody: a.type === "external_message" ? text(a.payload.body) : null,
     rewrite: approvalRewrite(a.payload),
   };
 }
@@ -296,6 +394,25 @@ export function approvalResult(effect: Record<string, unknown>): string {
     return "A frente agora aparece para o cliente.";
   }
   if (effect.report_published === true) return "O relatório foi publicado.";
+  if (typeof effect.milestone === "string") {
+    return `O marco ${effect.milestone} foi criado.`;
+  }
+  if (Array.isArray(effect.replanned)) {
+    return `As datas mudaram em ${effect.replanned
+      .map((r) =>
+        r && typeof r === "object"
+          ? String((r as { code?: unknown }).code)
+          : "",
+      )
+      .filter(Boolean)
+      .join(", ")}.`;
+  }
+  if (Array.isArray(effect.scope_changed)) {
+    return `O escopo mudou em ${effect.scope_changed.join(", ")}.`;
+  }
+  if (typeof effect.client_message === "string") {
+    return "A mensagem foi publicada no canal do cliente.";
+  }
   if (
     typeof effect.project_status === "string" &&
     Object.hasOwn(PROJECT_STATUS, effect.project_status)

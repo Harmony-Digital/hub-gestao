@@ -348,6 +348,7 @@ describe("Concierge (CO-10)", () => {
         type: "replan",
         project: "VIT",
         title: "Mover o lançamento em uma semana",
+        payload: { milestones: [{ code: "M1", due_date: "2026-12-01" }] },
       }),
     );
     const seen: string[] = [];
