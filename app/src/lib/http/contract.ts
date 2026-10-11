@@ -575,6 +575,8 @@ export const API_SPECS: Spec[] = [
     path: "/search",
     tag: "Busca",
     summary: "Busca global",
+    description:
+      "Projetos, tarefas, marcos e frentes do escopo da chave, e pessoas da equipe e agentes pelo nome (só nome e papel; o id serve para atribuir). Sem diferenciar acento.",
     scope: "projects:read",
     query: [
       {

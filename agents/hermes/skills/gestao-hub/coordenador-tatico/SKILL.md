@@ -35,7 +35,7 @@ Mande ao Telegram do Fábio (pelo Hermes) e deixe o essencial como comentário i
 1. `hub_get_plan` do projeto: o marco, as frentes que já existem e as tarefas.
 2. `hub_create_workstream` para cada frente que falta: ligada ao marco e ao departamento, título curto. Nasce interna (mostrar ao cliente é pedido de aprovação, nunca seu).
 3. `hub_create_task` para as tarefas: uma ação cada, com `workstream_id`; subtarefa com `parent`. Prazo só se o marco tiver data.
-4. Atribua (`assignee` em `hub_create_task` ou `hub_update_task`) a quem tem capacidade: veja a fila de cada um em `hub_list_tasks` antes de dar mais trabalho.
+4. Atribua (`assignee` em `hub_create_task` ou `hub_update_task`) a quem tem capacidade: veja a fila de cada um em `hub_list_tasks` antes de dar mais trabalho. O id de uma pessoa ou de um agente vem do `hub_search` pelo nome (`people` e `agents`, com `{ type, id }` para o `assignee`).
 5. Um comentário no marco (`hub_comment`) dizendo o que foi criado.
 
 ## Cobrar bloqueios
