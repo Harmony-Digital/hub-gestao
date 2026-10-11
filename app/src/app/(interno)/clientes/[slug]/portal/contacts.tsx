@@ -4,6 +4,7 @@ import { useActionState, useId, useRef, useState } from "react";
 import {
   CircleCheck,
   Copy,
+  Eraser,
   KeyRound,
   Link2,
   LoaderCircle,
@@ -18,7 +19,13 @@ import {
 } from "@/components/forms";
 import { Button } from "@/components/ui/button";
 import type { AccessStatus, ContactRole } from "@/modules/portal/access";
-import { criarContato, gerarLinkPortal, revogarAcessoPortal } from "./actions";
+import {
+  criarContato,
+  excluirDadosCliente,
+  excluirDadosContato,
+  gerarLinkPortal,
+  revogarAcessoPortal,
+} from "./actions";
 import { PORTAL_IDLE, ROLE_LABEL, type PortalFormState } from "./form";
 
 /**
@@ -305,6 +312,148 @@ export function ContactAccess({
       </div>
       <Result state={linkState} />
       <Result state={revokeState} />
+    </div>
+  );
+}
+
+/**
+ * Do dono: excluir os dados pessoais do contato (LGPD), com confirmação. Não tem volta:
+ * nome, e-mail, acesso e as mensagens dele no portal saem; o histórico registra.
+ */
+export function ContactPrivacy({
+  contactId,
+  name,
+}: {
+  contactId: string;
+  name: string;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [state, action, pending] = useActionState(
+    async (previous: PortalFormState, form: FormData) => {
+      const result = await excluirDadosContato(previous, form);
+      setConfirming(false);
+      return result;
+    },
+    PORTAL_IDLE,
+  );
+  return (
+    <div className="flex flex-col gap-2">
+      {confirming ? (
+        <form action={action} className="flex flex-col gap-2">
+          <input type="hidden" name="contact_id" value={contactId} />
+          <p className="text-sm text-ink">
+            Excluir os dados pessoais de {name}? Saem o nome, o e-mail, o acesso
+            ao portal e as mensagens que {name} escreveu. Não tem volta: se
+            precisar, exporte os dados do cliente antes.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="submit"
+              size="sm"
+              variant="destructive"
+              disabled={pending}
+            >
+              {pending ? (
+                <LoaderCircle aria-hidden="true" className="animate-spin" />
+              ) : (
+                <Eraser aria-hidden="true" />
+              )}
+              Sim, excluir os dados
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pending}
+              onClick={() => setConfirming(false)}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="self-start text-danger-fg"
+          onClick={() => setConfirming(true)}
+          aria-label={`Excluir os dados pessoais de ${name}`}
+        >
+          <Eraser aria-hidden="true" />
+          Excluir os dados pessoais
+        </Button>
+      )}
+      <Result state={state} />
+    </div>
+  );
+}
+
+/** Do dono: fim do contrato, excluir os dados pessoais de todos os contatos do cliente. */
+export function ClientPrivacy({
+  clientId,
+  clientName,
+}: {
+  clientId: string;
+  clientName: string;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [state, action, pending] = useActionState(
+    async (previous: PortalFormState, form: FormData) => {
+      const result = await excluirDadosCliente(previous, form);
+      setConfirming(false);
+      return result;
+    },
+    PORTAL_IDLE,
+  );
+  return (
+    <div className="flex flex-col gap-2">
+      {confirming ? (
+        <form action={action} className="flex flex-col gap-2">
+          <input type="hidden" name="client_id" value={clientId} />
+          <p className="text-ink">
+            Excluir os dados pessoais de todos os contatos de {clientName}? Cada
+            contato perde o acesso, e o nome, o e-mail e as mensagens dele saem.
+            Não tem volta: exporte antes, se precisar.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="submit"
+              size="sm"
+              variant="destructive"
+              disabled={pending}
+            >
+              {pending ? (
+                <LoaderCircle aria-hidden="true" className="animate-spin" />
+              ) : (
+                <Eraser aria-hidden="true" />
+              )}
+              Sim, excluir de todos
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pending}
+              onClick={() => setConfirming(false)}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="self-start text-danger-fg"
+          onClick={() => setConfirming(true)}
+        >
+          <Eraser aria-hidden="true" />
+          Excluir os dados pessoais de todos os contatos
+        </Button>
+      )}
+      <Result state={state} />
     </div>
   );
 }

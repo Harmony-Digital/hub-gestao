@@ -17,6 +17,7 @@ import { attempt } from "@/modules/attempt";
 import { REWRITE_JOB, rewriteForClient } from "@/modules/client-text/writer";
 import { notifyOwners, notifyProfile } from "@/modules/notifications";
 import { noteJobFailed, watchDenials } from "@/modules/ops/alerts";
+import { applyRetention } from "@/modules/privacy/service";
 import { reopenTask } from "@/modules/tasks/service";
 
 /**
@@ -33,6 +34,7 @@ export type JobType =
   | "webhook-dispatch"
   | "idempotency-cleanup"
   | "ops-watch"
+  | "retention"
   | typeof REWRITE_JOB;
 
 /** Jobs periódicos e o intervalo mínimo entre duas execuções. */
@@ -44,6 +46,7 @@ export const PERIODIC_JOBS: { type: JobType; everyMinutes: number }[] = [
   { type: "webhook-dispatch", everyMinutes: 1 },
   { type: "idempotency-cleanup", everyMinutes: 60 },
   { type: "ops-watch", everyMinutes: 15 },
+  { type: "retention", everyMinutes: 24 * 60 },
 ];
 
 export type JobDeps = {
@@ -125,6 +128,9 @@ async function runJob(
       return dispatchWebhooks(ctx, deps);
     case "ops-watch":
       return inTx(ctx, (t) => watchDenials(t));
+    case "retention":
+      // LGPD: apaga os registros operacionais antigos (prazos em docs/privacidade.md).
+      return inTx(ctx, (t) => applyRetention(t));
     case REWRITE_JOB:
       // RC-12: a IA fica fora de transação; sem Redator ligado, o pedido segue como está.
       return rewriteForClient(

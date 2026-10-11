@@ -17,6 +17,12 @@ services:
       APP_VERSION: ${HUB_IMAGE_TAG}
     init: true
     restart: unless-stopped
+    # Retenção dos logs do contêiner (LGPD, M8; docs/privacidade.md): 5 arquivos de 10 MB.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777

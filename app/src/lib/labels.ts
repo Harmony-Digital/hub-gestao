@@ -144,6 +144,7 @@ export const JOB_TYPE: Record<string, string> = {
   "idempotency-cleanup": "Limpeza das chaves de repetição",
   "client-text-rewrite": "Reescrita do texto para o cliente (RC-12)",
   "ops-watch": "Vigia das recusas de acesso",
+  retention: "Limpeza dos registros antigos (LGPD)",
 };
 
 export const AGENT_ROLE: Record<string, string> = {
