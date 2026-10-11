@@ -39,7 +39,7 @@ As instruções canônicas do projeto estão em `../AGENTS.md` e valem integralm
 - Teclado: o layout de `(interno)` tem o link "Pular para o conteúdo" e `id="conteudo"`; o foco visível global (`:where(...)`, camada base) vale para quem não tem estilo de foco próprio.
 - Faixa de acentos em expressão regular: escreva o escape (`/[\u0300-\u036f]/g`). Já aconteceu de o arquivo ficar com os caracteres invisíveis no lugar do escape.
 - `src/app/(interno)/`: telas da equipe, com a barra lateral de `src/components/shell`. Cada tela confere a sessão de novo perto dos dados (`getCurrentUser`), além da porta do `src/proxy.ts`.
-- Projeto: `projetos/[code]/page.tsx` (Visão geral), `lista/` e `quadro/`. O que as três compartilham fica na pasta privada `_tasks/`:
+- Projeto: `projetos/[code]/page.tsx` (Visão geral), `lista/`, `quadro/` e `calendario/` (só leitura: grade do mês em `modules/projects/calendar-grid.ts`, dados em `calendar.ts`). O que as abas compartilham fica na pasta privada `_tasks/`:
   - `project-header.tsx`: cabeçalho com as abas;
   - `task-panel.tsx` e `panel-frame.tsx`: painel da tarefa (`?tarefa=HUB-n`);
   - `task-forms.tsx` e `new-task.tsx`: formulários e Nova tarefa;

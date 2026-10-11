@@ -21,19 +21,26 @@ function card(scope: Page | Locator, title: string): Locator {
   return scope.locator("[data-board-card]").filter({ hasText: title });
 }
 
-/** Arrasta o cartão com o mouse até o fim da coluna (o Quadro começa a arrastar após 6 px). */
+/**
+ * Arrasta o cartão com o mouse até o fim da coluna (o Quadro começa a arrastar após 6 px).
+ * Coluna mais alta que a tela (banco local com muitas execuções): solta no fim da parte
+ * visível dela, senão o cartão cai fora das colunas.
+ */
 async function drag(page: Page, from: Locator, to: Locator) {
   const a = await from.boundingBox();
   const b = await to.boundingBox();
   if (!a || !b) throw new Error("Cartão ou coluna fora da tela.");
   const x = a.x + a.width / 2;
   const y = a.y + a.height / 2;
+  const bottom = (page.viewportSize()?.height ?? 1080) - 20;
   await page.mouse.move(x, y);
   await page.mouse.down();
   await page.mouse.move(x + 12, y + 12, { steps: 4 });
-  await page.mouse.move(b.x + b.width / 2, b.y + b.height - 20, {
-    steps: 16,
-  });
+  await page.mouse.move(
+    b.x + b.width / 2,
+    Math.min(b.y + b.height - 20, bottom),
+    { steps: 16 },
+  );
   await page.mouse.up();
 }
 

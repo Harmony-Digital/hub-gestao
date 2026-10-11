@@ -1,6 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Archive, LayoutDashboard, List, SquareKanban } from "lucide-react";
+import {
+  Archive,
+  CalendarDays,
+  LayoutDashboard,
+  List,
+  SquareKanban,
+} from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
 import { Avatar, Pill, Progress } from "@/components/shell/pill";
 import { initials } from "@/lib/format";
@@ -8,12 +14,18 @@ import { HEALTH, PHASES, PROJECT_STATUS } from "@/lib/labels";
 import type { ProjectDetail } from "@/modules/projects/schemas";
 import { RestoreButton } from "../../../_archive/archive-controls";
 
-export type ProjectTab = "overview" | "list" | "board";
+export type ProjectTab = "overview" | "list" | "board" | "calendar";
 
 const TABS = [
   { key: "overview", label: "Visão geral", path: "", icon: LayoutDashboard },
   { key: "list", label: "Lista", path: "/lista", icon: List },
   { key: "board", label: "Quadro", path: "/quadro", icon: SquareKanban },
+  {
+    key: "calendar",
+    label: "Calendário",
+    path: "/calendario",
+    icon: CalendarDays,
+  },
 ] as const;
 
 /** Topo das telas de um projeto: identificação, saúde, fase e as abas de visão. */
