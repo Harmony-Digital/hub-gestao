@@ -15,7 +15,10 @@ import {
   updateProject,
   UpdateProjectInput,
 } from "@/modules/projects/admin";
-import { getTemplate } from "@/modules/templates/service";
+import {
+  applyTemplateStatuses,
+  getTemplate,
+} from "@/modules/templates/service";
 import { parseClientForm, parseProjectForm } from "./form";
 
 /** Cria ou edita o projeto (e, se pedido, o cliente novo, na mesma transação). */
@@ -41,6 +44,9 @@ export async function salvarProjeto(
           t,
           CreateProjectInput.parse({
             ...v.fields,
+            // RF-36: o objetivo para o cliente do modelo, se a pessoa não escreveu outro.
+            objective_client:
+              v.fields.objective_client || template?.client?.objective || null,
             departments: [
               ...new Set([
                 ...v.fields.departments,
@@ -51,6 +57,10 @@ export async function salvarProjeto(
             client_id: clientId,
           }),
         );
+        // RF-36: o projeto nasce com o conjunto de status do modelo.
+        if (template?.statuses) {
+          await applyTemplateStatuses(t, created.id, template.statuses);
+        }
         return created.code;
       }
       const updated = await updateProject(

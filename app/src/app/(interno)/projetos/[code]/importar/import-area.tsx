@@ -27,8 +27,13 @@ export function ImportArea({
   /** Modelo escolhido (`?modelo=`): o esqueleto começa no campo de importação. */
   template?: { id: string; name: string; markdown: string } | null;
 }) {
-  const [proposal, setProposal] = useState<{ id: number; text: string } | null>(
-    template ? { id: 1, text: template.markdown } : null,
+  // O texto no campo é do modelo (até o Planejador trocar): os textos dele entram junto.
+  const [proposal, setProposal] = useState<{
+    id: number;
+    text: string;
+    template: string | null;
+  } | null>(
+    template ? { id: 1, text: template.markdown, template: template.id } : null,
   );
   return (
     <>
@@ -77,13 +82,14 @@ export function ImportArea({
       <PlannerCard
         projectCode={projectCode}
         ready={planner}
-        onUse={(text) => setProposal({ id: Date.now(), text })}
+        onUse={(text) => setProposal({ id: Date.now(), text, template: null })}
       />
       <ImportPlanForm
         key={proposal?.id ?? 0}
         projectCode={projectCode}
         planPath={planPath}
         initialText={proposal?.text ?? ""}
+        templateId={proposal?.template ?? null}
       />
     </>
   );
