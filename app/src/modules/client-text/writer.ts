@@ -154,6 +154,7 @@ export async function rewriteForClient(
     {
       agentId: prepared.agentId,
       purpose: `Redator do Cliente · ${promptTag(CLIENT_WRITER)} · ${prepared.project.code}`,
+      projectId: prepared.project.id,
       instructions: CLIENT_WRITER.instructions,
       prompt: writerMessage(prepared),
       maxOutputTokens: 3000,

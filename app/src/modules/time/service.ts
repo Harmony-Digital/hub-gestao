@@ -195,13 +195,29 @@ export const ProjectTimeDto = z.object({
     .describe(
       `Tarefas com tempo acima de ${Math.round((OVERRUN_RATIO - 1) * 100)}% da estimativa, as maiores primeiro (até 10).`,
     ),
+  ai_cost_usd: z
+    .object({
+      month: z.number().describe("No mês corrente, em dólares."),
+      total: z.number(),
+      by_agent: z.array(
+        z.object({
+          agent: z.string(),
+          month: z.number(),
+          total: z.number(),
+        }),
+      ),
+    })
+    .describe(
+      "Custo das chamadas de IA dos agentes internos do Hub ligadas ao projeto (Planejador, Redator do Cliente). Os agentes do Hermes pagam a IA por lá e não entram aqui.",
+    ),
 });
 export type ProjectTimeDto = z.infer<typeof ProjectTimeDto>;
 
 /**
- * Tempo do projeto (M7, base do TO-15): o que foi registrado por pessoa ou agente e por
- * frente, o estimado contra o registrado e as tarefas acima da estimativa. Só leitura,
- * informativo: não muda orçamento nem fatura.
+ * Tempo e custo do projeto (M7, base do TO-15): o que foi registrado por pessoa ou agente
+ * e por frente, o estimado contra o registrado, as tarefas acima da estimativa e o custo
+ * de IA dos agentes internos ligado ao projeto. Só leitura, informativo: não muda
+ * orçamento nem fatura.
  */
 export async function projectTime(
   t: TxCtx,
@@ -260,6 +276,19 @@ export async function projectTime(
       group by tk.id, tk.code, tk.title, tk.estimate_minutes`,
     [project.id],
   );
+  const aiCost = await many<{ agent: string; total: number; month: number }>(
+    t,
+    `select ag.name as agent,
+            coalesce(sum(r.cost_usd), 0)::float8 as total,
+            coalesce(sum(r.cost_usd) filter (
+              where r.started_at >= date_trunc('month', now())), 0)::float8 as month
+       from ${S}.agent_runs r join ${S}.agents ag on ag.id = r.agent_id
+      where r.project_id = $1
+      group by ag.name
+      order by sum(r.cost_usd) desc, ag.name`,
+    [project.id],
+  );
+  const round = (usd: number) => Math.round(usd * 10_000) / 10_000;
   const overruns = perTask
     .filter((r) => r.actual > r.estimate * OVERRUN_RATIO)
     .sort((a, b) => b.actual - b.estimate - (a.actual - a.estimate))
@@ -288,5 +317,14 @@ export async function projectTime(
       estimate_minutes: r.estimate,
       actual_minutes: r.actual,
     })),
+    ai_cost_usd: {
+      month: round(aiCost.reduce((sum, r) => sum + Number(r.month), 0)),
+      total: round(aiCost.reduce((sum, r) => sum + Number(r.total), 0)),
+      by_agent: aiCost.map((r) => ({
+        agent: r.agent,
+        month: round(Number(r.month)),
+        total: round(Number(r.total)),
+      })),
+    },
   };
 }

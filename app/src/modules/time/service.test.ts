@@ -96,6 +96,23 @@ describe("tempo do projeto (TO-15)", () => {
     );
   });
 
+  it("soma o custo de IA ligado ao projeto, por agente, com o mês separado", async () => {
+    await h.raw.query(
+      `insert into proj_hub_gestao.agent_runs
+         (workspace_id, agent_id, started_at, finished_at, source, summary, cost_usd, project_id)
+       values ($1, $2, now(), now(), 'llm', 'Planejador', 0.25, $3),
+              ($1, $2, now() - interval '70 days', now() - interval '70 days', 'llm', 'Planejador', 0.10, $3),
+              ($1, $2, now(), now(), 'llm', 'Concierge', 0.50, null)`,
+      [h.ws, h.agents.kratos, h.vit],
+    );
+    const time = await inTx(asOwner(), (t) => projectTime(t, "VIT"));
+    expect(time.ai_cost_usd).toEqual({
+      month: 0.25,
+      total: 0.35,
+      by_agent: [{ agent: "Kratos", month: 0.25, total: 0.35 }],
+    });
+  });
+
   it("agente lê o tempo do projeto pela chave com tasks:read", async () => {
     const kratos = await agentActor(h, h.keys.kratos);
     const time = await inTx(ctxFor(h, kratos), (t) => projectTime(t, "VIT"));

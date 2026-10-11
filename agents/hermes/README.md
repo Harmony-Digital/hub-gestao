@@ -1,6 +1,6 @@
 # Kratos (Hermes) no Hub de Gestão
 
-Na fase 1 (decisão D6), o **Kratos**, agente pessoal do Fábio que roda no Hermes da VPS, assume os papéis de gestão do Hub como skills, com uma chave só, e é o importador dos projetos (D10). Esta pasta guarda a **cópia de referência** das skills; a versão que o Kratos usa fica no segundo cérebro do Fábio (`workspace-backup/skills/gestao-hub/`). Mudou uma, mude a outra no mesmo dia.
+Na fase 1 (decisão D6), o **Kratos**, agente pessoal do Fábio que roda no Hermes da VPS, assume os papéis de gestão do Hub como skills, com uma chave só, e é o importador dos projetos (D10). Esta pasta guarda a **cópia de referência** das skills; a versão que o Kratos usa fica no segundo cérebro do Fábio (`workspace-backup/skills/gestao-hub/`). Mudou uma, mude a outra no mesmo dia. Os exemplos desta cópia usam códigos de projeto fictícios (o repositório do Hub está público até o fim da construção); a cópia do segundo cérebro pode manter os exemplos reais.
 
 > O `SOUL.md` do Kratos não muda sem a aprovação do Fábio. As skills dizem como operar o Hub; quem ele é continua no `SOUL.md` dele.
 
@@ -13,6 +13,7 @@ Na fase 1 (decisão D6), o **Kratos**, agente pessoal do Fábio que roda no Herm
 | `skills/gestao-hub/relator-de-status` | RL-03 | status interno de segunda, entrega de marco, pedido do Fábio |
 | `skills/gestao-hub/guardiao-da-qualidade` | QA-04 | tarefa concluída, verificação noturna, conflitos do `plan.md` |
 | `skills/gestao-hub/vigia-de-prazos` | VP-05 | saúde de projeto mudou |
+| `skills/gestao-hub/controlador-de-tempo` | TO-15 | desvios de tempo e custo da semana, pedido do Fábio |
 | `../skills/importar-projetos-no-hub` | KR-00 | importação dos projetos (D10), com a orientação do Fábio |
 
 ## Chave e papéis
@@ -21,7 +22,7 @@ Uma chave de agente para o Kratos, criada pelo Fábio na Sala de Controle (`/age
 
 - **escopos**: `projects:read`, `milestones:read`, `tasks:read`, `tasks:write`, `tasks:complete`, `workstreams:write`, `comments:write`, `approvals:request`, `reports:draft`, `sync:plan`, `agents:read` e `projects:import`;
 - **projetos**: todos. A importação cria projeto novo, que precisa estar ao alcance da chave. Na tela, a opção "todos os projetos" dá o acesso amplo (`workspace:*`), que vale por todos os escopos acima: as ações de pessoa (decidir, aceitar marco, chaves) continuam recusadas para qualquer agente;
-- **papéis do catálogo** no cadastro do agente (Editar → Papéis do catálogo): KR-00, GP-01, CT-02, RL-03, QA-04 e VP-05. O Hub recusa uma escrita com um `papel` que o agente não tem;
+- **papéis do catálogo** no cadastro do agente (Editar → Papéis do catálogo): KR-00, GP-01, CT-02, RL-03, QA-04, VP-05 e TO-15. O Hub recusa uma escrita com um `papel` que o agente não tem;
 - nunca `approvals:decide`, `portal:*` ou `agents:keys`: decisão é do Fábio.
 
 Toda escrita informa o `papel` e uma `idempotency_key` nova; o histórico guarda o papel, e a Sala de Controle mostra, por exemplo, "Kratos como Coordenador Tático".
@@ -33,6 +34,7 @@ Toda escrita informa o `papel` e uma `idempotency_key` nova; o histórico guarda
 | Dias úteis, 7h30 em diante (depois do rollup) | gestor-de-projetos | resumo executivo |
 | Dias úteis, 8h | coordenador-tatico | digest matinal (até 8h15) |
 | Segunda, 9h | relator-de-status | status interno da semana |
+| Segunda, 9h30 | controlador-de-tempo | desvios de tempo e custo da semana |
 | Todo dia, 23h | guardiao-da-qualidade | verificação noturna |
 | Fim do dia útil, 18h | gestor-de-projetos | resumo executivo do dia |
 | Por evento do Hub | todas | `project.health_changed`, `approval.requested`, `agent.budget_exceeded` (webhooks, `docs/webhooks.md`) |

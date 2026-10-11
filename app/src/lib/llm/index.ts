@@ -49,6 +49,8 @@ export type LlmRequest = {
   instructions: string;
   prompt: string;
   maxOutputTokens?: number;
+  /** Projeto a que a chamada serve: o custo entra no do projeto (TO-15). */
+  projectId?: string | null;
 };
 
 export type LlmRefusal =
@@ -382,7 +384,15 @@ async function run(
   const startedAt = new Date();
   const record = (costUsd: number, error: string | null) =>
     inTx(ctx, (t) =>
-      recordRun(t, agentId, request.purpose, startedAt, costUsd, error),
+      recordRun(
+        t,
+        agentId,
+        request.purpose,
+        startedAt,
+        costUsd,
+        error,
+        request.projectId ?? null,
+      ),
     );
   try {
     const answer = await call({
@@ -533,10 +543,12 @@ async function recordRun(
   startedAt: Date,
   costUsd: number,
   error: string | null,
+  projectId: string | null,
 ) {
   await t.tx.query(
-    `insert into ${S}.agent_runs (workspace_id, agent_id, started_at, finished_at, source, summary, cost_usd, error)
-     values ($1, $2, $3, now(), 'llm', $4, $5, $6)`,
+    `insert into ${S}.agent_runs
+       (workspace_id, agent_id, started_at, finished_at, source, summary, cost_usd, error, project_id)
+     values ($1, $2, $3, now(), 'llm', $4, $5, $6, $7)`,
     [
       t.actor.workspaceId,
       agentId,
@@ -544,6 +556,7 @@ async function recordRun(
       purpose.slice(0, 200),
       costUsd,
       error,
+      projectId,
     ],
   );
   await refreshAgentSpend(t, agentId);

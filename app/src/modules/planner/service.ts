@@ -115,7 +115,7 @@ export async function proposePlan(
         [t.actor.workspaceId],
       ),
     };
-    return { agent, context };
+    return { agent, context, projectId: project.id };
   });
   if (!prepared) return { ok: false, message: NO_PLANNER };
 
@@ -124,6 +124,7 @@ export async function proposePlan(
     {
       agentId: prepared.agent.id,
       purpose: `Planejador · ${promptTag(PLANNER_PROPOSE)} · ${prepared.context.project.code}`,
+      projectId: prepared.projectId,
       instructions: PLANNER_PROPOSE.instructions,
       prompt: plannerMessage(prepared.context, document),
       maxOutputTokens: 6000,

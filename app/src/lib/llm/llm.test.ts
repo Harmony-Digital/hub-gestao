@@ -148,6 +148,22 @@ describe("adaptador de IA", () => {
       [h.agents.kratos],
     );
     expect(Number(spent.rows[0].spent)).toBeCloseTo(3 * 0.0105, 4);
+    // Com o projeto, a execução fica ligada a ele (custo de IA por projeto, TO-15).
+    {
+      const { factory } = mock([]);
+      await generate(
+        system(),
+        { ...request, agentId: h.agents.kratos, projectId: h.vit },
+        { modelFor: factory },
+      );
+      expect(
+        await count(
+          h,
+          `select count(*)::int as n from ${S}.agent_runs where agent_id = $1 and project_id = $2`,
+          [h.agents.kratos, h.vit],
+        ),
+      ).toBe(1);
+    }
   });
 
   it("falha fechada: sem modelo, sem orçamento, sem preço, sem saldo ou sem chave, não chama", async () => {

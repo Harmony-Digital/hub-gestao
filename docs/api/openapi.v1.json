@@ -7035,6 +7035,48 @@
               "additionalProperties": false
             },
             "description": "Tarefas com tempo acima de 20% da estimativa, as maiores primeiro (até 10)."
+          },
+          "ai_cost_usd": {
+            "type": "object",
+            "properties": {
+              "month": {
+                "type": "number",
+                "description": "No mês corrente, em dólares."
+              },
+              "total": {
+                "type": "number"
+              },
+              "by_agent": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "agent": {
+                      "type": "string"
+                    },
+                    "month": {
+                      "type": "number"
+                    },
+                    "total": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "agent",
+                    "month",
+                    "total"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "month",
+              "total",
+              "by_agent"
+            ],
+            "additionalProperties": false,
+            "description": "Custo das chamadas de IA dos agentes internos do Hub ligadas ao projeto (Planejador, Redator do Cliente). Os agentes do Hermes pagam a IA por lá e não entram aqui."
           }
         },
         "required": [
@@ -7044,7 +7086,8 @@
           "by_actor",
           "by_workstream",
           "estimate",
-          "overruns"
+          "overruns",
+          "ai_cost_usd"
         ],
         "additionalProperties": false
       },
