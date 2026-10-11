@@ -15,6 +15,7 @@ import type { ChannelMessage } from "@/modules/comments/client-channel";
 import {
   portalAccent,
   portalChannel,
+  portalLogo,
   portalFiles,
   portalProject,
   type PortalFile,
@@ -70,21 +71,27 @@ async function Project({
   let messages: ChannelMessage[] = [];
   let files: PortalFile[] = [];
   let accent: string | null = null;
+  let logoVersion: string | null = null;
   if (ProjectCode.safeParse(codigo).success) {
     try {
-      ({ project, messages, files, accent } = await inTx(
-        await portalContext(session),
-        async (t) => ({
-          project: await portalProject(t, codigo),
-          messages: await portalChannel(t, codigo),
-          files: await portalFiles(t, codigo),
-          accent: await portalAccent(t),
-        }),
-      ));
+      ({
+        project,
+        messages,
+        files,
+        accent,
+        logo: logoVersion,
+      } = await inTx(await portalContext(session), async (t) => ({
+        project: await portalProject(t, codigo),
+        messages: await portalChannel(t, codigo),
+        files: await portalFiles(t, codigo),
+        accent: await portalAccent(t),
+        logo: await portalLogo(t),
+      })));
     } catch (err) {
       if (!(err instanceof HubError && err.status === 404)) throw err;
     }
   }
+  const logo = logoVersion ? `/portal/${cliente}/logo?v=${logoVersion}` : null;
   if (!project) {
     return (
       <main
@@ -94,6 +101,7 @@ async function Project({
         <PortalTop
           clientName={session.clientName}
           accent={accent}
+          logo={logo}
           back={back}
         />
         <h1 className="font-heading text-2xl font-semibold text-navy">
@@ -113,7 +121,12 @@ async function Project({
       id="conteudo"
       className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6"
     >
-      <PortalTop clientName={session.clientName} accent={accent} back={back} />
+      <PortalTop
+        clientName={session.clientName}
+        accent={accent}
+        logo={logo}
+        back={back}
+      />
 
       <section aria-labelledby="projeto" className="flex flex-col gap-4">
         <h1

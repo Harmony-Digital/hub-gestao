@@ -83,6 +83,7 @@ Na mesma tela (Clientes → Contatos e portal), só o dono: "Exportar os dados d
 
 - Logo e cores da Harmony, mais espaço que as telas da equipe e o texto em segunda pessoa.
 - **Cor de destaque do cliente** (opcional), no cadastro do cliente (Clientes → abrir o cliente → "Cor de destaque no portal", com o código da cor, como #2E7D6B). No portal, aparece só em detalhes: um ponto ao lado do nome do cliente e a borda esquerda dos cartões de projeto e de entrega. Nunca na cor de um texto, para não mexer no contraste. O código é conferido no formulário e no banco (`#RRGGBB`); o portal lê só a cor, nada mais do cadastro.
+- **Logo do cliente** (opcional, RF-04), no cadastro do cliente (Clientes → abrir o cliente → Logo → "Enviar o logo"; só dono e administração): PNG, JPG ou WebP, até 1 MB, de preferência com fundo transparente. SVG não entra (o navegador executa script dentro dele). O tipo é conferido pela extensão e pelos primeiros bytes. No portal, o logo aparece no topo, acima do nome do cliente; na tela Clientes, ao lado do nome. O arquivo fica no banco (tabela `client_logos`, migração 0022) e sai por duas rotas que exigem sessão: `/clientes/<cliente>/logo` (equipe) e `/portal/<cliente>/logo` (o contato, que só lê o logo do próprio cliente).
 
 ## Texto para o cliente: verificação do Redator do Cliente (RC-12)
 
@@ -107,7 +108,7 @@ Roda no `npm test` e no CI, com a sessão de verdade de um contato:
 
 ## Onde está no código
 
-- Banco: `supabase/migrations/hub_gestao_0015_portal_access.sql` (acesso), `hub_gestao_0016_portal_milestone_revisions.sql` (contagem de revisões de data) e `hub_gestao_0017_portal_client_channel.sql` (o cliente escreve no canal) e `hub_gestao_0018_portal_milestone_receipt.sql` (confirmar recebimento).
+- Banco: `supabase/migrations/hub_gestao_0015_portal_access.sql` (acesso), `hub_gestao_0016_portal_milestone_revisions.sql` (contagem de revisões de data) e `hub_gestao_0017_portal_client_channel.sql` (o cliente escreve no canal) e `hub_gestao_0018_portal_milestone_receipt.sql` (confirmar recebimento); o logo do cliente em `hub_gestao_0022_client_logos.sql`.
 - Núcleo: `app/src/modules/portal/access.ts` (contatos, liberar, gerar link, revogar) e `views.ts` (leituras do portal); sessão em `app/src/lib/portal/session.ts` e `token.ts`; o canal em `app/src/modules/comments/client-channel.ts` (leitura e resposta da equipe e o aviso); os arquivos em `app/src/modules/attachments/client-files.ts`.
 - Telas: `app/src/app/portal/` (entrar, aceite, projetos, a página de cada projeto em `[cliente]/[codigo]`, sair, sem acesso; as peças comuns em `_ui/`) e `app/src/app/(interno)/clientes/[slug]/portal/` (a tela da equipe).
 - Testes: `app/src/modules/portal/portal.test.ts` (o caminho completo do acesso no banco), `leak.test.ts` (o teste de vazamento), `form.test.ts` da tela da equipe e `app/e2e/portal.spec.ts` (o dono libera, o contato entra num navegador sem a sessão da equipe, aceita, vê os projetos e a página do projeto sem nada interno, sai; o link não vale de novo; o dono revoga; com a revisão de acessibilidade das páginas do portal).

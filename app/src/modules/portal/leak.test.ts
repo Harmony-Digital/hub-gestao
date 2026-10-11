@@ -18,7 +18,13 @@ import {
   type TestHub,
 } from "@/test/hub";
 import { createContact, issuePortalLink, portalClient } from "./access";
-import { portalAccent, portalProject, portalProjects } from "./views";
+import {
+  portalAccent,
+  portalLogo,
+  portalProject,
+  portalProjects,
+  readPortalLogo,
+} from "./views";
 
 /**
  * Teste de vazamento do portal (PRD §5.2 e §9). O contato do cliente, com a sessão de
@@ -47,6 +53,7 @@ const CLIENT_READABLE = [
   "attachment_contents",
   "attachments",
   "client_contacts",
+  "client_logos",
   "clients",
   "comments",
   "milestones",
@@ -179,6 +186,14 @@ beforeAll(async () => {
       decideApproval(t, id, { decision: "approved" }),
     );
   }
+  // Logos (RF-04): o do cliente e o de outro cliente (o interno da Harmony).
+  await h.raw.query(
+    `insert into ${S}.client_logos (client_id, workspace_id, mime, sha256, content)
+     select c.id, c.workspace_id, 'image/png',
+            repeat(case when c.id = $1 then 'b' else 'c' end, 64), '\\x89504e47'::bytea
+       from ${S}.clients c`,
+    [clientId],
+  );
   // Projeto do mesmo cliente ainda em revisão: fora do portal.
   await h.raw.query(
     `insert into ${S}.projects (workspace_id, client_id, code, name, status)
@@ -259,6 +274,7 @@ describe("vazamento no portal", () => {
         clients: await col(`select id::text as v from ${S}.clients`),
         contacts: await col(`select email as v from ${S}.client_contacts`),
         profiles: await col(`select id::text as v from ${S}.profiles`),
+        logos: await col(`select client_id::text as v from ${S}.client_logos`),
       };
     });
 
@@ -277,6 +293,7 @@ describe("vazamento no portal", () => {
     expect(seen.clients).toEqual([clientId]);
     expect(seen.contacts).toEqual(["ana@clinica.com.br"]);
     expect(seen.profiles).toEqual([session.actor.id]);
+    expect(seen.logos).toEqual([clientId]);
 
     // O teste só vale se o lado interno existe de verdade.
     for (const name of [
@@ -349,6 +366,16 @@ describe("vazamento no portal", () => {
     );
     expect(await inTx(asClient(), (t) => portalAccent(t))).toBe("#2E7D6B");
     await expect(inTx(asOwner(), (t) => portalAccent(t))).rejects.toThrow(
+      /portal do cliente/,
+    );
+  });
+
+  it("o logo que o portal lê é o do próprio cliente (RF-04)", async () => {
+    expect(await inTx(asClient(), (t) => portalLogo(t))).toBe("b".repeat(12));
+    const logo = await inTx(asClient(), (t) => readPortalLogo(t));
+    expect(logo?.mime).toBe("image/png");
+    expect([...(logo?.content ?? [])]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+    await expect(inTx(asOwner(), (t) => portalLogo(t))).rejects.toThrow(
       /portal do cliente/,
     );
   });
