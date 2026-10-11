@@ -158,6 +158,23 @@ function DecisionCard({
         </div>
       ) : null}
 
+      {item.rewrite ? (
+        <div className="flex flex-col gap-1 rounded-xl bg-info-soft p-3 text-sm text-info-fg">
+          <p className="font-semibold">
+            Reescrito pelo Redator do Cliente (RC-12)
+          </p>
+          {item.rewrite.notes ? <p>{item.rewrite.notes}</p> : null}
+          <details>
+            <summary className="cursor-pointer font-medium">
+              Ver o texto como veio de quem preparou
+            </summary>
+            <div className="mt-1 rounded-lg bg-card p-2 text-ink">
+              <Markdown text={item.rewrite.original} />
+            </div>
+          </details>
+        </div>
+      ) : null}
+
       {item.reportBody ? (
         <details className="group rounded-xl border border-line">
           <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-navy">

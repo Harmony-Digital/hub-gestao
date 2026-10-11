@@ -20,6 +20,7 @@ import {
 } from "@/modules/common";
 import { attempt } from "@/modules/attempt";
 import { checkProjectClientTexts } from "@/modules/client-text/context";
+import { enqueueClientRewrite } from "@/modules/client-text/writer";
 import { json, many, maybeOne, S, type TxCtx } from "@/modules/context";
 import { emitEvent } from "@/modules/events";
 import { notifyOwners, notifyProfile } from "@/modules/notifications";
@@ -330,7 +331,7 @@ export async function requestApproval(
     }
   }
 
-  return insertApproval(t, project, {
+  const dto = await insertApproval(t, project, {
     type: input.type,
     entity,
     title: input.title,
@@ -338,6 +339,9 @@ export async function requestApproval(
     payload,
     due_at: input.due_at ?? null,
   });
+  // RC-12: o texto proposto para o cliente é reescrito no tom Harmony (job), se ligado.
+  if (input.type === "client_visibility") await enqueueClientRewrite(t, dto.id);
+  return dto;
 }
 
 /**

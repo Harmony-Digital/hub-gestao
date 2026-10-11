@@ -60,6 +60,8 @@ export type DecisionItem = {
   checks: string[];
   /** Texto do relatório que será publicado (pedido de status). */
   reportBody: string | null;
+  /** O Redator do Cliente (RC-12) reescreveu o texto: a nota e o texto de antes. */
+  rewrite: { notes: string | null; original: string } | null;
 };
 
 /** Mesma regra do aviso automático (job approval-aging): mais de 3 dias úteis. */
@@ -140,7 +142,32 @@ function detailValue(key: string, value: unknown): string | null {
 }
 
 /** Campos que a tela mostra à parte (verificação e texto do relatório), não nos detalhes. */
-const SHOWN_APART = new Set(["checks", "report_body", "audience"]);
+const SHOWN_APART = new Set([
+  "checks",
+  "report_body",
+  "audience",
+  "original_body",
+  "original_title_client",
+  "original_description_client",
+  "rewritten_by",
+  "rewrite_notes",
+]);
+
+/** O que o Redator do Cliente mudou: a nota dele e o texto como veio de quem preparou. */
+export function approvalRewrite(
+  payload: Record<string, unknown>,
+): DecisionItem["rewrite"] {
+  if (payload.rewritten_by !== "RC-12") return null;
+  const original =
+    text(payload.original_body) ??
+    [
+      text(payload.original_title_client),
+      text(payload.original_description_client),
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+  return original ? { notes: text(payload.rewrite_notes), original } : null;
+}
 
 const ISSUE_KINDS = new Set<ClientTextIssueKind>([
   "task_code",
@@ -217,6 +244,7 @@ export function decisionView(a: ApprovalLike, now: Date): DecisionItem {
     details: approvalDetails(a.payload),
     checks: approvalChecks(a.payload),
     reportBody: text(a.payload.report_body),
+    rewrite: approvalRewrite(a.payload),
   };
 }
 

@@ -17,6 +17,7 @@ import { many, maybeOne, S, type TxCtx } from "@/modules/context";
 import { approvalById, ApprovalDto } from "@/modules/approvals/service";
 import { describeIssue } from "@/modules/client-text/check";
 import { checkProjectClientTexts } from "@/modules/client-text/context";
+import { enqueueClientRewrite } from "@/modules/client-text/writer";
 import { emitEvent } from "@/modules/events";
 import { notifyOwners } from "@/modules/notifications";
 
@@ -191,6 +192,10 @@ export async function draftReport(
     `update ${S}.status_reports set approval_id = $2 where id = $1`,
     [report!.id, approval!.id],
   );
+  // RC-12: com o Redator do Cliente ligado, o texto é reescrito no tom Harmony (job).
+  if (input.audience === "client") {
+    await enqueueClientRewrite(t, approval!.id);
+  }
   // A versão nova substitui a anterior ainda pendente (mesmo período, mesma audiência,
   // mesmo autor): o Fábio decide sobre o texto mais recente, e as versões ficam guardadas.
   await t.tx.query(

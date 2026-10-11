@@ -1,3 +1,4 @@
+import { CLIENT_WRITER } from "./client-writer";
 import { CONCIERGE_INTERPRET } from "./concierge";
 import { CONNECTION_TEST } from "./connection-test";
 import { PLANNER_PROPOSE } from "./planner";
@@ -26,4 +27,5 @@ export const PROMPTS: readonly PromptSpec[] = [
   CONNECTION_TEST,
   CONCIERGE_INTERPRET,
   PLANNER_PROPOSE,
+  CLIENT_WRITER,
 ];
