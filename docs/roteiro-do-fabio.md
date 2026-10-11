@@ -9,7 +9,7 @@
 | Varredura de segredos e proteção de envio do GitHub | ligadas pelo agente e conferidas (nenhum alerta aberto) | segurança do repositório público |
 | Proteção da `main` | ligada: PR obrigatório com os três jobs do CI, sem force-push, também para administradores; vale enquanto o repositório for público | M0, "Proteção da branch `main`" |
 | Acesso de `PUBLIC` ao `pg_net` e às estatísticas no Supabase compartilhado | manter (o Hub não usa; `docs/seguranca.md`) | pendência da revisão de segurança (M8) |
-| Destino da cópia diária do backup fora da VPS (D8) | Google Drive, por rclone; o agente prepara o script de um clique (passo 2) | M2 (D8) e M8, "Backups" |
+| Destino da cópia diária do backup fora da VPS (D8) | Google Drive, por rclone, cifrada; o instalador está no passo 2 | M2 (D8) e M8, "Backups" |
 | Quando fechar o repositório | depois dos GATEs, com o CI resolvido (plano pago, limite de gastos ou CI mais enxuto) | Encerramento |
 
 ## 2. Um clique no Mac (botão Rodar, na pasta do repositório)
@@ -18,7 +18,8 @@
 |---|---|---|
 | Ligar o aviso de publicação que falhou | `deploy/vps/hub-alert-secret.sh` | M8, "Observabilidade" (junto com o Telegram, passo 4) |
 | Aplicar a rotação dos logs do contêiner | `deploy/vps/hub-apply-compose.sh` | M8, "LGPD" (junto com a revisão jurídica, passo 6) |
-| Teste de restauração do backup | os dois comandos de `docs/operacao.md`, "Teste de restauração" | M8, "Backups" e GATE M8 |
+| Ligar a cópia diária do backup no Google Drive (o navegador abre para autorizar com a conta Google da Harmony) | `deploy/vps/hub-backup-offsite-setup.sh` | M2 (D8) e M8, "Backups" |
+| Teste de restauração do backup | os dois comandos de `docs/operacao.md`, "Teste de restauração", e depois o `--testar-volta` da cópia no Drive ("Cópia no Google Drive") | M8, "Backups" e GATE M8 |
 
 ## 3. Na tela do Hub, como dono
 

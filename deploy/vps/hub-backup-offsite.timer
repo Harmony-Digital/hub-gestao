@@ -1,0 +1,11 @@
+[Unit]
+Description=Hub de Gestão - cópia do backup no Google Drive às 06:45 UTC (depois do backup das 06:00)
+
+[Timer]
+OnCalendar=*-*-* 06:45:00 UTC
+Persistent=true
+RandomizedDelaySec=5min
+Unit=hub-backup-offsite.service
+
+[Install]
+WantedBy=timers.target

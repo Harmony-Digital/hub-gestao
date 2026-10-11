@@ -34,6 +34,13 @@ Nenhum valor secreto entra em chat, commit, log, comentário de tarefa ou docume
 | `HUB_DEV_SAMPLE` | `on` cria no banco local o cliente "Clínica Exemplo" e o projeto de exemplo `EXE`, com pedidos de aprovação de exemplo | só `.env.local` | opcional |
 | `HUB_DEV_POLL_MS` | Liga a observação de arquivos por consulta periódica no `next dev` (milissegundos, ex.: 1000), para quando o macOS esgota os observadores | ambiente do `next dev` local (a configuração do preview já passa) | opcional; nunca em produção |
 
+## Cópia do backup no Google Drive (D8)
+
+| Credencial | Para que serve | Onde fica | Quem fornece |
+|---|---|---|---|
+| Autorização do rclone no Google Drive (token OAuth, escopo `drive.file`) | Enviar a cópia diária cifrada para a pasta `hub-gestao-backups` | `/opt/hub-gestao/shared/rclone.conf` (VPS, root, `0600`) | o Fábio, no navegador, pelo `deploy/vps/hub-backup-offsite-setup.sh`; revoga na conta Google (Acesso de terceiros) |
+| Senha das cópias (gpg, AES-256) | Cifrar e abrir as cópias do Drive; sem ela, nenhuma cópia abre | `/opt/hub-gestao/shared/backup-passphrase` (VPS, root, `0600`) e o Keychain do Mac do Fábio (serviço `hub-gestao-backup`, conta `senha-da-copia`) | gerada pelo instalador, sem aparecer na tela; trocar invalida a abertura das cópias antigas com a senha nova |
+
 ## Segredos do GitHub Actions (M2)
 
 `HUB_VPS_HOST`, `HUB_VPS_USER`, `HUB_VPS_SSH_KEY`, `HUB_VPS_KNOWN_HOSTS`, `HUB_NEXT_PUBLIC_SUPABASE_ANON_KEY` e a variável `HUB_DEPLOY_URL`. Quem provisiona é o Fábio.
