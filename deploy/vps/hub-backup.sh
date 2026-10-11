@@ -26,6 +26,16 @@ log() {
   printf '[hub-backup] %s\n' "$*"
 }
 
+# Avisa o Hub que o backup deu certo; sem aviso por 30 horas, o Hub alerta o dono. Com o
+# contêiner fora do ar (ou numa versão sem o script), segue sem o aviso.
+report() {
+  if docker exec hub-app node /app/scripts/backup-report.mjs "$1" "$2" "$3" >/dev/null 2>&1; then
+    log "Aviso entregue ao Hub."
+  else
+    log "Aviso: o Hub não recebeu o registro deste backup (contêiner fora do ar ou versão antiga)."
+  fi
+}
+
 main() {
   local stamp final size
   install -d -m 0700 "$BACKUP_DIR"
@@ -56,6 +66,7 @@ main() {
   TMP_FILE=""
   size="$(stat --format='%s' "$final")"
   log "Backup pronto: $(basename "$final") (${size} bytes)."
+  report local "$(basename "$final")" "$size"
 
   find "$BACKUP_DIR" -maxdepth 1 -name 'hub-*.dump' -mtime "+${RETENTION_DAYS}" -print -delete \
     | sed 's/^/[hub-backup] removido: /'

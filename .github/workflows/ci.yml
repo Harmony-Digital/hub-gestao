@@ -148,6 +148,16 @@ jobs:
           # A CLI hub é servida sem sessão, para as Actions dos outros repositórios.
           curl --silent --fail http://127.0.0.1:3000/cli/hub.mjs | head -1 | grep -q "^#!/usr/bin/env node" \
             || { echo "A CLI hub não foi servida em /cli/hub.mjs"; exit 1; }
+          # Os scripts que a VPS roda dentro do contêiner estão na imagem: o relógio e o aviso de
+          # backup (que recusa sem CRON_SECRET), e a rota do aviso responde sem passar pelo login.
+          docker exec hub-app-teste test -f /app/scripts/cron-tick.mjs
+          set +e
+          docker exec hub-app-teste node /app/scripts/backup-report.mjs local hub-20261011T060000Z.dump 1
+          code=$?
+          set -e
+          test "$code" = "2" || { echo "O aviso de backup devia recusar sem CRON_SECRET (2), veio $code"; exit 1; }
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' --request POST http://127.0.0.1:3000/api/internal/backups/report)"
+          test "$status" = "500" || { echo "Esperava 500 sem CRON_SECRET na rota do aviso de backup, veio $status"; exit 1; }
           test "$(docker exec hub-app-teste id -u)" = "1001"
           docker exec hub-app-teste sh -c 'test ! -e /app/src && test ! -e /app/.data && ! ls -a /app | grep -q "^\.env"'
           echo "Contêiner sem root, sem código-fonte, sem banco local e sem arquivos .env."
