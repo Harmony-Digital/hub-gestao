@@ -39,7 +39,7 @@ Os logs técnicos do servidor não guardam dado pessoal: guardam ids e o `reques
 | Cópia cifrada do dump no Google Drive | 30 dias | a própria cópia apaga as mais antigas |
 | Cadastro de contato, mensagens e projetos | enquanto durar a relação com o cliente | exclusão pelo dono (abaixo), a pedido do titular ou no fim do contrato |
 | Histórico (`activity_log`) | enquanto o workspace existir | não sai: é a trilha de auditoria, só de inserção, e guarda quem fez o quê. Alguns registros de acesso ao portal levam o nome do contato. Retenção por legítimo interesse e para o exercício regular de direitos (LGPD art. 7, VI e IX), a confirmar com orientação jurídica |
-| Logs do contêiner na VPS | hoje sem limite | recomendado: rotação de 10 MB por arquivo e 5 arquivos (`logging` no `deploy/vps/docker-compose.yml`). Aplicar na VPS é passo do Fábio, num clique: `deploy/vps/hub-apply-compose.sh` (mostra a diferença, guarda a cópia anterior e volta sozinho se o contêiner não ficar saudável) |
+| Logs do contêiner na VPS | 5 arquivos de 10 MB (o mais antigo sai quando o quinto enche) | o Docker apaga (`logging` no `deploy/vps/docker-compose.yml`; aplicado na VPS em 2026-10-11 com `deploy/vps/hub-apply-compose.sh`) |
 
 ## Pedidos dos titulares (LGPD art. 18)
 
