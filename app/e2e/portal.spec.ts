@@ -70,6 +70,17 @@ test("o dono libera o acesso e o contato acompanha os projetos pelo portal", asy
   await expect(row.getByText(/^Acesso liberado\./)).toBeVisible();
   const link = (await row.locator("code").textContent()) ?? "";
   expect(link).toMatch(/\/portal\/entrar\/[A-Za-z0-9_-]{43}$/);
+  // OB-13: a mensagem de convite pronta, com o primeiro nome e o link, para o dono mandar.
+  const convite = row.getByLabel(
+    "Mensagem de convite (revise e mande você mesmo)",
+  );
+  await expect(convite).toHaveValue(/^Olá, Contato! Tudo bem\?/);
+  expect(await convite.inputValue()).toContain(link);
+  await expect(
+    page
+      .getByRole("region", { name: "Preparação do portal" })
+      .getByText(/Acesso liberado: \d+ de \d+$/),
+  ).toBeVisible();
   await expect(
     row.getByText("Link enviado, ainda não entrou", { exact: true }),
   ).toBeVisible();

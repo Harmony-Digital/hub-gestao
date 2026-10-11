@@ -1,15 +1,25 @@
 "use client";
 
-import { useActionState, useId, useState } from "react";
+import { useActionState, useId, useRef, useState } from "react";
 import { CircleCheck, LoaderCircle, Send } from "lucide-react";
 import { ErrorNote, textareaClass, useSubmit } from "@/components/forms";
 import { Button } from "@/components/ui/button";
 import { responderAoCliente } from "./actions";
 import { REPLY_IDLE, REPLY_MAX, type ReplyState } from "./form";
 
-/** Responder ao cliente no canal: o texto aparece para ele no portal. */
-export function ReplyBox({ projectCode }: { projectCode: string }) {
+/**
+ * Responder ao cliente no canal: o texto aparece para ele no portal. Com o canal vazio,
+ * o rascunho de boas-vindas (OB-13) pode ir para o campo, para revisar antes de enviar.
+ */
+export function ReplyBox({
+  projectCode,
+  welcome,
+}: {
+  projectCode: string;
+  welcome?: string;
+}) {
   const id = useId();
+  const field = useRef<HTMLTextAreaElement>(null);
   const [round, setRound] = useState(0);
   const [state, action, pending] = useActionState(
     async (previous: ReplyState, form: FormData) => {
@@ -29,6 +39,7 @@ export function ReplyBox({ projectCode }: { projectCode: string }) {
         </label>
         <textarea
           id={`${id}-body`}
+          ref={field}
           name="body"
           required
           rows={3}
@@ -40,7 +51,7 @@ export function ReplyBox({ projectCode }: { projectCode: string }) {
         <p id={`${id}-hint`} className="text-xs text-caption">
           O cliente vê esta mensagem no portal, com o seu nome.
         </p>
-        <div>
+        <div className="flex flex-wrap gap-2">
           <Button type="submit" disabled={pending}>
             {pending ? (
               <LoaderCircle aria-hidden="true" className="animate-spin" />
@@ -49,6 +60,21 @@ export function ReplyBox({ projectCode }: { projectCode: string }) {
             )}
             Enviar ao cliente
           </Button>
+          {welcome ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={() => {
+                if (field.current) {
+                  field.current.value = welcome;
+                  field.current.focus();
+                }
+              }}
+            >
+              Usar o rascunho de boas-vindas
+            </Button>
+          ) : null}
         </div>
       </form>
       <div aria-live="polite">

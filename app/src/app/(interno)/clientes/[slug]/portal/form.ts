@@ -5,8 +5,8 @@ import type { ContactRole } from "@/modules/portal/access";
 export type PortalFormState =
   | { status: "idle" }
   | { status: "error"; message: string }
-  /** O link de uso único aparece uma vez só, logo depois de gerado. */
-  | { status: "ok"; message: string; link?: string };
+  /** O link de uso único aparece uma vez só, logo depois de gerado, com o convite. */
+  | { status: "ok"; message: string; link?: string; invite?: string };
 
 export const PORTAL_IDLE: PortalFormState = { status: "idle" };
 

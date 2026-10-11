@@ -260,7 +260,13 @@ export async function issuePortalLink(
   t: TxCtx,
   contactId: string,
   options: { pepper: string; appUrl: string },
-): Promise<{ url: string; expiresAt: string; released: boolean }> {
+): Promise<{
+  url: string;
+  expiresAt: string;
+  released: boolean;
+  /** Para a mensagem de convite (OB-13): quem recebe, de quem e os projetos dele. */
+  invite: { contactName: string; orgName: string; projects: string[] };
+}> {
   const contact = await lockContact(t, contactId);
   if (contact.client_archived) {
     throw unprocessable("Cliente arquivado não tem portal.");
@@ -312,10 +318,27 @@ export async function issuePortalLink(
     entityId: contact.id,
     after: { name: contact.name, expires_at: iso(expires!.expires_at) },
   });
+  const org = await maybeOne<{ name: string }>(
+    t,
+    `select name from ${S}.workspaces where id = $1`,
+    [t.actor.workspaceId],
+  );
+  const projects = await many<{ name: string }>(
+    t,
+    `select name from ${S}.projects
+      where client_id = $1 and status not in ('in_review', 'archived')
+      order by name`,
+    [contact.client_id],
+  );
   return {
     url: `${options.appUrl.replace(/\/+$/, "")}/portal/entrar/${token}`,
     expiresAt: iso(expires!.expires_at),
     released,
+    invite: {
+      contactName: contact.name,
+      orgName: org?.name ?? "",
+      projects: projects.map((p) => p.name),
+    },
   };
 }
 

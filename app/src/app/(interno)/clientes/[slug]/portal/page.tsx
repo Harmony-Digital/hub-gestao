@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
+import Link from "next/link";
+import { Suspense, type ReactNode } from "react";
+import { Circle, CircleCheck, TriangleAlert } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
 import { can } from "@/lib/authorize";
 import { HubError } from "@/lib/errors";
@@ -14,6 +16,10 @@ import {
   type AccessStatus,
   type ContactItem,
 } from "@/modules/portal/access";
+import {
+  portalReadiness,
+  type PortalReadiness,
+} from "@/modules/portal/readiness";
 import { ContactAccess, NewContactForm } from "./contacts";
 import { ROLE_LABEL } from "./form";
 
@@ -86,7 +92,7 @@ async function PortalAdmin({
     }
     throw err;
   }
-  const { client, contacts } = data;
+  const { client, contacts, readiness } = data;
   const owner = can(user.actor, "portal.manage");
   return (
     <>
@@ -137,6 +143,8 @@ async function PortalAdmin({
           </ul>
         </section>
 
+        <Readiness readiness={readiness} />
+
         <section aria-labelledby="contatos" className="flex flex-col gap-3">
           <h2
             id="contatos"
@@ -184,7 +192,117 @@ async function PortalAdmin({
 
 async function load(t: TxCtx, slug: string) {
   const client = await portalClient(t, slug);
-  return { client, contacts: await listContacts(t, client.id) };
+  return {
+    client,
+    contacts: await listContacts(t, client.id),
+    readiness: await portalReadiness(t, client.id),
+  };
+}
+
+function Step({ done, children }: { done: boolean; children: ReactNode }) {
+  return (
+    <li className="flex items-start gap-2">
+      {done ? (
+        <CircleCheck
+          aria-hidden="true"
+          className="mt-0.5 size-4 shrink-0 text-ok"
+        />
+      ) : (
+        <Circle
+          aria-hidden="true"
+          className="mt-0.5 size-4 shrink-0 text-caption"
+        />
+      )}
+      <span className="min-w-0">
+        <span className="sr-only">{done ? "Feito: " : "Falta: "}</span>
+        {children}
+      </span>
+    </li>
+  );
+}
+
+/** OB-13: o que já está pronto para o cliente ver e o que falta, do próprio banco. */
+function Readiness({ readiness: r }: { readiness: PortalReadiness }) {
+  return (
+    <section
+      aria-labelledby="preparacao"
+      className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-4 sm:p-5"
+    >
+      <h2
+        id="preparacao"
+        className="font-heading text-base font-semibold text-navy"
+      >
+        Preparação do portal
+      </h2>
+      <ul className="flex flex-col gap-1.5 text-sm text-ink">
+        <Step done={r.contacts > 0}>Contatos cadastrados: {r.contacts}</Step>
+        <Step done={r.released > 0}>
+          Acesso liberado: {r.released} de {r.contacts}
+        </Step>
+        <Step done={r.released > 0 && r.consented === r.released}>
+          Aceite do uso dos dados (LGPD), no primeiro acesso: {r.consented} de{" "}
+          {r.released}
+        </Step>
+      </ul>
+      {r.projects.length === 0 ? (
+        <p className="text-sm text-ink-2">
+          Nenhum projeto ativo deste cliente ainda: o portal fica vazio até
+          haver um.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {r.projects.map((p) => (
+            <li
+              key={p.code}
+              className="flex flex-col gap-1.5 rounded-xl bg-off p-3"
+            >
+              <Link
+                href={`/projetos/${p.code}`}
+                className="text-sm font-semibold text-navy hover:underline"
+              >
+                {p.name}
+              </Link>
+              <ul className="flex flex-col gap-1 text-sm text-ink">
+                <Step done={p.hasClientObjective}>
+                  Objetivo escrito para o cliente
+                  {p.hasClientObjective ? null : (
+                    <>
+                      {" "}
+                      (
+                      <Link
+                        href={`/projetos/${p.code}/editar`}
+                        className="text-brand-strong underline-offset-2 hover:underline"
+                      >
+                        Editar projeto
+                      </Link>
+                      )
+                    </>
+                  )}
+                </Step>
+                <Step done={p.clientMilestones > 0}>
+                  Entregas que aparecem no portal: {p.clientMilestones}
+                </Step>
+                <Step done={p.clientWorkstreams > 0}>
+                  Frentes que aparecem no portal: {p.clientWorkstreams}
+                </Step>
+              </ul>
+              {p.milestonesWithoutText > 0 ? (
+                <p className="flex items-start gap-2 text-sm text-warn-fg">
+                  <TriangleAlert
+                    aria-hidden="true"
+                    className="mt-0.5 size-4 shrink-0"
+                  />
+                  {p.milestonesWithoutText === 1
+                    ? "1 entrega marcada para o cliente está sem o título para ele e não aparece."
+                    : `${p.milestonesWithoutText} entregas marcadas para o cliente estão sem o título para ele e não aparecem.`}
+                </p>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
 }
 
 function ContactRow({

@@ -52,22 +52,32 @@ export const CHANNEL_SQL = `
    order by c.created_at desc, c.id desc
    limit 100`;
 
-/** O canal visto pela equipe, com a informação de o cliente já ter o portal ligado. */
+/**
+ * O canal visto pela equipe, com a informação de o cliente já ter o portal ligado e o
+ * nome da organização (para o rascunho de boas-vindas, OB-13).
+ */
 export async function clientChannel(
   t: TxCtx,
   code: string,
-): Promise<{ portalEnabled: boolean; messages: ChannelMessage[] }> {
+): Promise<{
+  portalEnabled: boolean;
+  orgName: string;
+  messages: ChannelMessage[];
+}> {
   const project = await resolveProject(t, code, "comment.read");
-  const client = await maybeOne<{ portal_enabled: boolean }>(
+  const client = await maybeOne<{ portal_enabled: boolean; org: string }>(
     t,
-    `select cl.portal_enabled
-       from ${S}.projects p join ${S}.clients cl on cl.id = p.client_id
+    `select cl.portal_enabled, w.name as org
+       from ${S}.projects p
+       join ${S}.clients cl on cl.id = p.client_id
+       join ${S}.workspaces w on w.id = p.workspace_id
       where p.id = $1`,
     [project.id],
   );
   const rows = await many<MessageRow>(t, CHANNEL_SQL, [project.id]);
   return {
     portalEnabled: client?.portal_enabled ?? false,
+    orgName: client?.org ?? "",
     messages: rows.reverse().map(toMessage),
   };
 }

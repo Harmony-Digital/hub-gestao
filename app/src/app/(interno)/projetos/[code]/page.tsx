@@ -69,6 +69,7 @@ import {
 import { LiveRefresh } from "../../_live/live-refresh";
 import { RestoreButton } from "../../_archive/archive-controls";
 import { ArchivedSection, archivedWhen } from "../../_archive/archived-section";
+import { welcomeMessage } from "@/modules/portal/invite";
 import { ReplyBox } from "./_channel/reply-box";
 import { ClientFilesEditor } from "./_files/files-editor";
 import { NewTaskButton } from "./_tasks/new-task";
@@ -107,7 +108,11 @@ async function ProjectView({
   let departments: Awaited<ReturnType<typeof departmentOptions>>;
   let pending: string[];
   let archived: ArchivedInProject;
-  let channel: { portalEnabled: boolean; messages: ChannelMessage[] };
+  let channel: {
+    portalEnabled: boolean;
+    orgName: string;
+    messages: ChannelMessage[];
+  };
   let files: ClientFile[];
   let marker: string;
   try {
@@ -327,7 +332,17 @@ async function ProjectView({
                   importação.
                 </p>
               ) : can(user.actor, "comment.write_client") ? (
-                <ReplyBox projectCode={code} />
+                <ReplyBox
+                  projectCode={code}
+                  welcome={
+                    channel.messages.length === 0
+                      ? welcomeMessage({
+                          projectName: data.project.name,
+                          orgName: channel.orgName,
+                        })
+                      : undefined
+                  }
+                />
               ) : (
                 <p className="text-sm text-caption">
                   Responder ao cliente é do dono ou da administração.
