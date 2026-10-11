@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { HubError } from "@/lib/errors";
-import { inTx } from "@/modules/context";
+import { inTx, maybeOne } from "@/modules/context";
 import {
   blockTask,
   completeTask,
@@ -17,11 +17,16 @@ const codes: Record<string, string> = {};
 
 beforeAll(async () => {
   h = await openTestHub();
-  const days = (
-    await h.raw.query<{ yesterday: string; soon: string }>(
-      `select (current_date - 1)::text as yesterday, (current_date + 3)::text as soon`,
-    )
-  ).rows[0];
+  // As datas no fuso do workspace, o mesmo das contas do Painel (no banco, a transação usa
+  // o fuso do workspace; fora dela, o do servidor, que muda o dia entre 0h e 3h UTC).
+  const days = await inTx(
+    asOwner(),
+    async (t) =>
+      (await maybeOne<{ yesterday: string; soon: string }>(
+        t,
+        `select (current_date - 1)::text as yesterday, (current_date + 3)::text as soon`,
+      ))!,
+  );
   await inTx(asOwner(), (t) =>
     updateWorkstream(t, h.vitWorkstream, { department: "sistemas" }),
   );
