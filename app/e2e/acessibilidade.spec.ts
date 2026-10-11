@@ -104,6 +104,9 @@ const OPEN: {
 ];
 
 async function violations(page: Page) {
+  // O título chega com os metadados, às vezes depois do conteúdo: sem ele, o axe acusa
+  // "document-title" numa página que está certa.
+  await expect(page).toHaveTitle(/\S/);
   const result = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();
