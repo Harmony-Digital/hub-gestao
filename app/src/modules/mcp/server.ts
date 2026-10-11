@@ -640,7 +640,7 @@ export function buildMcpServer(
       {
         title: "Pedir aprovação",
         description:
-          "Pede uma decisão ao Fábio: aceite de marco, novo marco, replanejamento, mudança de escopo, frente visível ao cliente ou mensagem externa. Você pede; só ele decide.",
+          "Pede uma decisão ao Fábio: aceite de marco, novo marco, replanejamento, mudança de escopo, frente visível ao cliente, mensagem externa ou revogar a chave de um agente (agent_key, só para quem audita o acesso, sem project). Você pede; só ele decide.",
         inputSchema: RequestApprovalInput.extend(writeFields),
         outputSchema: ApprovalDto,
         annotations: mutating,

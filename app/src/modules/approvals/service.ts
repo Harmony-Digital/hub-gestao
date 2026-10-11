@@ -24,6 +24,7 @@ import { enqueueClientRewrite } from "@/modules/client-text/writer";
 import { json, many, maybeOne, S, type TxCtx } from "@/modules/context";
 import { emitEvent } from "@/modules/events";
 import { notifyOwners, notifyProfile } from "@/modules/notifications";
+import { revokeAgentKey } from "@/modules/agents/service";
 import {
   applyProposal,
   isProposal,
@@ -39,6 +40,7 @@ export const RequestableType = z.enum([
   "scope_change",
   "client_visibility",
   "external_message",
+  "agent_key",
   "custom",
 ]);
 
@@ -64,7 +66,9 @@ export const ApprovalStatus = z.enum([
 
 export const RequestApprovalInput = z.strictObject({
   type: RequestableType,
-  project: ProjectCode,
+  project: ProjectCode.optional().describe(
+    "Código do projeto (ex.: HUB). Obrigatório, menos no agent_key: a chave de um agente não é de um projeto.",
+  ),
   title: Line(300),
   summary: z.string().trim().max(4000).optional(),
   milestone: MilestoneCode.optional().describe(
@@ -258,6 +262,10 @@ export async function requestApproval(
   t: TxCtx,
   input: RequestApprovalInput,
 ): Promise<ApprovalDto> {
+  if (input.type === "agent_key") return requestKeyRevocation(t, input);
+  if (!input.project) {
+    throw badRequest("Informe o project: o código do projeto, como HUB.");
+  }
   const project = await resolveProject(t, input.project, "approval.request");
   assertNoSecrets({ title: input.title, summary: input.summary });
   // Campos que só o Hub preenche (verificação e texto do relatório) nunca vêm de fora.
@@ -373,6 +381,73 @@ export async function requestApproval(
   return dto;
 }
 
+const KeyRevocationPayload = z.object({
+  key_id: Uuid,
+  action: z.literal("revoke").optional(),
+});
+
+/**
+ * Pedido de revogar a chave de um agente (agent_key, RF-25): quem audita o acesso (AC-14,
+ * permissão de auditoria) pede; o dono decide e, ao aprovar, a chave é revogada na hora.
+ * O pedido não é de um projeto. O Hub completa o prefixo da chave e o nome do agente.
+ */
+async function requestKeyRevocation(
+  t: TxCtx,
+  input: RequestApprovalInput,
+): Promise<ApprovalDto> {
+  authorize(t.actor, "approval.request");
+  authorize(t.actor, "audit.read");
+  if (input.project) {
+    throw badRequest(
+      "O pedido agent_key não é de um projeto: envie sem o project.",
+    );
+  }
+  assertNoSecrets({ title: input.title, summary: input.summary });
+  const parsed = KeyRevocationPayload.safeParse(input.payload ?? {});
+  if (!parsed.success) {
+    throw badRequest(
+      "Envie em payload.key_id o id da chave a revogar (hub_get_access_audit traz o id de cada chave).",
+    );
+  }
+  const key = await maybeOne<{
+    key_prefix: string;
+    revoked_at: Date | string | null;
+    agent_name: string;
+  }>(
+    t,
+    `select k.key_prefix, k.revoked_at, a.name as agent_name
+       from ${S}.agent_api_keys k join ${S}.agents a on a.id = k.agent_id
+      where k.id = $1`,
+    [parsed.data.key_id],
+  );
+  if (!key) throw unprocessable("Chave não encontrada neste workspace.");
+  if (key.revoked_at) throw conflict("Esta chave já foi revogada.");
+  const pending = await maybeOne<{ id: string }>(
+    t,
+    `select id from ${S}.approvals
+      where type = 'agent_key' and status = 'pending' and payload->>'key_id' = $1`,
+    [parsed.data.key_id],
+  );
+  if (pending) {
+    throw conflict("Já existe um pedido pendente para esta chave.", {
+      approval_id: pending.id,
+    });
+  }
+  return insertApproval(t, null, {
+    type: "agent_key",
+    entity: null,
+    title: input.title,
+    summary: input.summary ?? null,
+    payload: {
+      key_id: parsed.data.key_id,
+      action: "revoke",
+      key_prefix: key.key_prefix,
+      agent_name: key.agent_name,
+    },
+    due_at: input.due_at ?? null,
+  });
+}
+
 /**
  * Pedido de revisão da importação de um projeto (D10): aberto pelo próprio Hub no fim do
  * hub_import_plan, um só pendente por projeto. Aprovar tira o projeto de "Em revisão"
@@ -419,7 +494,8 @@ export async function requestImportReview(
 
 async function insertApproval(
   t: TxCtx,
-  project: { id: string },
+  /** Sem projeto só o pedido de revogar chave (agent_key). */
+  project: { id: string } | null,
   input: {
     type: z.infer<typeof ApprovalType>;
     entity: { type: string; id: string } | null;
@@ -438,7 +514,7 @@ async function insertApproval(
      returning id`,
     [
       t.actor.workspaceId,
-      project.id,
+      project?.id ?? null,
       input.type,
       input.entity?.type ?? null,
       input.entity?.id ?? null,
@@ -467,7 +543,7 @@ async function insertApproval(
     action: "approval.requested",
     entityType: "approval",
     entityId: dto.id,
-    projectId: project.id,
+    projectId: project?.id ?? null,
     after: {
       type: dto.type,
       title: dto.title,
@@ -674,6 +750,22 @@ async function applyEffect(
         [row.project_id, next],
       );
       return { applied: true, project_status: next };
+    }
+    case "agent_key": {
+      // A chave pode ter sido revogada na Sala de Controle depois do pedido.
+      const revoked = await maybeOne<{ id: string }>(
+        t,
+        `select id from ${S}.agent_api_keys where id = $1 and revoked_at is null`,
+        [String(row.payload.key_id ?? "")],
+      );
+      if (!revoked) {
+        return {
+          applied: false,
+          note: "A chave já estava revogada: nada mudou.",
+        };
+      }
+      await revokeAgentKey(t, revoked.id);
+      return { applied: true, key_revoked: row.payload.key_prefix ?? true };
     }
     default:
       // RF-25: marco novo, replanejamento, escopo e mensagem ao cliente.
