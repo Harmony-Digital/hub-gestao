@@ -637,6 +637,7 @@ function workstreamInitial(w: WorkstreamDto): WorkstreamInitial {
     title_client: w.title_client,
     description_client: w.description_client,
     dependsOn: w.depends_on,
+    taskCount: w.task_count,
   };
 }
 

@@ -48,6 +48,8 @@ export type WorkstreamInitial = {
   description_client: string | null;
   /** Frentes de que esta depende (ids). */
   dependsOn: string[];
+  /** Tarefas da frente: com alguma, o status sai delas (RF-12). */
+  taskCount: number;
 };
 
 export type WorkstreamFormOptions = {
@@ -206,20 +208,36 @@ function WorkstreamForm({
                 ))}
               </select>
             </Field>
-            <Field id={`${id}-status`} label="Status">
-              <select
+            {workstream && workstream.taskCount > 0 ? (
+              <Field
                 id={`${id}-status`}
-                name="status"
-                defaultValue={workstream?.status ?? "planned"}
-                className={inputClass}
+                label="Status"
+                hint="Sai das tarefas da frente: muda quando elas mudam."
               >
-                {WORKSTREAM_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {WORKSTREAM_STATUS[s].label}
-                  </option>
-                ))}
-              </select>
-            </Field>
+                <input type="hidden" name="status" value={workstream.status} />
+                <output
+                  id={`${id}-status`}
+                  className={`${inputClass} flex items-center bg-off`}
+                >
+                  {WORKSTREAM_STATUS[workstream.status].label}
+                </output>
+              </Field>
+            ) : (
+              <Field id={`${id}-status`} label="Status">
+                <select
+                  id={`${id}-status`}
+                  name="status"
+                  defaultValue={workstream?.status ?? "planned"}
+                  className={inputClass}
+                >
+                  {WORKSTREAM_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {WORKSTREAM_STATUS[s].label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
             <Field id={`${id}-assignee`} label="Responsável">
               <select
                 id={`${id}-assignee`}
