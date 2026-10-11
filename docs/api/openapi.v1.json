@@ -3191,6 +3191,7 @@
             ]
           },
           "status": {
+            "description": "Só vale para frente sem tarefa: com tarefas, o status sai delas (RF-12) e este campo é ignorado.",
             "type": "string",
             "enum": [
               "planned",
@@ -3267,10 +3268,12 @@
               "scope_change",
               "client_visibility",
               "external_message",
+              "agent_key",
               "custom"
             ]
           },
           "project": {
+            "description": "Código do projeto (ex.: HUB). Obrigatório, menos no agent_key: a chave de um agente não é de um projeto.",
             "type": "string",
             "pattern": "^[A-Z0-9]{2,8}$"
           },
@@ -3311,7 +3314,6 @@
         },
         "required": [
           "type",
-          "project",
           "title"
         ],
         "additionalProperties": false
@@ -3678,6 +3680,12 @@
                     "string",
                     "null"
                   ]
+                },
+                "key_id": {
+                  "description": "Só nos pontos de chave: o id para pedir a revogação ao Fábio (hub_request_approval, tipo agent_key, payload.key_id).",
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                 }
               },
               "required": [

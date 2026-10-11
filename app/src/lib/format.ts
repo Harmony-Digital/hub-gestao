@@ -90,6 +90,12 @@ export function formatTimestampDay(timestamp: string): string {
   return dayFmt.format(new Date(timestamp));
 }
 
+/** "11/10 às 14:32", no fuso do workspace (histórico das entidades). */
+export function formatDayTime(timestamp: string): string {
+  const at = new Date(timestamp);
+  return `${dayFmt.format(at)} às ${timeFmt.format(at)}`;
+}
+
 const fullDayFmt = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
   month: "2-digit",

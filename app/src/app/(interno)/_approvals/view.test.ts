@@ -174,6 +174,30 @@ describe("pedido na tela", () => {
     ).toBeNull();
   });
 
+  it("revogar chave de agente (agent_key): o efeito, os detalhes e o resultado", () => {
+    const payload = {
+      key_id: "4dc6721e-2ac8-463d-84cb-3b25ab170bbd",
+      action: "revoke",
+      key_prefix: "hub_ak_ab12",
+      agent_name: "Executor",
+    };
+    expect(approvalEffect("agent_key", payload)).toBe(
+      "a chave hub_ak_ab12 de Executor é revogada: o agente perde o acesso na hora.",
+    );
+    expect(approvalDetails(payload)).toEqual([
+      { label: "Agente", value: "Executor" },
+      { label: "Chave", value: "hub_ak_ab12" },
+    ]);
+    expect(approvalEffect("agent_key", {})).toMatch(/^nada muda sozinho/);
+    expect(
+      decisionMessage({
+        title: "Revogar",
+        status: "approved",
+        effect: { applied: true, key_revoked: "hub_ak_ab12" },
+      }),
+    ).toBe("Aprovado: “Revogar”. A chave foi revogada.");
+  });
+
   it("detalhes na ordem fixa, venha o pedido como vier (o jsonb não guarda a ordem)", () => {
     expect(
       approvalDetails({
