@@ -20,7 +20,12 @@ import {
   portalReadiness,
   type PortalReadiness,
 } from "@/modules/portal/readiness";
-import { ContactAccess, NewContactForm } from "./contacts";
+import {
+  ClientPrivacy,
+  ContactAccess,
+  ContactPrivacy,
+  NewContactForm,
+} from "./contacts";
 import { ROLE_LABEL } from "./form";
 
 export const metadata: Metadata = { title: "Contatos e portal" };
@@ -173,6 +178,41 @@ async function PortalAdmin({
           ) : null}
         </section>
 
+        {owner ? (
+          <section
+            aria-labelledby="dados-pessoais"
+            className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-4 text-sm text-ink-2 sm:p-5"
+          >
+            <h2
+              id="dados-pessoais"
+              className="font-heading text-base font-semibold text-navy"
+            >
+              Dados pessoais (LGPD)
+            </h2>
+            <p>
+              Para atender um pedido de acesso ou de portabilidade: o que o Hub
+              guarda deste cliente e dos contatos dele (cadastro, acessos ao
+              portal, mensagens e o que foi entregue), num arquivo JSON. Tarefas
+              e textos internos ficam de fora.
+            </p>
+            <p>
+              <a
+                href={`/clientes/${client.slug}/portal/exportar`}
+                className="font-medium text-navy underline underline-offset-2"
+              >
+                Exportar os dados de {client.name} (JSON)
+              </a>
+            </p>
+            <p>
+              Para excluir os dados pessoais de um contato, use &ldquo;Excluir
+              os dados pessoais&rdquo; na linha dele; no fim do contrato, o
+              botão abaixo exclui os de todos. Os registros antigos de acesso,
+              avisos e entregas saem sozinhos com o tempo (retenção).
+            </p>
+            <ClientPrivacy clientId={client.id} clientName={client.name} />
+          </section>
+        ) : null}
+
         <section
           aria-labelledby="novo-contato"
           className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-4 sm:p-5"
@@ -312,6 +352,22 @@ function ContactRow({
   contact: ContactItem;
   owner: boolean;
 }) {
+  if (c.anonymizedAt) {
+    return (
+      <li className="flex flex-col gap-1 rounded-2xl border border-line bg-card p-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="flex-1 font-medium text-ink-2">{c.name}</span>
+          <span className="rounded-full bg-off-2 px-2.5 py-0.5 text-xs font-semibold text-ink-2">
+            Dados pessoais excluídos
+          </span>
+        </div>
+        <p className="text-sm text-ink-2">
+          Excluídos em {formatTimestampDay(c.anonymizedAt)} (LGPD). O histórico
+          guarda que o contato existiu.
+        </p>
+      </li>
+    );
+  }
   const status = STATUS[c.accessStatus];
   const facts = [
     c.invitedAt ? `Liberado em ${formatTimestampDay(c.invitedAt)}` : null,
@@ -343,7 +399,14 @@ function ContactRow({
         <p className="text-sm text-ink-2">{facts.join(" · ")}</p>
       ) : null}
       {owner ? (
-        <ContactAccess contactId={c.id} name={c.name} status={c.accessStatus} />
+        <>
+          <ContactAccess
+            contactId={c.id}
+            name={c.name}
+            status={c.accessStatus}
+          />
+          <ContactPrivacy contactId={c.id} name={c.name} />
+        </>
       ) : null}
     </li>
   );

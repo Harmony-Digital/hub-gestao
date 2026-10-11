@@ -14,6 +14,10 @@ import {
 } from "@/modules/portal/access";
 import { inviteMessage } from "@/modules/portal/invite";
 import {
+  anonymizeClientContacts,
+  anonymizeContact,
+} from "@/modules/privacy/service";
+import {
   parseContactForm,
   parseContactIdForm,
   type PortalFormState,
@@ -99,6 +103,50 @@ export async function revogarAcessoPortal(
       status: "ok",
       message:
         "Acesso revogado: as sessões abertas e os links pendentes não valem mais.",
+    };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+/** Exclui os dados pessoais do contato (LGPD). Não tem volta. Só o dono. */
+export async function excluirDadosContato(
+  _previous: PortalFormState,
+  form: FormData,
+): Promise<PortalFormState> {
+  const ctx = await actionContext();
+  const parsed = parseContactIdForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  try {
+    const result = await inTx(ctx, (t) => anonymizeContact(t, parsed.value));
+    refresh();
+    return {
+      status: "ok",
+      message: result.already
+        ? "Os dados pessoais deste contato já tinham sido excluídos."
+        : `Dados pessoais excluídos: nome, e-mail, acesso e ${result.messages === 1 ? "1 mensagem" : `${result.messages} mensagens`} no portal.`,
+    };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+/** Fim do contrato: exclui os dados pessoais de todos os contatos do cliente. Só o dono. */
+export async function excluirDadosCliente(
+  _previous: PortalFormState,
+  form: FormData,
+): Promise<PortalFormState> {
+  const ctx = await actionContext();
+  const clientId = String(form.get("client_id") ?? "");
+  try {
+    const result = await inTx(ctx, (t) => anonymizeClientContacts(t, clientId));
+    refresh();
+    return {
+      status: "ok",
+      message:
+        result.contacts === 0
+          ? "Nenhum contato com dados pessoais para excluir."
+          : `Dados pessoais excluídos de ${result.contacts === 1 ? "1 contato" : `${result.contacts} contatos`}.`,
     };
   } catch (err) {
     return failure(err, ctx.requestId);

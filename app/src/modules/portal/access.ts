@@ -51,6 +51,8 @@ export type ContactItem = {
   lastSeenAt: string | null;
   /** Link ainda não usado e dentro da validade. */
   pendingLinkUntil: string | null;
+  /** Dados pessoais excluídos (LGPD), se for o caso. */
+  anonymizedAt: string | null;
 };
 
 /** Validade do link de uso único. */
@@ -94,6 +96,7 @@ type ContactRow = {
   consent_at: Date | string | null;
   last_seen_at: Date | string | null;
   pending_until: Date | string | null;
+  anonymized_at: Date | string | null;
 };
 
 const at = (v: Date | string | null) => (v ? iso(v) : null);
@@ -106,7 +109,7 @@ export async function listContacts(
   const rows = await many<ContactRow>(
     t,
     `select c.id, c.name, c.email, c.role, c.access_status::text as access_status,
-            c.invited_at, c.consent_at,
+            c.invited_at, c.consent_at, c.anonymized_at,
             (select max(s.last_seen_at) from ${S}.client_sessions s
               where s.contact_id = c.id) as last_seen_at,
             (select max(l.expires_at) from ${S}.client_access_links l
@@ -126,6 +129,7 @@ export async function listContacts(
     consentAt: at(r.consent_at),
     lastSeenAt: at(r.last_seen_at),
     pendingLinkUntil: at(r.pending_until),
+    anonymizedAt: at(r.anonymized_at),
   }));
 }
 
@@ -184,6 +188,7 @@ type LockedContact = {
   profile_id: string | null;
   access_status: AccessStatus;
   client_archived: Date | string | null;
+  anonymized_at: Date | string | null;
 };
 
 async function lockContact(t: TxCtx, contactId: string) {
@@ -193,7 +198,8 @@ async function lockContact(t: TxCtx, contactId: string) {
   const row = await maybeOne<LockedContact>(
     t,
     `select c.id, c.client_id, c.name, c.email, c.profile_id,
-            c.access_status::text as access_status, cl.archived_at as client_archived
+            c.access_status::text as access_status, cl.archived_at as client_archived,
+            c.anonymized_at
        from ${S}.client_contacts c
        join ${S}.clients cl on cl.id = c.client_id
       where c.id = $1
@@ -270,6 +276,11 @@ export async function issuePortalLink(
   const contact = await lockContact(t, contactId);
   if (contact.client_archived) {
     throw unprocessable("Cliente arquivado não tem portal.");
+  }
+  if (contact.anonymized_at) {
+    throw unprocessable(
+      "Os dados pessoais deste contato foram excluídos. Se ele voltar, cadastre de novo.",
+    );
   }
   await ensureProfile(t, contact);
   const released =

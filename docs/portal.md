@@ -42,6 +42,10 @@ Tela da equipe: **Clientes → abrir o cliente → Contatos e portal** (`/client
 
 A tela mostra, para cada contato: a situação (Sem acesso; Link enviado, ainda não entrou; Com acesso; Acesso revogado), quando foi liberado, quando aceitou o uso dos dados, o último acesso e até quando vale o link ainda não usado.
 
+## Dados pessoais (LGPD)
+
+Na mesma tela (Clientes → Contatos e portal), só o dono: "Exportar os dados de <cliente> (JSON)" para os pedidos de acesso e de portabilidade; "Excluir os dados pessoais" na linha de cada contato; e, no fim do contrato, a exclusão de todos os contatos. Contato com os dados excluídos não volta a ter acesso: se a pessoa voltar, é cadastrada de novo. O que sai, o que fica e os prazos de retenção estão em `docs/privacidade.md`.
+
 ## Segurança
 
 - **Sem conta no Supabase Auth para o cliente.** O Auth compartilhado da Harmony tem o cadastro fechado e o Hub não guarda a chave de administração dele. O contato ganha um perfil próprio no Hub (o id dele no portal), sem vínculo com a equipe.
