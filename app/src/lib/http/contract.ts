@@ -28,6 +28,7 @@ import {
   ReportDto,
 } from "@/modules/reports/service";
 import { SearchDto } from "@/modules/search/service";
+import { MilestoneDetailDto } from "@/modules/milestones/dates";
 import { CustomFieldList } from "@/modules/tasks/custom-fields";
 import {
   BlockTaskInput,
@@ -99,6 +100,7 @@ const RESPONSES = {
   Health: HealthDto,
   MilestoneList: z.object({ items: z.array(MilestoneDto) }),
   Milestone: MilestoneDto,
+  MilestoneDetail: MilestoneDetailDto,
   WorkstreamList: z.object({ items: z.array(WorkstreamDto) }),
   Workstream: WorkstreamDto,
   TaskPage,
@@ -241,9 +243,11 @@ export const API_SPECS: Spec[] = [
     path: "/milestones/{id}",
     tag: "Marcos",
     summary: "Detalhe do marco",
+    description:
+      "Com o histórico de datas (date_history): cada mudança da data prevista, com o motivo.",
     scope: "milestones:read",
     pathParams: [ID],
-    response: "Milestone",
+    response: "MilestoneDetail",
   },
   {
     method: "get",

@@ -40,6 +40,8 @@ Termine com os pedidos de aprovação esperando por ele e o link do Hoje (`https
 
 ## Replanejar, mudar escopo ou propor marco
 
+Antes de propor data nova, veja quantas vezes o marco já mudou e por quê: `hub_get_milestone` (projeto e código do marco) traz o histórico de datas com o motivo de cada mudança.
+
 Quando um marco não cabe mais na data, o escopo mudou ou falta um marco no plano, use `hub_request_approval`, um pedido por assunto, cada tipo no formato dele (fora do formato, o Hub recusa na hora e diz o formato certo):
 
 - `type: "replan"` (datas): `payload.milestones` com `[{ "code": "M2", "due_date": "AAAA-MM-DD" }]` e `payload.reason`, o motivo, que vai para o histórico de datas (o cliente nunca vê o motivo).
