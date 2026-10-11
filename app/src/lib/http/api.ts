@@ -20,6 +20,7 @@ import {
   withIdempotency,
 } from "@/lib/idempotency";
 import { log } from "@/lib/log";
+import { scrub } from "@/lib/log-safe";
 import { RateLimiter } from "@/lib/rate-limit";
 import {
   denialWhoOf,
@@ -218,7 +219,7 @@ export function logFailure(
         cause_code: typeof cause?.code === "string" ? cause.code : undefined,
         cause:
           typeof cause?.message === "string"
-            ? cause.message.slice(0, 300)
+            ? scrub(cause.message).slice(0, 300)
             : undefined,
       },
       "falha no pedido",

@@ -1,6 +1,8 @@
 import { authorize } from "@/lib/authorize";
+import { queueState, type QueueState } from "@/lib/health";
 import { iso, ProjectCode, projectScopeSql, Uuid } from "@/modules/common";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
+import { readQueue, type FailedJob } from "@/modules/ops/health";
 import { describeActivity } from "@/modules/projects/overview";
 
 /**
@@ -45,6 +47,13 @@ export type ControlRoom = {
   };
   feed: FeedItem[];
   denials: DenialItem[];
+  /** O relógio dos jobs (M8): parado ou com falha aparece em destaque. */
+  system: {
+    queue: QueueState;
+    lastTickAt: string | null;
+    overdue: number;
+    failed: FailedJob[];
+  };
   filters: {
     agents: { id: string; name: string }[];
     projects: { code: string; name: string }[];
@@ -99,6 +108,7 @@ const DENIALS_LIMIT = 30;
 export async function controlRoom(
   t: TxCtx,
   filter: ControlRoomFilter,
+  now: Date = new Date(),
 ): Promise<ControlRoom> {
   authorize(t.actor, "agent.read");
 
@@ -181,6 +191,7 @@ export async function controlRoom(
     t,
     `select id, name from ${S}.agents order by name`,
   );
+  const queue = await readQueue(t);
 
   return {
     kpis: {
@@ -211,6 +222,12 @@ export async function controlRoom(
       action: d.action,
       reason: d.reason,
     })),
+    system: {
+      queue: queueState(queue, now),
+      lastTickAt: queue.lastTickAt ? queue.lastTickAt.toISOString() : null,
+      overdue: queue.overdue,
+      failed: queue.failed,
+    },
     filters: { agents, projects },
   };
 }

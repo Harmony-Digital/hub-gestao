@@ -2,6 +2,7 @@ import { applyRuntimeRole } from "@/lib/db/actor";
 import type { Db } from "@/lib/db/types";
 import { toHubError } from "@/lib/errors";
 import { log } from "@/lib/log";
+import { scrub } from "@/lib/log-safe";
 import { S } from "@/modules/context";
 
 /**
@@ -77,7 +78,7 @@ export async function recordDenial(
     });
   } catch (failure) {
     log.warn(
-      { cause: (failure as Error)?.message?.slice(0, 200) },
+      { cause: scrub(String((failure as Error)?.message ?? "")).slice(0, 200) },
       "falha ao registrar recusa de agente",
     );
   }

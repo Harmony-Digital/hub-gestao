@@ -91,7 +91,7 @@ async function AgentsConsoleView({
         code: p.code,
         name: p.name,
       })),
-      room: await controlRoom(t, filter),
+      room: await controlRoom(t, filter, now),
       marker: await controlRoomMarker(t),
       aiKeys: canSeeAiKeys ? await listCredentials(t) : [],
       webhooks: canManageWebhooks ? await listWebhooks(t) : [],
