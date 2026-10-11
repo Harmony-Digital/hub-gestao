@@ -1,11 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState, type ChangeEvent } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useTransition,
+  type ChangeEvent,
+  type ReactNode,
+} from "react";
 import { CircleAlert, LoaderCircle } from "lucide-react";
 import type { AssigneeOption, StatusOption } from "@/modules/tasks/board";
-import { editarNaLista } from "./actions";
-import { IDLE } from "./form";
+import { editarCampoNaLista } from "./actions";
 
 const CONTROL =
   "h-8 w-full min-w-0 rounded-md border border-transparent bg-transparent px-1.5 text-xs text-ink-2 hover:border-line focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand/30 focus-visible:outline-none disabled:opacity-60";
@@ -14,11 +21,35 @@ type Base = { code: string; version: number };
 
 type Field = HTMLSelectElement | HTMLInputElement;
 
-/** Mudou o campo, envia o formulário dele (sem ref: o próprio campo acha o form). */
-const submitForm = (event: ChangeEvent<Field>) =>
-  event.currentTarget.form?.requestSubmit();
+/**
+ * As opções das células (status e responsáveis), uma vez para a Lista inteira: passar a
+ * lista em cada linha repetia tudo no pacote da página (com 5 mil tarefas, megabytes).
+ */
+const ListOptions = createContext<{
+  statuses: StatusOption[];
+  assignees: AssigneeOption[];
+}>({ statuses: [], assignees: [] });
 
-/** Uma célula editável: muda e grava na hora; erro fica no ícone ao lado. */
+export function ListOptionsProvider({
+  statuses,
+  assignees,
+  children,
+}: {
+  statuses: StatusOption[];
+  assignees: AssigneeOption[];
+  children: ReactNode;
+}) {
+  return (
+    <ListOptions.Provider value={{ statuses, assignees }}>
+      {children}
+    </ListOptions.Provider>
+  );
+}
+
+/**
+ * Uma célula editável: muda e grava na hora, chamando a ação direto (sem formulário nem
+ * campos escondidos por linha); erro fica no ícone ao lado.
+ */
 function Cell({
   code,
   version,
@@ -32,48 +63,54 @@ function Cell({
   /** Valor gravado; o campo começa com ele e o acompanha quando muda por fora. */
   value: string;
   children: (
-    submit: (event: ChangeEvent<Field>) => void,
+    save: (event: ChangeEvent<Field>) => void,
     pending: boolean,
-  ) => React.ReactNode;
+  ) => ReactNode;
 }) {
-  const [state, action, pending] = useActionState(editarNaLista, IDLE);
-  // O formulário fica em estado, não em ref, como no FormDialog: o efeito abaixo o usa
-  // e a regra do React não deixa ler ref durante a renderização.
-  const [form, setForm] = useState<HTMLFormElement | null>(null);
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  // O contêiner fica em estado, não em ref, como no FormDialog: o efeito abaixo o usa e
+  // a regra do React não deixa ler ref durante a renderização.
+  const [box, setBox] = useState<HTMLDivElement | null>(null);
   // Mudança feita por outra pessoa ou agente (a tela se atualiza sozinha): o campo passa
   // a mostrar o valor novo, a menos que esteja em uso agora.
   useEffect(() => {
-    const input = form?.elements.namedItem("value");
-    if (!(
-      input instanceof HTMLSelectElement || input instanceof HTMLInputElement
-    )) {
-      return;
-    }
-    if (document.activeElement !== input) input.value = value;
-  }, [form, value]);
+    const input = box?.querySelector<Field>("select, input");
+    if (input && document.activeElement !== input) input.value = value;
+  }, [box, value]);
+  const save = (event: ChangeEvent<Field>) => {
+    const next = event.currentTarget.value;
+    setError(null);
+    startTransition(async () => {
+      const result = await editarCampoNaLista({
+        code,
+        version,
+        field,
+        value: next,
+      });
+      if (result.status === "error") setError(result.message);
+    });
+  };
   return (
-    <form
-      ref={setForm}
-      action={action}
-      className="flex min-w-0 items-center gap-1"
+    <div
+      ref={setBox}
+      role="group"
       aria-label={label}
+      className="flex min-w-0 items-center gap-1"
     >
-      <input type="hidden" name="code" value={code} />
-      <input type="hidden" name="version" value={version} />
-      <input type="hidden" name="field" value={field} />
-      {children(submitForm, pending)}
+      {children(save, pending)}
       {pending ? (
         <LoaderCircle
           aria-hidden="true"
           className="size-3.5 shrink-0 animate-spin text-caption"
         />
-      ) : state.status === "error" ? (
-        <span role="alert" title={state.message} className="shrink-0">
+      ) : error ? (
+        <span role="alert" title={error} className="shrink-0">
           <CircleAlert aria-hidden="true" className="size-3.5 text-danger-fg" />
-          <span className="sr-only">{state.message}</span>
+          <span className="sr-only">{error}</span>
         </span>
       ) : null}
-    </form>
+    </div>
   );
 }
 
@@ -88,12 +125,11 @@ export function PriorityCell({
       label={`Prioridade de ${base.code}`}
       value={priority}
     >
-      {(submit, pending) => (
+      {(save, pending) => (
         <select
-          name="value"
           defaultValue={priority}
           disabled={pending}
-          onChange={submit}
+          onChange={save}
           aria-label={`Prioridade de ${base.code}`}
           className={CONTROL}
         >
@@ -109,10 +145,10 @@ export function PriorityCell({
 
 export function AssigneeCell({
   assignee,
-  options,
   ...base
-}: Base & { assignee: string; options: AssigneeOption[] }) {
-  const known = options.some((a) => `${a.type}:${a.id}` === assignee);
+}: Base & { assignee: string }) {
+  const { assignees } = useContext(ListOptions);
+  const known = assignees.some((a) => `${a.type}:${a.id}` === assignee);
   return (
     <Cell
       {...base}
@@ -120,12 +156,11 @@ export function AssigneeCell({
       label={`Responsável por ${base.code}`}
       value={assignee}
     >
-      {(submit, pending) => (
+      {(save, pending) => (
         <select
-          name="value"
           defaultValue={assignee}
           disabled={pending}
-          onChange={submit}
+          onChange={save}
           aria-label={`Responsável por ${base.code}`}
           className={CONTROL}
         >
@@ -133,7 +168,7 @@ export function AssigneeCell({
           {assignee && !known ? (
             <option value={assignee}>Responsável atual</option>
           ) : null}
-          {options.map((a) => (
+          {assignees.map((a) => (
             <option key={`${a.type}:${a.id}`} value={`${a.type}:${a.id}`}>
               {a.name}
               {a.type === "agent" ? " (agente)" : ""}
@@ -157,13 +192,12 @@ export function DueCell({
       label={`Prazo de ${base.code}`}
       value={due ?? ""}
     >
-      {(submit, pending) => (
+      {(save, pending) => (
         <input
           type="date"
-          name="value"
           defaultValue={due ?? ""}
           disabled={pending}
-          onChange={submit}
+          onChange={save}
           aria-label={`Prazo de ${base.code}${late ? " (atrasada)" : ""}`}
           className={`${CONTROL} ${late ? "font-semibold text-danger-fg" : ""}`}
         />
@@ -178,11 +212,11 @@ export function DueCell({
  */
 export function StatusCell({
   statusId,
-  statuses,
   panelHref,
   ...base
-}: Base & { statusId: string; statuses: StatusOption[]; panelHref: string }) {
+}: Base & { statusId: string; panelHref: string }) {
   const router = useRouter();
+  const { statuses } = useContext(ListOptions);
   return (
     <Cell
       {...base}
@@ -190,9 +224,8 @@ export function StatusCell({
       label={`Status de ${base.code}`}
       value={statusId}
     >
-      {(submit, pending) => (
+      {(save, pending) => (
         <select
-          name="value"
           defaultValue={statusId}
           disabled={pending}
           onChange={(event) => {
@@ -202,7 +235,7 @@ export function StatusCell({
               router.push(panelHref, { scroll: false });
               return;
             }
-            submit(event);
+            save(event);
           }}
           aria-label={`Status de ${base.code}`}
           className={CONTROL}
