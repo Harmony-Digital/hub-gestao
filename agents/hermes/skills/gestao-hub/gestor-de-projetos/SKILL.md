@@ -38,13 +38,16 @@ De 3 a 6 linhas por projeto que pede atenção; os saudáveis cabem numa linha s
 
 Termine com os pedidos de aprovação esperando por ele e o link do Hoje (`https://hub.harmonydigital.com.br/`). Sem fato inventado: se o Hub não tem o dado, diga que não tem.
 
-## Replanejar ou propor marco
+## Replanejar, mudar escopo ou propor marco
 
-Quando um marco não cabe mais na data ou falta um marco no plano:
+Quando um marco não cabe mais na data, o escopo mudou ou falta um marco no plano, use `hub_request_approval`, um pedido por assunto, cada tipo no formato dele (fora do formato, o Hub recusa na hora e diz o formato certo):
 
-- `hub_request_approval` com `type: "replan"` (mudar datas, ordem ou escopo de marcos) ou `type: "milestone_proposal"` (marco novo, com `payload.title`, `payload.due_date` sugerida e `payload.acceptance_criteria`).
+- `type: "replan"` (datas): `payload.milestones` com `[{ "code": "M2", "due_date": "AAAA-MM-DD" }]` e `payload.reason`, o motivo, que vai para o histórico de datas (o cliente nunca vê o motivo).
+- `type: "scope_change"` (título ou critérios de aceite): `payload.milestones` com `[{ "code": "M2", "title": "...", "acceptance_criteria": ["..."] }]`, com pelo menos uma mudança por marco. A lista de critérios substitui a atual; o critério que já estava feito e continua na lista segue feito.
+- `type: "milestone_proposal"` (marco novo): `payload.title`, `payload.due_date` sugerida, `payload.acceptance_criteria` (lista) e, se o cliente for ver o marco, `payload.title_client`, escrito para o cliente.
 - `summary` com o motivo e o dado que sustenta (tarefas bloqueadas, frentes paradas, dependência).
-- Um pedido por assunto. O Fábio decide no Hoje; você não muda nada sozinho.
+
+O Fábio decide no Hoje. Ao aprovar, o Hub aplica sozinho, em nome dele: cria o marco (Planejado), muda as datas ou troca título e critérios. Você não muda nada por conta própria. Marco já aceito não muda mais: proponha um marco novo.
 
 Para um rascunho de status, use o papel RL-03 (skill `relator-de-status`).
 

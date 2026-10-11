@@ -458,6 +458,17 @@ async function ensureSampleApprovals(db: Db, raw: PGlite): Promise<void> {
       title: "Mover o lançamento (M4) em uma semana",
       summary:
         "A integração com a agenda está bloqueada à espera da credencial da clínica. Sem ela, o treinamento da equipe não começa na data prevista.",
+      payload: {
+        milestones: [
+          {
+            code: "M4",
+            due_date: new Date(Date.now() + 63 * 86_400_000)
+              .toISOString()
+              .slice(0, 10),
+          },
+        ],
+        reason: "A credencial da agenda da clínica ainda não chegou.",
+      },
     }),
   );
   await inTx(ctx, (t) =>
@@ -471,6 +482,17 @@ async function ensureSampleApprovals(db: Db, raw: PGlite): Promise<void> {
           "Volume de conversas por semana",
           "Agendamentos feitos pelo agente",
         ],
+      },
+    }),
+  );
+  // Mensagem para o canal do cliente: aprovar publica em nome de quem aprovou (RF-25).
+  await inTx(ctx, (t) =>
+    requestApproval(t, {
+      type: "external_message",
+      project: "EXE",
+      title: "Combinar com a clínica o horário do treinamento",
+      payload: {
+        body: "Olá! Na semana que vem, vamos combinar com a recepção o melhor horário para o treinamento do atendimento no WhatsApp. Qual período fica melhor para vocês?",
       },
     }),
   );

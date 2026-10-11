@@ -117,6 +117,9 @@ describe("verificação do texto para o cliente nos pedidos (RC-12)", () => {
           description_client: "Sem pendências.",
           checks: [],
           report_body: "texto forjado",
+          rewritten_by: "RC-12",
+          original_title_client: "forjado",
+          rewrite_notes: "forjado",
         },
       }),
     );

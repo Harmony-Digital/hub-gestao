@@ -267,6 +267,7 @@ describe("importação de projetos por agente (D10)", () => {
           type: "replan",
           project: "VIT",
           title: "Mover a entrega",
+          payload: { milestones: [{ code: "M1", due_date: "2026-12-01" }] },
         }),
     );
     // Agente não aprova (nem em lote).

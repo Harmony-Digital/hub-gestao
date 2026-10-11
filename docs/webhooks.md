@@ -41,7 +41,7 @@ O `data` de cada evento:
 | Evento | `data` |
 |---|---|
 | `approval.requested` | `id`, `type`, `project_code`, `title` |
-| `approval.decided` | `id`, `type`, `status`, `project_code` |
+| `approval.decided` | `id`, `type`, `status`, `project_code`, `effect` (o que a aprovação mudou: `milestone`, o código do marco criado; `replanned`, os marcos com a data de antes e a nova; `scope_changed`, os marcos com escopo novo; `client_message`, a mensagem publicada; `{ "applied": false }` quando nada mudou) |
 | `project.health_changed` | `project_code`, `health` (`healthy`, `attention`, `at_risk`), `reasons` |
 | `agent.budget_exceeded` | `agent` (`id`, `name`), `scope` (`agent`: o orçamento do agente; `workspace`: o teto do workspace), `budget_usd_month`, `spent_usd_month`, `detail`. No máximo um por dia por agente |
 | `agent.denials_recurring` | `who` (o id do agente, ou `chave:<prefixo>`), `agent` (`id`, `name`; `null` se a chave não tiver agente), `key_prefix`, `count`, `by_status` (`401`, `403`, `423`), `last_reason`, `window_minutes` (60). Sai quando a mesma chave tem 5 ou mais recusas de acesso numa hora (conferido a cada 15 minutos); no máximo um por dia por agente |

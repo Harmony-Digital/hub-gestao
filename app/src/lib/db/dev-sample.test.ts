@@ -72,6 +72,20 @@ describe("dados de exemplo do banco local", () => {
         `select count(*)::int as n from ${S}.activity_log where project_id = ${p} and actor_type = 'agent'`,
       ),
     ).toBeGreaterThan(5);
+    // Os pedidos de exemplo passam pelo formato de cada tipo (RF-25).
+    const types = await raw.query<{ type: string }>(
+      `select type::text as type from ${S}.approvals
+        where project_id = ${p} and status = 'pending' order by type`,
+    );
+    expect(types.rows.map((r) => r.type)).toEqual(
+      expect.arrayContaining([
+        "client_visibility",
+        "external_message",
+        "milestone_proposal",
+        "replan",
+        "status_report",
+      ]),
+    );
   });
 
   it("pode rodar de novo sem duplicar nada", async () => {

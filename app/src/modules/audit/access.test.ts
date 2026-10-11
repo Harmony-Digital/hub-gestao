@@ -71,6 +71,7 @@ beforeAll(async () => {
       project: "VIT",
       title: "Pedido antigo de replanejamento",
       summary: "Esperando a decisão há dias.",
+      payload: { milestones: [{ code: "M1", due_date: "2026-12-01" }] },
     }),
   );
   await h.raw.query(

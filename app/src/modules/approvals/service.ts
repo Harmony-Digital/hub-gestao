@@ -24,6 +24,12 @@ import { enqueueClientRewrite } from "@/modules/client-text/writer";
 import { json, many, maybeOne, S, type TxCtx } from "@/modules/context";
 import { emitEvent } from "@/modules/events";
 import { notifyOwners, notifyProfile } from "@/modules/notifications";
+import {
+  applyProposal,
+  isProposal,
+  prepareProposal,
+  PROPOSAL_HELP,
+} from "./proposals";
 
 /** Tipos que um agente ou pessoa pode pedir diretamente (PRD §8.4, hub_request_approval). */
 export const RequestableType = z.enum([
@@ -71,7 +77,7 @@ export const RequestApprovalInput = z.strictObject({
     .record(z.string(), z.unknown())
     .optional()
     .describe(
-      "Detalhes da proposta. client_visibility: title_client e description_client. milestone_proposal: title, due_date e acceptance_criteria.",
+      "Detalhes da proposta, no formato de cada tipo (conferido no pedido; fora dele, erro 400 com o formato certo). client_visibility: title_client e description_client. milestone_proposal: title (obrigatório), due_date (AAAA-MM-DD), acceptance_criteria (lista) e title_client, se o cliente for ver. replan: milestones [{ code, due_date }] e reason. scope_change: milestones [{ code, title?, acceptance_criteria? }]. external_message: body, o texto para o canal do cliente. Ao aprovar, o Hub aplica sozinho, em nome de quem aprovou: cria o marco (Planejado), muda as datas (o motivo vai para o histórico de datas), muda título e critérios (o que já estava feito continua feito) ou publica a mensagem.",
     ),
   due_at: z.iso.datetime({ offset: true }).optional(),
 });
@@ -228,8 +234,21 @@ async function ownerProfileId(t: TxCtx): Promise<string | null> {
   );
 }
 
-/** Campos do pedido que só o Hub preenche; vindos de fora, são descartados. */
-const SERVER_PAYLOAD_KEYS = new Set(["checks", "report_body", "audience"]);
+/**
+ * Campos do pedido que só o Hub preenche (a verificação, o texto do relatório e a reescrita
+ * do RC-12); vindos de fora, são descartados. Sem isso, um pedido poderia trazer uma
+ * "reescrita" que o Redator nunca fez, e o job dele pularia o pedido.
+ */
+const SERVER_PAYLOAD_KEYS = new Set([
+  "checks",
+  "report_body",
+  "audience",
+  "original_body",
+  "original_title_client",
+  "original_description_client",
+  "rewritten_by",
+  "rewrite_notes",
+]);
 
 /**
  * Abre um pedido de decisão humana. Agentes só pedem; quem decide é uma pessoa, pela
@@ -242,7 +261,7 @@ export async function requestApproval(
   const project = await resolveProject(t, input.project, "approval.request");
   assertNoSecrets({ title: input.title, summary: input.summary });
   // Campos que só o Hub preenche (verificação e texto do relatório) nunca vêm de fora.
-  const payload: Record<string, unknown> = Object.fromEntries(
+  let payload: Record<string, unknown> = Object.fromEntries(
     Object.entries(input.payload ?? {}).filter(
       ([key]) => !SERVER_PAYLOAD_KEYS.has(key),
     ),
@@ -308,12 +327,22 @@ export async function requestApproval(
         ? payload.description_client
         : null,
     ]);
-  } else if (input.type === "milestone_proposal") {
-    if (
-      typeof payload.title !== "string" ||
-      payload.title.trim().length === 0
-    ) {
-      throw badRequest("Envie em payload.title o título do marco proposto.");
+  } else if (isProposal(input.type)) {
+    // RF-25: o formato de cada proposta é conferido já no pedido (marcos que existem e não
+    // foram aceitos, datas válidas, texto para o cliente verificado pelo RC-12).
+    try {
+      payload = await prepareProposal(t, project, input.type, payload);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        const where = err.issues
+          .slice(0, 3)
+          .map((i) => `${["payload", ...i.path].join(".")}: ${i.message}`)
+          .join("; ");
+        throw badRequest(
+          `Pedido ${input.type} fora do formato (${where}). Envie ${PROPOSAL_HELP[input.type]}`,
+        );
+      }
+      throw err;
     }
   }
 
@@ -579,6 +608,7 @@ export async function decideApproval(
     type: dto.type,
     status: dto.status,
     project_code: dto.project_code,
+    effect,
   });
   return dto;
 }
@@ -646,6 +676,10 @@ async function applyEffect(
       return { applied: true, project_status: next };
     }
     default:
+      // RF-25: marco novo, replanejamento, escopo e mensagem ao cliente.
+      if (isProposal(row.type)) {
+        return applyProposal(t, { ...row, type: row.type });
+      }
       return {
         applied: false,
         note: "Sem efeito automático neste tipo: a decisão fica registrada para quem pediu.",
