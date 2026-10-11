@@ -35,13 +35,21 @@ test("novo projeto a partir de um modelo, com prévia e importação", async ({
   await expect(
     main.getByText(/O esqueleto do modelo “Site institucional” está no campo/),
   ).toBeVisible();
-  await expect(main.getByLabel(/^Conteúdo do /)).toHaveValue(
+  await expect(
+    page.getByRole("heading", {
+      name: `Último passo: importar o modelo em ${code}`,
+    }),
+  ).toBeVisible();
+  await expect(main.getByLabel(/^Esqueleto do modelo/)).toHaveValue(
     /## M1 — Descoberta e conteúdo/,
   );
-  await main.getByRole("button", { name: "Ver o que entra" }).click();
+  // A prévia abre sozinha: o passo que falta é o Importar.
   await expect(main.getByText("O que entra (nada foi gravado)")).toBeVisible();
   await main.getByRole("button", { name: "Importar", exact: true }).click();
   await expect(main.getByText("Importado", { exact: true })).toBeVisible();
+  await expect(
+    main.getByRole("link", { name: "Abrir as tarefas do projeto" }),
+  ).toBeVisible();
 
   await page.goto(`/projetos/${code}`);
   await settle(page);

@@ -76,6 +76,7 @@ async function ImportPlan({
     throw err;
   }
   const back = `/projetos/${project.code}`;
+  const template = templates.find((tpl) => tpl.id === chosen) ?? null;
   const planPath = project.plan_path || "PLAN.md";
   const blocked = !can(user.actor, "workspace.admin")
     ? "Só o dono do workspace ou a administração importam o plano: marcos são decisão de pessoa."
@@ -93,8 +94,16 @@ async function ImportPlan({
           { label: "Editar", href: `${back}/editar` },
           { label: "Importar o plan.md" },
         ]}
-        title={`Importar o plan.md em ${project.code}`}
-        description="Os marcos, as frentes e as tarefas que faltam entram no Hub, com o código e a ordem do arquivo. Nada que já existe é apagado."
+        title={
+          template
+            ? `Último passo: importar o modelo em ${project.code}`
+            : `Importar o plan.md em ${project.code}`
+        }
+        description={
+          template
+            ? `Os marcos, as frentes e as tarefas do modelo “${template.name}” só entram no projeto quando você clicar em Importar. Confira o que entra logo abaixo.`
+            : "Os marcos, as frentes e as tarefas que faltam entram no Hub, com o código e a ordem do arquivo. Nada que já existe é apagado."
+        }
       />
       <main className="flex w-full flex-col gap-6 px-4 py-6 sm:px-8">
         {blocked ? (
@@ -103,7 +112,12 @@ async function ImportPlan({
           </p>
         ) : (
           <>
-            <ul className="flex max-w-4xl list-disc flex-col gap-1 pl-5 text-sm text-ink-2">
+            {/* As regras do formato são para quem cola um plan.md; com um modelo, o
+                que importa é o botão Importar, logo no começo. */}
+            <ul
+              hidden={Boolean(template)}
+              className="flex max-w-4xl list-disc flex-col gap-1 pl-5 text-sm text-ink-2"
+            >
               <li>
                 Marco novo entra como Planejado, Em andamento ou Entregue,
                 conforme o arquivo. O aceite continua sendo pedido (Pedir
@@ -131,7 +145,7 @@ async function ImportPlan({
                 id: tpl.id,
                 name: tpl.name,
               }))}
-              template={templates.find((tpl) => tpl.id === chosen) ?? null}
+              template={template}
             />
           </>
         )}
