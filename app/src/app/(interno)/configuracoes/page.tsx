@@ -14,6 +14,7 @@ import {
   type TeamMember,
   type WorkspaceSettings,
 } from "@/modules/workspace/settings";
+import { DepartmentButton, RemoveDepartmentButton } from "./departments";
 import { EmailTestButton } from "./email-test";
 import {
   AddMemberButton,
@@ -208,37 +209,77 @@ function TeamSection({ team, owner }: { team: TeamMember[]; owner: boolean }) {
   );
 }
 
+/** "2 projetos · 5 frentes · 1 agente", ou "sem uso". */
+function usageText(usage: WorkspaceSettings["departments"][number]["usage"]) {
+  const parts = [
+    [usage.projects, "projeto", "projetos"],
+    [usage.workstreams, "frente", "frentes"],
+    [usage.agents, "agente", "agentes"],
+  ] as const;
+  const used = parts
+    .filter(([n]) => n > 0)
+    .map(([n, one, many]) => `${n} ${n === 1 ? one : many}`);
+  return used.length ? used.join(" · ") : "sem uso";
+}
+
 function DepartmentsSection({ settings }: { settings: WorkspaceSettings }) {
   const people = settings.team
     .filter((m) => m.status === "active")
     .map((m) => ({ id: m.profileId, name: m.name }));
   return (
     <section aria-labelledby="departamentos" className={SECTION}>
-      <SectionTitle id="departamentos" title="Departamentos">
-        O responsável de cada departamento, da equipe ativa. A carga e o quadro
-        de cada um ficam em Departamentos.
-      </SectionTitle>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <SectionTitle id="departamentos" title="Departamentos">
+          O nome, a cor e o responsável de cada departamento, da equipe ativa. A
+          carga e o quadro de cada um ficam em Departamentos.
+        </SectionTitle>
+        <DepartmentButton />
+      </div>
       <ul className="flex flex-col divide-y divide-line">
-        {settings.departments.map((d) => (
-          <li
-            key={d.id}
-            className="grid items-center gap-2 py-3 sm:grid-cols-[minmax(0,14rem)_1fr]"
-          >
-            <Link
-              href={`/departamentos/${d.slug}`}
-              className="text-sm font-semibold text-navy hover:underline"
+        {settings.departments.map((d) => {
+          const unused =
+            d.usage.projects + d.usage.workstreams + d.usage.agents === 0;
+          return (
+            <li
+              key={d.id}
+              className="grid items-center gap-2 py-3 sm:grid-cols-[minmax(0,14rem)_1fr_auto]"
             >
-              {d.name}
-            </Link>
-            <DepartmentLeadForm
-              departmentId={d.id}
-              departmentName={d.name}
-              leadProfileId={d.leadProfileId}
-              leadName={d.leadName}
-              people={people}
-            />
-          </li>
-        ))}
+              <div className="flex min-w-0 items-start gap-2">
+                <span
+                  aria-hidden="true"
+                  className="mt-1 size-3 shrink-0 rounded-full"
+                  style={{ background: d.color }}
+                />
+                <div className="flex min-w-0 flex-col">
+                  <Link
+                    href={`/departamentos/${d.slug}`}
+                    className="text-sm font-semibold text-navy hover:underline"
+                  >
+                    {d.name}
+                  </Link>
+                  <span className="text-xs text-caption">
+                    {usageText(d.usage)}
+                  </span>
+                </div>
+              </div>
+              <DepartmentLeadForm
+                departmentId={d.id}
+                departmentName={d.name}
+                leadProfileId={d.leadProfileId}
+                leadName={d.leadName}
+                people={people}
+              />
+              <div className="flex items-start justify-end gap-1">
+                <DepartmentButton
+                  department={{ id: d.id, name: d.name, color: d.color }}
+                />
+                {unused ? (
+                  <RemoveDepartmentButton id={d.id} name={d.name} />
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

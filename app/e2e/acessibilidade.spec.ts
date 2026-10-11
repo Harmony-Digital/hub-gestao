@@ -124,6 +124,16 @@ const OPEN: {
       ),
   },
   {
+    name: "Novo departamento",
+    path: "/configuracoes",
+    open: (page) =>
+      openDialog(
+        page,
+        page.getByRole("button", { name: "Novo departamento" }),
+        "Novo departamento",
+      ),
+  },
+  {
     name: "Pôr na equipe",
     path: "/configuracoes",
     open: (page) =>

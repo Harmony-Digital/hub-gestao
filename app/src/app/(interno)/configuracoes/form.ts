@@ -80,3 +80,30 @@ export function parseDepartmentLeadForm(
   }
   return { ok: true, value: { departmentId, profileId: profileId || null } };
 }
+
+const HEX = /^#[0-9A-Fa-f]{6}$/;
+
+/** Departamento novo ou editado (RF-27): o nome e a cor (#RRGGBB). */
+export function parseDepartmentForm(
+  form: FormData,
+): Parsed<{ id: string | null; name: string; color: string }> {
+  const id = text(form, "department_id");
+  if (id && !UUID.test(id)) return { ok: false, message: RELOAD };
+  const name = line(text(form, "name"), 80, "Dê um nome ao departamento.");
+  if (!name.ok) return name;
+  const color = text(form, "color");
+  if (!HEX.test(color)) {
+    return { ok: false, message: "Escolha a cor do departamento." };
+  }
+  return {
+    ok: true,
+    value: { id: id || null, name: name.value, color: color.toUpperCase() },
+  };
+}
+
+export function parseDepartmentRemoveForm(form: FormData): Parsed<string> {
+  const id = text(form, "department_id");
+  return UUID.test(id)
+    ? { ok: true, value: id }
+    : { ok: false, message: RELOAD };
+}
