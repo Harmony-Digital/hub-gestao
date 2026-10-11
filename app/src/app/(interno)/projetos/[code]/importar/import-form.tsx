@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useId, useState } from "react";
-import { Download, Eye, LoaderCircle, Upload } from "lucide-react";
+import Link from "next/link";
+import { useActionState, useEffect, useId, useRef, useState } from "react";
+import { ArrowRight, Download, Eye, LoaderCircle, Upload } from "lucide-react";
 import { ErrorNote, textareaClass, useSubmit } from "@/components/forms";
 import { Button } from "@/components/ui/button";
 import { MILESTONE_STATUS } from "@/lib/labels";
@@ -37,6 +38,13 @@ export function ImportPlanForm({
   const submit = useSubmit(action);
   const previewed =
     state.status === "ok" && state.result.dryRun && state.sent === text;
+  const form = useRef<HTMLFormElement>(null);
+  const previewButton = useRef<HTMLButtonElement>(null);
+  // Com o esqueleto de um modelo, a prévia já abre pronta: falta só o Importar.
+  const autoPreview = Boolean(templateId && initialText.trim());
+  useEffect(() => {
+    if (autoPreview) form.current?.requestSubmit(previewButton.current);
+  }, [autoPreview]);
 
   const readFile = (file: File | undefined) => {
     if (!file) return;
@@ -46,6 +54,7 @@ export function ImportPlanForm({
   return (
     <div className="flex max-w-4xl flex-col gap-5">
       <form
+        ref={form}
         onSubmit={submit}
         className="flex flex-col gap-4 rounded-2xl border border-line bg-card p-4 sm:p-5"
       >
@@ -58,7 +67,9 @@ export function ImportPlanForm({
             htmlFor={`${id}-texto`}
             className="text-sm font-medium text-navy"
           >
-            Conteúdo do {planPath}
+            {templateId
+              ? "Esqueleto do modelo (dá para ajustar antes de importar)"
+              : `Conteúdo do ${planPath}`}
           </label>
           <textarea
             id={`${id}-texto`}
@@ -88,6 +99,7 @@ export function ImportPlanForm({
           </label>
           <div className="ml-auto flex flex-wrap gap-2">
             <Button
+              ref={previewButton}
               type="submit"
               name="intent"
               value="preview"
@@ -124,13 +136,29 @@ export function ImportPlanForm({
       </form>
 
       {state.status === "ok" ? (
-        <Outcome result={state.result} planPath={planPath} />
+        <Outcome
+          result={state.result}
+          planPath={planPath}
+          projectCode={projectCode}
+          fromTemplate={Boolean(templateId)}
+        />
       ) : null}
     </div>
   );
 }
 
-function Outcome({ result, planPath }: { result: Result; planPath: string }) {
+function Outcome({
+  result,
+  planPath,
+  projectCode,
+  fromTemplate,
+}: {
+  result: Result;
+  planPath: string;
+  projectCode: string;
+  /** Veio de um modelo: não há arquivo de repositório para atualizar. */
+  fromTemplate: boolean;
+}) {
   const s = result.summary;
   const rows = [
     ["Marcos novos", s.milestones_created],
@@ -154,9 +182,19 @@ function Outcome({ result, planPath }: { result: Result; planPath: string }) {
         <p className="text-sm text-ink-2">
           {result.dryRun
             ? "Confira e clique em Importar. O aceite dos marcos continua sendo pedido e decidido nas Aprovações."
-            : `Grave o arquivo abaixo no repositório, no lugar do ${planPath}: os itens passam a levar os códigos das tarefas.`}
+            : fromTemplate
+              ? "Os marcos, as frentes e as tarefas do modelo já estão no projeto."
+              : `Grave o arquivo abaixo no repositório, no lugar do ${planPath}: os itens passam a levar os códigos das tarefas.`}
         </p>
       </div>
+      {!result.dryRun ? (
+        <Button asChild size="lg" className="self-start">
+          <Link href={`/projetos/${projectCode}/lista`}>
+            Abrir as tarefas do projeto
+            <ArrowRight aria-hidden="true" />
+          </Link>
+        </Button>
+      ) : null}
       <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
         {rows.map(([label, value]) => (
           <div key={label} className="contents">
@@ -208,7 +246,7 @@ function Outcome({ result, planPath }: { result: Result; planPath: string }) {
           continua sendo pedido de aprovação.
         </p>
       ) : null}
-      {!result.dryRun ? (
+      {!result.dryRun && !fromTemplate ? (
         <PlanFile markdown={result.markdown} planPath={planPath} />
       ) : null}
     </section>

@@ -245,6 +245,11 @@ async function ProjectView({
                 !archivedProject && can(user.actor, "approval.request")
               }
               pending={pending}
+              canImport={
+                !archivedProject &&
+                data.project.status !== "in_review" &&
+                can(user.actor, "workspace.admin")
+              }
             />
             <ArchivedItems
               label="Marcos arquivados"
@@ -544,6 +549,7 @@ function Milestones({
   canDropGate,
   canRequest,
   pending,
+  canImport,
 }: {
   data: ProjectOverview;
   projectCode: string;
@@ -553,12 +559,27 @@ function Milestones({
   canRequest: boolean;
   /** Marcos com pedido de aceite esperando decisão. */
   pending: string[];
+  /** Quem importa (dono e administração) vê o atalho para começar por um modelo. */
+  canImport: boolean;
 }) {
   if (data.milestones.length === 0) {
     return (
       <Empty>
         Nenhum marco cadastrado. Marcos são criados por pessoas, e o aceite é
         sempre do Fábio.
+        {canImport ? (
+          <>
+            {" "}
+            Para começar com marcos, frentes e tarefas prontos,{" "}
+            <Link
+              href={`/projetos/${projectCode}/importar`}
+              className="font-medium text-navy underline underline-offset-2"
+            >
+              importe um modelo
+            </Link>
+            .
+          </>
+        ) : null}
       </Empty>
     );
   }

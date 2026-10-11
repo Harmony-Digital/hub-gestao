@@ -35,62 +35,78 @@ export function ImportArea({
   } | null>(
     template ? { id: 1, text: template.markdown, template: template.id } : null,
   );
-  return (
-    <>
-      {templates.length > 0 ? (
-        <section
-          aria-labelledby="usar-modelo"
-          className="flex max-w-4xl flex-col gap-3 rounded-2xl border border-line bg-card p-4 sm:p-5"
+  const picker =
+    templates.length > 0 ? (
+      <section
+        aria-labelledby="usar-modelo"
+        className="flex max-w-4xl flex-col gap-3 rounded-2xl border border-line bg-card p-4 sm:p-5"
+      >
+        <h2
+          id="usar-modelo"
+          className="flex items-center gap-2 font-heading text-lg font-semibold text-navy"
         >
-          <h2
-            id="usar-modelo"
-            className="flex items-center gap-2 font-heading text-lg font-semibold text-navy"
-          >
-            <LayoutTemplate aria-hidden="true" className="size-5" />
-            Usar um modelo
-          </h2>
-          {template ? (
-            <p className="text-sm text-ink">
-              O esqueleto do modelo “{template.name}” está no campo abaixo: veja
-              o que entra e importe.
-            </p>
-          ) : (
-            <p className="text-sm text-ink-2">
-              Leva o esqueleto do modelo (marcos, frentes com o departamento,
-              tarefas e critérios de aceite) para o campo abaixo.
-            </p>
-          )}
-          <ul className="flex flex-wrap gap-2">
-            {templates.map((tpl) => (
-              <li key={tpl.id}>
-                <Link
-                  href={`/projetos/${projectCode}/importar?modelo=${tpl.id}`}
-                  aria-current={tpl.id === template?.id ? "true" : undefined}
-                  className={`inline-flex min-h-9 items-center rounded-full border px-3 text-sm ${
-                    tpl.id === template?.id
-                      ? "border-navy bg-navy font-semibold text-off"
-                      : "border-line text-ink hover:bg-off"
-                  }`}
-                >
-                  {tpl.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-      <PlannerCard
-        projectCode={projectCode}
-        ready={planner}
-        onUse={(text) => setProposal({ id: Date.now(), text, template: null })}
-      />
-      <ImportPlanForm
-        key={proposal?.id ?? 0}
-        projectCode={projectCode}
-        planPath={planPath}
-        initialText={proposal?.text ?? ""}
-        templateId={proposal?.template ?? null}
-      />
+          <LayoutTemplate aria-hidden="true" className="size-5" />
+          {template ? "Trocar de modelo" : "Usar um modelo"}
+        </h2>
+        {template ? (
+          <p className="text-sm text-ink">
+            O esqueleto do modelo “{template.name}” está no campo acima. Para
+            usar outro, escolha aqui.
+          </p>
+        ) : (
+          <p className="text-sm text-ink-2">
+            Leva o esqueleto do modelo (marcos, frentes com o departamento,
+            tarefas e critérios de aceite) para o campo abaixo.
+          </p>
+        )}
+        <ul className="flex flex-wrap gap-2">
+          {templates.map((tpl) => (
+            <li key={tpl.id}>
+              <Link
+                href={`/projetos/${projectCode}/importar?modelo=${tpl.id}`}
+                aria-current={tpl.id === template?.id ? "true" : undefined}
+                className={`inline-flex min-h-9 items-center rounded-full border px-3 text-sm ${
+                  tpl.id === template?.id
+                    ? "border-navy bg-navy font-semibold text-off"
+                    : "border-line text-ink hover:bg-off"
+                }`}
+              >
+                {tpl.name}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ) : null;
+  const plannerCard = (
+    <PlannerCard
+      projectCode={projectCode}
+      ready={planner}
+      onUse={(text) => setProposal({ id: Date.now(), text, template: null })}
+    />
+  );
+  const importForm = (
+    <ImportPlanForm
+      key={proposal?.id ?? 0}
+      projectCode={projectCode}
+      planPath={planPath}
+      initialText={proposal?.text ?? ""}
+      templateId={proposal?.template ?? null}
+    />
+  );
+  // Com um modelo escolhido, o campo e o Importar vêm primeiro: o projeto nasceu vazio e
+  // o passo que falta é esse. Sem modelo, a ordem de sempre (modelo, Planejador, campo).
+  return template ? (
+    <>
+      {importForm}
+      {picker}
+      {plannerCard}
+    </>
+  ) : (
+    <>
+      {picker}
+      {plannerCard}
+      {importForm}
     </>
   );
 }
