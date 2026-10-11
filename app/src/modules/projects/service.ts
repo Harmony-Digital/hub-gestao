@@ -8,7 +8,8 @@ import {
   resolveProject,
 } from "@/modules/common";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
-import { computeHealth } from "@/modules/health/rule";
+import { forecastInputsOf } from "@/modules/health/forecast";
+import { computeHealth, driftForecast } from "@/modules/health/rule";
 import { dependencyAlertsOf } from "@/modules/workstreams/dependencies";
 import { milestonesOfProject } from "@/modules/milestones/service";
 import type {
@@ -347,7 +348,11 @@ export async function getProjectHealth(
     stored: "healthy" as const,
   };
   const broken = (await dependencyAlertsOf(t, ref.id)).length;
-  const result = computeHealth({ ...base, broken_dependencies: broken }, now);
+  const forecast = await forecastInputsOf(t, ref.id);
+  const result = computeHealth(
+    { ...base, broken_dependencies: broken, forecast },
+    now,
+  );
   return {
     project_code: ref.code,
     health: result.health,
@@ -357,6 +362,8 @@ export async function getProjectHealth(
       blocked_task_count: base.blocked_task_count,
       late_milestones: base.late_milestones,
       broken_dependencies: broken,
+      tasks_done_last_14_days: forecast.done_recent,
+      drifting_milestones: driftForecast(forecast),
       next_due_date: base.next_due_date,
       oldest_pending_approval_at: isoOrNull(base.oldest_pending_approval_at),
     },

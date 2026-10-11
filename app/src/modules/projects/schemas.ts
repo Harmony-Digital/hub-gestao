@@ -184,6 +184,24 @@ export const HealthDto = z.object({
       .describe(
         "Frentes que começaram antes de terminar a frente de que dependem.",
       ),
+    tasks_done_last_14_days: z
+      .number()
+      .int()
+      .describe(
+        "Ritmo: tarefas de primeiro nível concluídas nos últimos 14 dias.",
+      ),
+    drifting_milestones: z
+      .array(
+        z.object({
+          code: z.string(),
+          remaining: z.number().int(),
+          slack_days: z.number().int(),
+          needed_days: z.number().int().nullable(),
+        }),
+      )
+      .describe(
+        "Marcos com deriva prevista: no ritmo atual, o trabalho que falta (remaining) precisa de needed_days (null com ritmo zero) e a folga é slack_days.",
+      ),
     next_due_date: IsoDate.nullable(),
     oldest_pending_approval_at: Timestamp.nullable(),
   }),

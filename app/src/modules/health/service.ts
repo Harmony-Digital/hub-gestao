@@ -1,6 +1,7 @@
 import { audit } from "@/lib/audit";
 import { json, many, S, type TxCtx } from "@/modules/context";
 import { emitEvent, recomputeRollup } from "@/modules/events";
+import { forecastInputsOf } from "@/modules/health/forecast";
 import { computeHealth, type Health } from "@/modules/health/rule";
 import { dependencyAlertsOf } from "@/modules/workstreams/dependencies";
 
@@ -41,7 +42,14 @@ export async function refreshAllHealth(
     )[0];
     if (!row) continue;
     const broken = (await dependencyAlertsOf(t, project.id)).length;
-    const result = computeHealth({ ...row, broken_dependencies: broken }, now);
+    const result = computeHealth(
+      {
+        ...row,
+        broken_dependencies: broken,
+        forecast: await forecastInputsOf(t, project.id),
+      },
+      now,
+    );
     // Os sinais com o tipo vão junto das frases: o Hoje mostra a ação de cada um (RF-24).
     const reasons = { reasons: result.reasons, signals: result.signals };
     if (
