@@ -1,7 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
-import { toHubError } from "@/lib/errors";
+import { badRequest, toHubError } from "@/lib/errors";
 import { actionContext, actionErrorMessage } from "@/lib/ui-context";
 import { createComment } from "@/modules/comments/service";
 import { inTx } from "@/modules/context";
@@ -35,11 +35,14 @@ import {
   parseNewTaskForm,
   parseTaskFieldsForm,
   parseTimeForm,
+  parseCustomFieldsForm,
   type ActionState,
   type CreateTaskState,
 } from "./form";
 import { logTime, LogTimeInput } from "@/modules/time/service";
 import { formatDuration } from "@/lib/duration";
+import { normalizeFieldValue } from "@/modules/tasks/custom-field-kinds";
+import { listProjectFields } from "@/modules/tasks/custom-fields";
 
 const STALE =
   "Esta tarefa mudou enquanto você olhava (uma pessoa ou um agente atualizou). A tela já mostra a versão nova: confira e faça a alteração de novo.";
@@ -93,6 +96,48 @@ export async function salvarTarefa(
     });
     if (saved) refresh();
     return { status: "ok", message: saved ? "Alteração salva." : undefined };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+/** Grava os campos personalizados da tarefa (só os que mudaram), pela atualização da tarefa. */
+export async function salvarCamposTarefa(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseCustomFieldsForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  const { code, version, values } = parsed.value;
+  try {
+    const saved = await inTx(ctx, async (t) => {
+      const task = await getTask(t, code);
+      const fields = await listProjectFields(t, task.project_code);
+      const byId = new Map(fields.map((f) => [f.id, f]));
+      const changes: Record<string, string | null> = {};
+      for (const [id, value] of Object.entries(values)) {
+        const field = byId.get(id);
+        if (!field) throw badRequest("Recarregue a página e tente de novo.");
+        const current = task.custom_fields[field.name] ?? "";
+        // Compara já normalizado ("1.250" é o mesmo 1250 guardado); inválido segue e
+        // volta com a mensagem do serviço.
+        const normalized = normalizeFieldValue(field, value);
+        const next = normalized.ok ? (normalized.value ?? "") : value;
+        if (next === current) continue;
+        changes[field.name] = value || null;
+      }
+      if (Object.keys(changes).length === 0) return false;
+      await updateTask(
+        t,
+        code,
+        UpdateTaskInput.parse({ custom_fields: changes }),
+        version,
+      );
+      return true;
+    });
+    if (saved) refresh();
+    return { status: "ok", message: saved ? "Campos salvos." : undefined };
   } catch (err) {
     return failure(err, ctx.requestId);
   }

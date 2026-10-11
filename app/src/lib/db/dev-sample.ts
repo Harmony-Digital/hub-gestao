@@ -12,6 +12,7 @@ import {
   importProjectPlan,
 } from "@/modules/projects/import";
 import { inTx } from "@/modules/context";
+import { createField } from "@/modules/tasks/custom-fields";
 import { addDependency } from "@/modules/tasks/extras";
 import {
   blockTask,
@@ -44,6 +45,7 @@ export async function ensureDevSample(db: Db, raw: PGlite): Promise<void> {
     await ensureSampleClientReport(db, raw);
     await ensureSampleInternalAgents(raw);
     await ensureSampleImports(db, raw);
+    await ensureSampleCustomFields(db, raw);
     return;
   }
 
@@ -282,6 +284,67 @@ export async function ensureDevSample(db: Db, raw: PGlite): Promise<void> {
   await ensureSampleClientReport(db, raw);
   await ensureSampleInternalAgents(raw);
   await ensureSampleImports(db, raw);
+  await ensureSampleCustomFields(db, raw);
+}
+
+/**
+ * Campos personalizados de exemplo no projeto EXE (RF-19): "Canal" (seleção) e "Conversas
+ * por dia" (número), com valor na tarefa do fluxo de agendamento. Só uma vez por banco
+ * local.
+ */
+async function ensureSampleCustomFields(db: Db, raw: PGlite): Promise<void> {
+  const row = (
+    await raw.query<{
+      ws: string;
+      owner: string;
+      has: boolean;
+      task: string | null;
+    }>(
+      `select w.id as ws, m.profile_id as owner,
+              exists (select 1 from ${S}.custom_fields f
+                        join ${S}.projects p on p.id = f.project_id
+                       where p.code = 'EXE' and f.name = 'Canal') as has,
+              (select t.code from ${S}.tasks t join ${S}.projects p on p.id = t.project_id
+                where p.code = 'EXE' and t.title = 'Escrever o fluxo de agendamento'
+                limit 1) as task
+         from ${S}.workspaces w
+         join ${S}.memberships m on m.workspace_id = w.id and m.role = 'owner'
+        where w.slug = 'harmony'`,
+    )
+  ).rows[0];
+  if (!row || row.has) return;
+  const ctx = {
+    db,
+    actor: {
+      type: "user" as const,
+      id: row.owner,
+      scope: "internal" as const,
+      role: "owner" as const,
+      workspaceId: row.ws,
+      name: "Fábio Almeida",
+    },
+    source: "ui" as const,
+    requestId: "dados-de-exemplo",
+  };
+  await inTx(ctx, async (t) => {
+    await createField(t, "EXE", {
+      name: "Canal",
+      kind: "select",
+      options: ["WhatsApp", "Site", "Telefone"],
+    });
+    await createField(t, "EXE", {
+      name: "Conversas por dia",
+      kind: "number",
+      options: [],
+    });
+  });
+  if (row.task) {
+    await inTx(ctx, (t) =>
+      updateTask(t, row.task!, {
+        custom_fields: { Canal: "WhatsApp", "Conversas por dia": 120 },
+      }),
+    );
+  }
 }
 
 /**

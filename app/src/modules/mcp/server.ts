@@ -60,6 +60,10 @@ import {
   SyncPlanResult,
 } from "@/modules/sync/service";
 import {
+  CustomFieldList,
+  listProjectFields,
+} from "@/modules/tasks/custom-fields";
+import {
   BlockTaskInput,
   CreateTaskInput,
   TaskDto,
@@ -373,7 +377,7 @@ export function buildMcpServer(
       {
         title: "Atualizar tarefa",
         description:
-          "Muda título, descrição, prioridade, datas, responsável, frente ou status (menos concluir e bloquear). Informe expected_version para não sobrescrever a mudança de outro.",
+          "Muda título, descrição, prioridade, datas, responsável, frente, status (menos concluir e bloquear) ou os campos personalizados do projeto (custom_fields, pelo nome; veja hub_list_custom_fields). Informe expected_version para não sobrescrever a mudança de outro.",
         inputSchema: UpdateTaskInput.extend({
           code: TaskCode,
           expected_version: z.number().int().positive().optional(),
@@ -551,6 +555,20 @@ export function buildMcpServer(
         annotations: readOnly,
       },
       async ({ project }) => read((t) => projectTime(t, project)),
+    );
+
+    server.registerTool(
+      "hub_list_custom_fields",
+      {
+        title: "Campos personalizados do projeto",
+        description:
+          "Os campos próprios das tarefas do projeto (texto, número, seleção, data ou URL), com as opções da seleção. Para gravar, use hub_update_task com custom_fields, pelo nome do campo.",
+        inputSchema: z.strictObject({ project: ProjectCode }),
+        outputSchema: CustomFieldList,
+        annotations: readOnly,
+      },
+      async ({ project }) =>
+        read(async (t) => ({ items: await listProjectFields(t, project) })),
     );
   }
 

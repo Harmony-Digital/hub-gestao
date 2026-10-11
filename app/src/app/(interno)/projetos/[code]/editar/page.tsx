@@ -15,6 +15,8 @@ import { ArchiveButton } from "../../../_archive/archive-controls";
 import { SaveAsTemplate } from "../../../modelos/save-as-template";
 import { ProjectForm } from "../../_admin/project-form";
 import { PROJECT_CODE } from "../_tasks/params";
+import { listProjectFields } from "@/modules/tasks/custom-fields";
+import { FieldsEditor } from "./fields-editor";
 import { StatusEditor } from "./status-editor";
 
 export async function generateMetadata({
@@ -89,9 +91,10 @@ async function EditProject({
       </>
     );
   }
-  const { options, statuses } = await inTx(ctx, async (t) => ({
+  const { options, statuses, fields } = await inTx(ctx, async (t) => ({
     options: await projectFormOptions(t),
     statuses: await projectStatusesAdmin(t, project.code),
+    fields: await listProjectFields(t, project.code),
   }));
   return (
     <>
@@ -122,6 +125,7 @@ async function EditProject({
           }}
         />
         <StatusEditor projectCode={project.code} statuses={statuses} />
+        <FieldsEditor projectCode={project.code} fields={fields} />
         <section
           aria-labelledby="importar-plano"
           className="flex max-w-4xl flex-col items-start gap-3 rounded-2xl border border-line bg-card p-4 sm:p-5"

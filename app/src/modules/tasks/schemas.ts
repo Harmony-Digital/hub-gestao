@@ -40,6 +40,11 @@ export const TaskDto = z.object({
   sort_key: z.number(),
   source: z.string(),
   external_ref: z.string().nullable(),
+  custom_fields: z
+    .record(z.string(), z.string())
+    .describe(
+      "Campos personalizados do projeto com valor, pelo nome (número com ponto, data AAAA-MM-DD).",
+    ),
   done_evidence: z.string().nullable(),
   blocked_reason: z.string().nullable(),
   blocked_on: ActorRef.nullable().describe(
@@ -116,6 +121,15 @@ export const UpdateTaskInput = z.strictObject({
     ),
   sort_key: z.number().finite().optional(),
   external_ref: z.string().trim().max(500).nullable().optional(),
+  custom_fields: z
+    .record(
+      z.string().trim().min(1).max(60),
+      z.union([z.string().max(500), z.number(), z.null()]),
+    )
+    .optional()
+    .describe(
+      'Campos personalizados do projeto, pelo nome: { "Canal": "WhatsApp" }. Número como 1250 ou "12,5", data AAAA-MM-DD, URL com http(s), seleção com uma das opções; vazio ou null tira o valor. Só os campos enviados mudam.',
+    ),
 });
 export type UpdateTaskInput = z.infer<typeof UpdateTaskInput>;
 

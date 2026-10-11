@@ -27,6 +27,7 @@ import {
   ReportDto,
 } from "@/modules/reports/service";
 import { SearchDto } from "@/modules/search/service";
+import { CustomFieldList } from "@/modules/tasks/custom-fields";
 import {
   BlockTaskInput,
   CompleteTaskInput,
@@ -105,6 +106,7 @@ const RESPONSES = {
   TimeEntry: TimeEntryDto,
   ActivityExport,
   ProjectTime: ProjectTimeDto,
+  CustomFieldList,
   ApprovalList,
   Approval: ApprovalDto,
   ReportList: z.object({ items: z.array(ReportDto) }),
@@ -200,6 +202,17 @@ export const API_SPECS: Spec[] = [
     scope: "tasks:read",
     pathParams: [CODE],
     response: "ProjectTime",
+  },
+  {
+    method: "get",
+    path: "/projects/{code}/custom-fields",
+    tag: "Projetos",
+    summary: "Campos personalizados das tarefas",
+    description:
+      "Os campos próprios do projeto (texto, número, seleção, data ou URL), com as opções da seleção. O valor de cada tarefa vem em custom_fields e muda pela atualização da tarefa, pelo nome do campo.",
+    scope: "tasks:read",
+    pathParams: [CODE],
+    response: "CustomFieldList",
   },
   {
     method: "get",

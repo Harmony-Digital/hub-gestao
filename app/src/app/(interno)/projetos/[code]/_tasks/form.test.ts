@@ -5,6 +5,7 @@ import {
   parseAssignee,
   parseChecklistForm,
   parseCommentForm,
+  parseCustomFieldsForm,
   parseDependencyForm,
   parseInlineEdit,
   parseMoveForm,
@@ -241,6 +242,29 @@ describe("estimativa e tempo", () => {
     expect(bad({ minutes: "abc" })).toBe(false);
     expect(bad({ entry_date: "09/10/2026" })).toBe(false);
     expect(bad({ code: "hub-3" })).toBe(false);
+  });
+});
+
+describe("campos personalizados", () => {
+  it("lê os valores pelo id do campo e ignora o resto", () => {
+    const data = form({ code: "HUB-3", version: "4", title: "x" });
+    data.append(`field.${ID}`, "  WhatsApp ");
+    data.append(`field.${WS}`, "");
+    expect(parseCustomFieldsForm(data)).toEqual({
+      ok: true,
+      value: {
+        code: "HUB-3",
+        version: 4,
+        values: { [ID]: "WhatsApp", [WS]: "" },
+      },
+    });
+  });
+
+  it("recusa campo de id torto e código de tarefa torto", () => {
+    const torto = form({ code: "HUB-3" });
+    torto.append("field.abc", "1");
+    expect(parseCustomFieldsForm(torto).ok).toBe(false);
+    expect(parseCustomFieldsForm(form({ code: "x" })).ok).toBe(false);
   });
 });
 
