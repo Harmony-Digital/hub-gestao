@@ -16,7 +16,12 @@ import {
   type StatusOption,
 } from "@/modules/tasks/board";
 import type { TaskDto } from "@/modules/tasks/schemas";
-import { listSavedViews, type SavedViewDto } from "@/modules/views/service";
+import {
+  departmentViews,
+  listSavedViews,
+  type DepartmentViewDto,
+  type SavedViewDto,
+} from "@/modules/views/service";
 import { projectChangeMarker } from "@/modules/live";
 import { LiveRefresh } from "../../../_live/live-refresh";
 import {
@@ -28,11 +33,13 @@ import {
 } from "../_tasks/inline-edit";
 import { ListToolbar } from "../_tasks/list-toolbar";
 import {
+  departmentViewQuery,
   groupTasks,
   hasFilters,
   listQuery,
   readListState,
   sortTasks,
+  stateFor,
   toTaskFilter,
   type Column,
 } from "../_tasks/list-state";
@@ -91,7 +98,7 @@ async function ListView({
   const { code } = await params;
   if (!PROJECT_CODE.test(code)) notFound();
   const query = await searchParams;
-  const state = readListState(query);
+  const state = stateFor("list", readListState(query));
   const shown = Math.min(
     PAGE_MAX,
     Math.max(PAGE, Math.floor(Number(query.mostrar) / PAGE) * PAGE || PAGE),
@@ -99,15 +106,17 @@ async function ListView({
   const { user, ctx } = await pageContext();
   let data: ProjectTaskList;
   let views: SavedViewDto[];
+  let deptViews: DepartmentViewDto[];
   let marker: string;
   try {
-    ({ data, views, marker } = await inTx(ctx, async (t) => {
+    ({ data, views, deptViews, marker } = await inTx(ctx, async (t) => {
       const list = await projectTaskList(t, code, toTaskFilter(state), {
         openLimit: shown,
       });
       return {
         data: list,
         views: await listSavedViews(t, list.project.id, "list"),
+        deptViews: await departmentViews(t, list.departments, "list"),
         marker: await projectChangeMarker(t, code),
       };
     }));
@@ -176,11 +185,18 @@ async function ListView({
             type="list"
             basePath={basePath}
             views={views}
+            departments={deptViews.map((d) => ({
+              ...d,
+              query: departmentViewQuery("list", d.slug, d.stored),
+              custom: d.stored !== null,
+            }))}
+            currentDepartment={data.department}
             currentQuery={current.toString()}
           />
           <ListToolbar
             basePath={basePath}
             state={state}
+            departments={data.departments}
             workstreams={data.workstreams}
             assignees={data.assignees}
             mode="list"

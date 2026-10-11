@@ -175,6 +175,16 @@ const OPEN: {
       ),
   },
   {
+    name: "Visão padrão do departamento",
+    path: "/projetos/EXE/lista?depto=sistemas&agrupar=responsavel",
+    open: (page) =>
+      openDialog(
+        page,
+        page.getByRole("button", { name: "Padrão do departamento" }),
+        "Visão padrão de Sistemas",
+      ),
+  },
+  {
     name: "Pôr na equipe",
     path: "/configuracoes",
     open: (page) =>

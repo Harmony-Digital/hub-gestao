@@ -272,6 +272,23 @@ export async function listTasks(
     params.push(filter.workstream_id);
     where.push(`t.workstream_id = $${params.length}`);
   }
+  if (filter.department) {
+    const department = await maybeOne<{ id: string }>(
+      t,
+      `select id from ${S}.departments where slug = $1`,
+      [filter.department],
+    );
+    if (!department) {
+      throw notFound(
+        `Departamento ${filter.department} não encontrado neste workspace.`,
+      );
+    }
+    params.push(department.id);
+    where.push(
+      `t.workstream_id in (select w.id from ${S}.workstreams w
+                            where w.department_id = $${params.length} and w.archived_at is null)`,
+    );
+  }
   if (filter.parent) {
     params.push(filter.parent);
     where.push(`par.code = $${params.length}`);

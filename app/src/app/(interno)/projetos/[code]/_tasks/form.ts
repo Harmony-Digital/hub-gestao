@@ -607,6 +607,28 @@ export function parseViewForm(form: FormData): Parsed<{
   return { ok: true, value: { project, type, name, query } };
 }
 
+const DEPARTMENT_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** Visão padrão de um departamento: o departamento, a tela e os filtros (a ação normaliza). */
+export function parseDepartmentViewForm(form: FormData): Parsed<{
+  department: string;
+  type: "list" | "board";
+  query: string;
+}> {
+  const department = text(form, "department");
+  const type = text(form, "type");
+  const query = text(form, "query");
+  if (
+    department.length > 60 ||
+    !DEPARTMENT_SLUG.test(department) ||
+    (type !== "list" && type !== "board") ||
+    query.length > 600
+  ) {
+    return { ok: false, message: RELOAD };
+  }
+  return { ok: true, value: { department, type, query } };
+}
+
 /** Ordem nova de uma coluna do quadro: códigos separados por vírgula. */
 export function parseReorderForm(
   form: FormData,

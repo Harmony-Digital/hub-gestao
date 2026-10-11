@@ -21,6 +21,9 @@ export const TaskCode = z
 export const MilestoneCode = z
   .string()
   .regex(/^M[0-9]{1,3}$/, "Código de marco no formato M1.");
+export const DepartmentSlug = z
+  .string()
+  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Departamento pelo slug, como sistemas.");
 export const Uuid = z.uuid();
 export const IsoDate = z.iso.date();
 export const Timestamp = z.string();

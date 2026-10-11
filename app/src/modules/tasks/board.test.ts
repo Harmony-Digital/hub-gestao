@@ -2,6 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { HubError } from "@/lib/errors";
 import { createComment } from "@/modules/comments/service";
 import { inTx } from "@/modules/context";
+import { archiveWorkstream } from "@/modules/archive/service";
+import { createWorkstream } from "@/modules/workstreams/service";
 import { ctxFor, openTestHub, type TestHub } from "@/test/hub";
 import {
   describeTaskEvent,
@@ -112,6 +114,72 @@ describe("lista de tarefas do projeto", () => {
     );
     expect(estranha.workstream).toBeNull();
     expect(estranha.tasks.map((t) => t.code)).toContain(semFrente.code);
+  });
+
+  it("filtra pelo departamento: só as frentes ativas dele no projeto (RF-23)", async () => {
+    const [design, sistemas] = await inTx(asOwner(), async (t) => [
+      await createWorkstream(t, {
+        project: "VIT",
+        title: "Telas do painel",
+        department: "design",
+      }),
+      await createWorkstream(t, {
+        project: "VIT",
+        title: "Integração com a agenda",
+        department: "sistemas",
+      }),
+    ]);
+    const deDesign = await novaTarefa("Departamento: design", {
+      workstream_id: design.id,
+    });
+    const deSistemas = await novaTarefa("Departamento: sistemas", {
+      workstream_id: sistemas.id,
+    });
+    const solta = await novaTarefa("Departamento: sem frente");
+
+    const lista = await inTx(asOwner(), (t) =>
+      projectTaskList(t, "VIT", { department: "design" }),
+    );
+    expect(lista.department).toBe("design");
+    // Na ordem do workspace: Sistemas vem antes de Design.
+    expect(lista.departments.map((d) => d.slug)).toEqual([
+      "sistemas",
+      "design",
+    ]);
+    const codes = lista.tasks.map((t) => t.code);
+    expect(codes).toContain(deDesign.code);
+    expect(codes).not.toContain(deSistemas.code);
+    expect(codes).not.toContain(solta.code);
+
+    // Departamento que existe e não tem frente aqui: a lista vem vazia, não inteira.
+    const dados = await inTx(asOwner(), (t) =>
+      projectTaskList(t, "VIT", { department: "dados" }),
+    );
+    expect(dados.department).toBe("dados");
+    expect(dados.tasks).toEqual([]);
+    expect(dados.openTotal).toBe(0);
+    expect(dados.departments.map((d) => d.slug)).toEqual([
+      "sistemas",
+      "design",
+      "dados",
+    ]);
+
+    // Desconhecido ou fora do formato: sem filtro.
+    for (const department of ["nao-existe", "'; drop table x; --"]) {
+      const all = await inTx(asOwner(), (t) =>
+        projectTaskList(t, "VIT", { department }),
+      );
+      expect(all.department).toBeNull();
+      expect(all.tasks.map((t) => t.code)).toContain(solta.code);
+    }
+
+    // Frente arquivada sai da visão do departamento (e o departamento, da escolha).
+    await inTx(asOwner(), async (t) => {
+      await completeTask(t, deSistemas.code, { evidence: "Teste." });
+      await archiveWorkstream(t, sistemas.id);
+    });
+    const semSistemas = await inTx(asOwner(), (t) => projectTaskList(t, "VIT"));
+    expect(semSistemas.departments.map((d) => d.slug)).toEqual(["design"]);
   });
 
   it("limita as concluídas às mais recentes e informa o total", () => {

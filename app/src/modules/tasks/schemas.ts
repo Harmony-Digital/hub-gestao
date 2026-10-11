@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   ActorRef,
+  DepartmentSlug,
   IsoDate,
   Priority,
   ProjectCode,
@@ -80,6 +81,11 @@ export const TaskFilter = z.strictObject({
   due_before: IsoDate.optional(),
   blocked: z.boolean().optional(),
   workstream_id: Uuid.optional(),
+  department: DepartmentSlug.max(60)
+    .optional()
+    .describe(
+      "Slug de um departamento (ex.: sistemas; os do projeto vêm em hub_get_project): só as tarefas das frentes ativas dele.",
+    ),
   parent: TaskCode.optional(),
   cursor: z.string().optional(),
   limit: z.number().int().min(1).max(200).optional(),

@@ -24,7 +24,7 @@ Horário de silêncio para avisos proativos: 23h às 8h. Não repita o mesmo ale
 
 Para cada projeto ativo (`hub_list_projects`), com `hub_list_tasks`:
 
-- **Hoje**: as tarefas em andamento e as que vencem nos próximos 3 dias, por departamento, com o responsável.
+- **Hoje**: as tarefas em andamento e as que vencem nos próximos 3 dias, por departamento, com o responsável. Para um departamento só, `hub_list_tasks` com `department` (o slug, que vem em `hub_get_project`).
 - **Sem dono**: tarefas abertas sem responsável (meta: menos de 5%). Atribua quem faz sentido, ou liste para o Fábio decidir.
 - **Bloqueios**: cada tarefa bloqueada com o motivo, quem destrava (`blocked_on`) e a próxima ação.
 

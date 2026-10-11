@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AgentActor } from "@/lib/db/actor";
+import { HubError } from "@/lib/errors";
 import { withIdempotency } from "@/lib/idempotency";
 import { inTx } from "@/modules/context";
 import {
@@ -253,6 +254,37 @@ describe("tarefas por agente", () => {
       listTasks(t, { assignee: "me" }),
     );
     expect(mine.items.every((x) => x.assignee?.id === kratos.id)).toBe(true);
+  });
+
+  it("filtra pelo departamento (slug); departamento que não existe dá 404", async () => {
+    const design = (
+      await h.raw.query<{ id: string }>(
+        `insert into ${S}.workstreams (workspace_id, project_id, department_id, title)
+         select $1, $2, d.id, 'Telas da recepção' from ${S}.departments d
+          where d.slug = 'design'
+         returning id`,
+        [h.ws, h.vit],
+      )
+    ).rows[0];
+    const task = await inTx(asKratos(), (t) =>
+      createTask(t, {
+        project: "VIT",
+        title: "Tela da agenda",
+        workstream_id: design.id,
+      }),
+    );
+    const inProject = await inTx(asKratos(), (t) =>
+      listTasks(t, { project: "VIT", department: "design" }),
+    );
+    expect(inProject.items.map((x) => x.code)).toEqual([task.code]);
+    const everywhere = await inTx(asKratos(), (t) =>
+      listTasks(t, { department: "design" }),
+    );
+    expect(everywhere.items.map((x) => x.code)).toEqual([task.code]);
+    const err = await inTx(asKratos(), (t) =>
+      listTasks(t, { department: "nao-existe" }),
+    ).catch((e: unknown) => e);
+    expect((err as HubError).status).toBe(404);
   });
 
   it("subtarefa tem um nível só e herda a frente", async () => {

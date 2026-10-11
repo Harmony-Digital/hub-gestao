@@ -58,10 +58,21 @@ async function DepartmentView({
     if (err instanceof HubError && err.status === 404) notFound();
     throw err;
   }
-  const { department: d, tasks, load, workstreams } = data;
+  const { department: d, tasks, load, workstreams, views } = data;
   const unassigned = tasks.filter(
     (t) => !t.assignee && t.status_category !== "done",
   ).length;
+  // Os projetos com frente do departamento, na ordem da lista de frentes.
+  const projects = [
+    ...new Map(
+      workstreams.map((w) => [
+        w.projectCode,
+        { code: w.projectCode, name: w.projectName },
+      ]),
+    ).values(),
+  ];
+  const listView = views.list ?? `depto=${d.slug}`;
+  const boardView = views.board ?? `depto=${d.slug}`;
   return (
     <>
       <PageHeader
@@ -73,6 +84,54 @@ async function DepartmentView({
         description={`${d.lead ? `Responsável: ${d.lead}. ` : ""}As tarefas das frentes deste departamento em todos os projetos ativos. Abra uma tarefa para mudar o que for preciso.`}
       />
       <main className="flex w-full flex-col gap-6 px-4 py-6 sm:px-8">
+        {projects.length > 0 ? (
+          <section
+            aria-labelledby="nos-projetos"
+            className="flex flex-col gap-2"
+          >
+            <h2
+              id="nos-projetos"
+              className="font-heading text-lg font-semibold text-navy"
+            >
+              Nos projetos
+            </h2>
+            <p className="text-sm text-ink-2">
+              A visão padrão de {d.name} na Lista e no Quadro de cada projeto:
+              só as tarefas das frentes do departamento
+              {views.list || views.board
+                ? ", com o que o departamento guardou como padrão"
+                : ""}
+              .
+            </p>
+            <ul className="flex flex-wrap gap-2">
+              {projects.map((p) => (
+                <li
+                  key={p.code}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-line bg-card px-3 py-2 text-sm"
+                >
+                  <span className="font-mono text-xs font-semibold text-ink-2">
+                    {p.code}
+                  </span>
+                  <span className="break-words text-navy">{p.name}</span>
+                  <Link
+                    href={`/projetos/${p.code}/lista?${listView}`}
+                    aria-label={`Lista de ${p.code} na visão de ${d.name}`}
+                    className="font-medium text-navy underline underline-offset-2"
+                  >
+                    Lista
+                  </Link>
+                  <Link
+                    href={`/projetos/${p.code}/quadro?${boardView}`}
+                    aria-label={`Quadro de ${p.code} na visão de ${d.name}`}
+                    className="font-medium text-navy underline underline-offset-2"
+                  >
+                    Quadro
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
         <section
           aria-labelledby="quadro-departamento"
           className="flex flex-col gap-3"

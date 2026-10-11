@@ -4,6 +4,7 @@ import { projectScopeSql } from "@/modules/common";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
 import type { TaskSummary } from "@/modules/projects/schemas";
 import { TASK_SUMMARY_SELECT, toTaskSummary } from "@/modules/projects/service";
+import { storedDepartmentViews } from "@/modules/views/service";
 
 /**
  * Visão por departamento (M7): o trabalho de cada departamento cruzando os projetos
@@ -115,6 +116,11 @@ export type DepartmentDetail = {
   tasks: (TaskSummary & { completed_recently: boolean })[];
   load: AssigneeLoad[];
   workstreams: DepartmentWorkstream[];
+  /**
+   * A visão padrão do departamento na Lista e no Quadro de cada projeto (RF-23): o
+   * endereço guardado por ele ou null (só o filtro do departamento).
+   */
+  views: { list: string | null; board: string | null };
 };
 
 export async function departmentDetail(
@@ -198,6 +204,7 @@ export async function departmentDetail(
 
   return {
     department: { slug: d.slug, name: d.name, color: d.color, lead: d.lead },
+    views: await storedDepartmentViews(t, d.id),
     tasks,
     load: [...loads.values()].sort(
       (a, b) => b.open - a.open || a.name.localeCompare(b.name, "pt-BR"),
