@@ -5,7 +5,7 @@ O Hub avisa outros sistemas quando algo acontece (PRD §8.6): o **Hermes**, que 
 ## Cadastro
 
 1. Endereço público, com `https://` (o Hub recusa máquina local, rede interna e IP privado) e sem usuário ou senha no endereço: a autenticação é a assinatura.
-2. Os eventos que o endereço recebe. Os três do Telegram do Fábio vêm marcados: pedido de aprovação aberto, saúde de projeto mudou e orçamento de IA de um agente acabou.
+2. Os eventos que o endereço recebe. Os seis do Telegram do Fábio vêm marcados: pedido de aprovação aberto, saúde de projeto mudou, orçamento de IA de um agente acabou e os três alertas de operação (recusas de acesso repetidas de um agente, job do relógio que falhou de vez e publicação que falhou).
 3. O Hub gera o **segredo** (`whsec_...`) e mostra **uma vez só**: copie e guarde no sistema que recebe. No banco, ele fica cifrado com `HUB_ENCRYPTION_KEY`; nunca vai para o histórico.
 4. **Enviar teste** manda o evento `webhook.test` só para aquele webhook. A entrega sai em até cinco minutos (o relógio dos jobs roda de 5 em 5 minutos na VPS) e aparece na lista "Últimos avisos" com o resultado. O mesmo vale para os avisos de verdade: chegam com até cinco minutos de atraso.
 5. **Trocar segredo**: o antigo para de valer na hora. **Pausar**: nada sai até reativar (os eventos do período não ficam guardados).
@@ -44,6 +44,9 @@ O `data` de cada evento:
 | `approval.decided` | `id`, `type`, `status`, `project_code` |
 | `project.health_changed` | `project_code`, `health` (`healthy`, `attention`, `at_risk`), `reasons` |
 | `agent.budget_exceeded` | `agent` (`id`, `name`), `scope` (`agent`: o orçamento do agente; `workspace`: o teto do workspace), `budget_usd_month`, `spent_usd_month`, `detail`. No máximo um por dia por agente |
+| `agent.denials_recurring` | `who` (o id do agente, ou `chave:<prefixo>`), `agent` (`id`, `name`; `null` se a chave não tiver agente), `key_prefix`, `count`, `by_status` (`401`, `403`, `423`), `last_reason`, `window_minutes` (60). Sai quando a mesma chave tem 5 ou mais recusas de acesso numa hora (conferido a cada 15 minutos); no máximo um por dia por agente |
+| `system.job_failed` | `job_id`, `type`, `label` (o nome do job em PT-BR), `attempts`, `error` (o começo do erro, sem e-mail nem chave). Sai uma vez, quando um job do relógio esgota as tentativas |
+| `system.deploy_failed` | `sha` (o commit) e `run_url` (a execução no GitHub Actions). Sai quando a publicação na VPS falha (a versão anterior continua no ar), uma vez por commit; precisa do `HUB_ALERT_SECRET` (`docs/operacao.md`) |
 | `task.created` / `task.updated` / `task.completed` / `task.blocked` | `code`, `project_code` e os campos da mudança |
 | `workstream.updated`, `milestone.status_changed`, `report.published` | o item e o projeto |
 | `client.commented` | `project_code`, `author` (o nome do contato) e `excerpt` (o começo da mensagem, até 140 caracteres). Sai quando o contato escreve no portal ("Conversa com a equipe"); bom para o Telegram, pelo Hermes |
@@ -93,7 +96,7 @@ Use o corpo exatamente como chegou (os bytes), antes de qualquer conversão.
 
 O Hermes tem receptor de webhooks próprio, que, pela documentação dele (skill `hermes-agent`, no segundo cérebro), confere a assinatura no padrão do GitHub (`X-Hub-Signature-256`, que o Hub manda) e entrega a resposta do agente no Telegram. A versão instalada na VPS ainda não foi conferida por dentro do contêiner: se a assinatura não bater no teste, o passo seguinte é ver no Hermes qual cabeçalho ele espera.
 
-1. No Hub, Sala de Controle → Webhooks de saída: cadastre o endereço público do Hermes (o passo 3 diz qual) com os três eventos marcados, e copie o segredo.
+1. No Hub, Sala de Controle → Webhooks de saída: cadastre o endereço público do Hermes (o passo 3 diz qual) com os seis eventos marcados, e copie o segredo.
 2. No Hermes (dentro do contêiner, onde roda o `hermes gateway`), ligue os webhooks se ainda não estiverem (`hermes webhook list` diz; `hermes gateway setup` liga) e crie a assinatura com o segredo do Hub:
 
    ```bash

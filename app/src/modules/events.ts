@@ -16,6 +16,9 @@ export type HubEvent =
   | "report.published"
   | "project.health_changed"
   | "agent.budget_exceeded"
+  | "agent.denials_recurring"
+  | "system.job_failed"
+  | "system.deploy_failed"
   | "client.commented"
   | "client.receipt_confirmed";
 

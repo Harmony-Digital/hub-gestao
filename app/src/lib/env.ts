@@ -63,3 +63,12 @@ export function cronSecret(): string | null {
   const value = process.env.CRON_SECRET?.trim();
   return value && value.length >= 32 ? value : null;
 }
+
+/**
+ * Segredo do aviso de publicação que falhou (M8): o GitHub Actions manda com ele. Sem
+ * ele (32 caracteres ou mais), o aviso fica desligado.
+ */
+export function alertSecret(): string | null {
+  const value = process.env.HUB_ALERT_SECRET?.trim();
+  return value && value.length >= 32 ? value : null;
+}

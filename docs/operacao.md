@@ -60,6 +60,27 @@ Sinais: `checks.queue` em `failing` e, na Sala de Controle, a lista "Jobs com fa
 - **Gasto de IA, recálculo da saúde, conferência de evidências, aprovações paradas**: o erro vem do banco ou de um dado inesperado. Leia o log do contêiner (seção Logs) com o horário da falha e abra uma tarefa no projeto HUB com o erro.
 - **Reescrita do texto para o cliente (RC-12)**: o provedor de IA falhou ou a resposta veio fora do formato; o pedido de aprovação continua com o texto original. Confira a chave e o modelo do Redator na Sala de Controle.
 
+## Alertas
+
+O Hub avisa o dono na caixa de entrada (grupos "Agentes" e "Operação do Hub") e os webhooks de saída (Telegram, pelo Hermes; `docs/webhooks.md`):
+
+| Alerta | Quando | Evento |
+|---|---|---|
+| Orçamento de IA acabou | um agente (ou o teto do workspace) passou do orçamento do mês; um por dia | `agent.budget_exceeded` |
+| Recusas de acesso repetidas | 5 ou mais recusas da mesma chave numa hora (o relógio confere a cada 15 minutos); um por dia por agente. Veja "Recusas de acesso" na Sala de Controle: chave revogada (401), escopo que falta (403) ou agente pausado (423) | `agent.denials_recurring` |
+| Job falhou de vez | um job do relógio esgotou as tentativas; um por job | `system.job_failed` |
+| Publicação falhou | o workflow "Publicação na VPS" falhou em algum passo; a versão anterior continua no ar; um por commit | `system.deploy_failed` |
+
+O relógio parado não vira alerta pelo Hub (com ele parado, nem os webhooks saem): ele aparece na saúde e na Sala de Controle (seção "Relógio dos jobs parado").
+
+**Ligar o aviso de publicação** (passo do Fábio, uma vez):
+
+1. Gerar o segredo: `openssl rand -hex 32`.
+2. Na VPS, acrescentar `HUB_ALERT_SECRET=<o segredo>` ao `/opt/hub-gestao/shared/.env.production` (vale a partir da próxima publicação, que recria o contêiner).
+3. No GitHub, em Settings → Secrets and variables → Actions do repositório, criar o segredo `HUB_ALERT_SECRET` com o mesmo valor.
+
+Sem o segredo, o último passo do workflow só diz que o aviso está desligado e a publicação segue como antes.
+
 ## Logs
 
 O Hub escreve uma linha JSON por evento (`pino`), com `request_id`, sem dado pessoal e sem segredo: o erro do banco vai sem o `detail` (onde o Postgres põe os valores) e e-mail, chave e token viram marcadores. O `request_id` aparece também nas respostas de erro da API, para achar a linha certa.

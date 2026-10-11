@@ -143,6 +143,7 @@ export const JOB_TYPE: Record<string, string> = {
   "webhook-dispatch": "Entrega dos webhooks",
   "idempotency-cleanup": "Limpeza das chaves de repetição",
   "client-text-rewrite": "Reescrita do texto para o cliente (RC-12)",
+  "ops-watch": "Vigia das recusas de acesso",
 };
 
 export const AGENT_ROLE: Record<string, string> = {

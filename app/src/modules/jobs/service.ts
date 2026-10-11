@@ -16,6 +16,7 @@ import { refreshAgentSpend, type LlmDeps } from "@/lib/llm";
 import { attempt } from "@/modules/attempt";
 import { REWRITE_JOB, rewriteForClient } from "@/modules/client-text/writer";
 import { notifyOwners, notifyProfile } from "@/modules/notifications";
+import { noteJobFailed, watchDenials } from "@/modules/ops/alerts";
 import { reopenTask } from "@/modules/tasks/service";
 
 /**
@@ -31,6 +32,7 @@ export type JobType =
   | "agent-spend"
   | "webhook-dispatch"
   | "idempotency-cleanup"
+  | "ops-watch"
   | typeof REWRITE_JOB;
 
 /** Jobs periódicos e o intervalo mínimo entre duas execuções. */
@@ -41,6 +43,7 @@ export const PERIODIC_JOBS: { type: JobType; everyMinutes: number }[] = [
   { type: "agent-spend", everyMinutes: 60 },
   { type: "webhook-dispatch", everyMinutes: 1 },
   { type: "idempotency-cleanup", everyMinutes: 60 },
+  { type: "ops-watch", everyMinutes: 15 },
 ];
 
 export type JobDeps = {
@@ -120,6 +123,8 @@ async function runJob(
       });
     case "webhook-dispatch":
       return dispatchWebhooks(ctx, deps);
+    case "ops-watch":
+      return inTx(ctx, (t) => watchDenials(t));
     case REWRITE_JOB:
       // RC-12: a IA fica fora de transação; sem Redator ligado, o pedido segue como está.
       return rewriteForClient(
@@ -355,15 +360,17 @@ export async function tick(
       const message =
         err instanceof Error ? err.message.slice(0, 500) : "erro desconhecido";
       const retry = job.attempts < MAX_ATTEMPTS;
-      await inTx(ctx, (t) =>
-        t.tx.query(
+      await inTx(ctx, async (t) => {
+        await t.tx.query(
           `update ${S}.jobs
               set status = $2, locked_at = null, last_error = $3,
                   run_at = now() + make_interval(mins => power(2, attempts)::int)
             where id = $1`,
           [job.id, retry ? "queued" : "failed", message],
-        ),
-      );
+        );
+        // Falhou de vez: o dono e os webhooks ficam sabendo (M8, alertas de operação).
+        if (!retry) await noteJobFailed(t, job, message);
+      });
       ran.push({
         id: job.id,
         type: job.type,
