@@ -17,7 +17,7 @@
 | Passo | Comando | Fecha |
 |---|---|---|
 | Ligar o aviso de publicação que falhou | `deploy/vps/hub-alert-secret.sh` | M8, "Observabilidade" (junto com o Telegram, passo 4) |
-| Aplicar a rotação dos logs do contêiner | `deploy/vps/hub-apply-compose.sh` | M8, "LGPD" (junto com a revisão jurídica, passo 6) |
+| ~~Aplicar a rotação dos logs do contêiner~~ | feito em 2026-10-11 pelo agente, com o ok do Fábio (`deploy/vps/hub-apply-compose.sh`) | M8, "LGPD" (falta a revisão jurídica, passo 6) |
 | Ligar a cópia diária do backup no Google Drive (o navegador abre para autorizar com a conta Google da Harmony) | `deploy/vps/hub-backup-offsite-setup.sh` | M2 (D8) e M8, "Backups" |
 | Teste de restauração do backup | os dois comandos de `docs/operacao.md`, "Teste de restauração", e depois o `--testar-volta` da cópia no Drive ("Cópia no Google Drive") | M8, "Backups" e GATE M8 |
 
