@@ -8,6 +8,7 @@ import { inTx } from "@/modules/context";
 import {
   createMilestone,
   CreateMilestoneInput,
+  moveMilestone,
   requestMilestoneAcceptance,
   updateMilestone,
   UpdateMilestoneInput,
@@ -24,6 +25,7 @@ import {
 import {
   parseAcceptanceForm,
   parseMilestoneForm,
+  parseMoveMilestoneForm,
   parseWorkstreamForm,
   workstreamChanges,
 } from "./form";
@@ -56,6 +58,32 @@ export async function salvarMarco(
     return {
       status: "error",
       message: actionErrorMessage(err, ctx.requestId, "Falha ao salvar marco."),
+    };
+  }
+}
+
+/** Sobe ou desce o marco uma posição (RF-09). */
+export async function moverMarco(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseMoveMilestoneForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  try {
+    await inTx(ctx, (t) =>
+      moveMilestone(t, parsed.value.id, parsed.value.direction),
+    );
+    refresh();
+    return { status: "ok" };
+  } catch (err) {
+    return {
+      status: "error",
+      message: actionErrorMessage(
+        err,
+        ctx.requestId,
+        "Falha ao mover o marco.",
+      ),
     };
   }
 }

@@ -86,6 +86,8 @@ export type MilestoneFormValue = {
     visibility: "internal" | "client";
     acceptance_criteria: { text: string; done: boolean }[];
     date_reason?: string | null;
+    /** Só quando a janela mostra a caixa do GATE (marcador gate_section). */
+    gate_required?: boolean;
   };
 };
 
@@ -158,9 +160,25 @@ export function parseMilestoneForm(form: FormData): Parsed<MilestoneFormValue> {
         visibility: shown ? "client" : "internal",
         acceptance_criteria: criteria.value,
         ...(ref.value.id ? { date_reason: reason.value } : {}),
+        // Caixa desmarcada não vai no formulário: o marcador diz que ela estava na tela.
+        ...(form.has("gate_section")
+          ? { gate_required: text(form, "gate_required") === "on" }
+          : {}),
       },
     },
   };
+}
+
+/** Subir ou descer um marco na ordem (RF-09). */
+export function parseMoveMilestoneForm(
+  form: FormData,
+): Parsed<{ id: string; direction: "up" | "down" }> {
+  const id = text(form, "id");
+  const direction = text(form, "direction");
+  if (!UUID.test(id) || (direction !== "up" && direction !== "down")) {
+    return { ok: false, message: RELOAD };
+  }
+  return { ok: true, value: { id, direction } };
 }
 
 // Frente ------------------------------------------------------------------------------
