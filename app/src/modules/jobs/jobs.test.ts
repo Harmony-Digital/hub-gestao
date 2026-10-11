@@ -32,6 +32,7 @@ describe("fila de jobs", () => {
         "evidence-check",
         "health-rollup",
         "idempotency-cleanup",
+        "ops-watch",
         "webhook-dispatch",
       ].sort(),
     );

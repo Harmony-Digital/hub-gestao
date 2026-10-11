@@ -16,6 +16,7 @@ Nenhum valor secreto entra em chat, commit, log, comentário de tarefa ou docume
 | `HUB_API_KEY_PEPPER` | Tempero do hash das chaves de agente e dos links e sessões do portal do cliente (trocar invalida todos) | só no servidor | gerado uma vez |
 | `HUB_ENCRYPTION_KEY` | Cifra das chaves de IA guardadas no banco (AES-256-GCM, tela Chaves de IA da Sala de Controle) e dos segredos de webhook; 32 bytes em base64 ou 64 caracteres hexadecimais (por exemplo, `openssl rand -base64 32`). Sem ela, o Hub recusa guardar chave de IA | só no servidor | gerado uma vez, na VPS; se perder, as chaves de IA precisam ser recadastradas |
 | `CRON_SECRET` | Protege as rotas internas do agendador | servidor e timer da VPS | gerado |
+| `HUB_ALERT_SECRET` | Aviso de publicação que falhou: o GitHub Actions manda para `/api/internal/alerts/deploy` (M8). Sem ele, o aviso fica desligado | servidor (`.env.production`) e segredo `HUB_ALERT_SECRET` do repositório no GitHub, com o mesmo valor | gerado (`openssl rand -hex 32`), passo do Fábio |
 | `RESEND_API_KEY` | E-mails do portal do cliente | só no servidor | Fábio, no M6 |
 | `GITHUB_WEBHOOK_SECRET` | Valida a assinatura dos eventos do GitHub (`/api/internal/webhooks/github`); 32 caracteres ou mais; sem ele, o webhook recusa tudo | `.env.production` e o campo Secret do webhook em cada repositório (`docs/github-webhook.md`) | Fábio gera e grava (passo do M4) |
 | `LLM_MONTHLY_BUDGET_USD` | Teto global de gasto com IA | servidor | 30, decisão D5 |

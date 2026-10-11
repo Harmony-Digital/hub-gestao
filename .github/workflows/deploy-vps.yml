@@ -93,3 +93,23 @@ jobs:
                   console.log(JSON.stringify(health));
                 });
               '
+      - name: Avisar o Hub que a publicação falhou
+        # Só quando algum passo acima falhou e o segredo existe (M8). O Hub avisa o dono e
+        # os webhooks (Telegram, pelo Hermes); a versão anterior continua no ar.
+        if: failure()
+        env:
+          DEPLOY_URL: ${{ vars.HUB_DEPLOY_URL }}
+          HUB_ALERT_SECRET: ${{ secrets.HUB_ALERT_SECRET }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$HUB_ALERT_SECRET" ] || [ -z "$DEPLOY_URL" ]; then
+            echo "Aviso de publicação desligado (sem o segredo HUB_ALERT_SECRET)."
+            exit 0
+          fi
+          body="$(node -e 'console.log(JSON.stringify({ sha: process.env.RELEASE_SHA, run_url: process.env.RUN_URL }))')"
+          curl --silent --show-error --fail-with-body --connect-timeout 15 --max-time 30 \
+            --request POST "$DEPLOY_URL/api/internal/alerts/deploy" \
+            --header "Authorization: Bearer $HUB_ALERT_SECRET" \
+            --header "Content-Type: application/json" \
+            --data "$body" \
+            || echo "O Hub não recebeu o aviso (pode estar fora do ar)."

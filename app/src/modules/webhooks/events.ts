@@ -2,13 +2,16 @@ import type { HubEvent } from "@/modules/events";
 
 /**
  * Os eventos que um webhook de saída pode assinar, com o nome em PT-BR. Puro: a tela
- * importa daqui. Os três primeiros são os do Telegram do Fábio (PLAN.md, M5) e vêm
- * marcados no cadastro.
+ * importa daqui. Os seis primeiros são os do Telegram do Fábio (PLAN.md, M5 e os alertas
+ * de operação do M8) e vêm marcados no cadastro.
  */
 export const WEBHOOK_EVENTS = [
   "approval.requested",
   "project.health_changed",
   "agent.budget_exceeded",
+  "agent.denials_recurring",
+  "system.job_failed",
+  "system.deploy_failed",
   "approval.decided",
   "milestone.status_changed",
   "report.published",
@@ -26,6 +29,9 @@ export const EVENT_LABEL: Record<WebhookEvent | "webhook.test", string> = {
   "approval.requested": "Pedido de aprovação aberto",
   "project.health_changed": "Saúde de projeto mudou",
   "agent.budget_exceeded": "Orçamento de IA de um agente acabou",
+  "agent.denials_recurring": "Recusas de acesso repetidas de um agente",
+  "system.job_failed": "Job do relógio falhou de vez",
+  "system.deploy_failed": "Publicação de versão nova falhou",
   "approval.decided": "Pedido decidido",
   "milestone.status_changed": "Marco mudou de situação",
   "report.published": "Relatório publicado",
@@ -44,4 +50,7 @@ export const DEFAULT_EVENTS: readonly WebhookEvent[] = [
   "approval.requested",
   "project.health_changed",
   "agent.budget_exceeded",
+  "agent.denials_recurring",
+  "system.job_failed",
+  "system.deploy_failed",
 ];

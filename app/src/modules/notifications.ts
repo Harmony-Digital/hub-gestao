@@ -15,6 +15,7 @@ export const NOTIFICATION_GROUPS = [
   "blocked",
   "agents",
   "client",
+  "system",
 ] as const;
 export type NotificationGroup = (typeof NOTIFICATION_GROUPS)[number];
 
@@ -23,8 +24,9 @@ export const GROUP_LABEL: Record<NotificationGroup, string> = {
   assignment: "Tarefas passadas para você",
   approval: "Aprovações",
   blocked: "Bloqueios nos seus projetos",
-  agents: "Orçamento de IA dos agentes",
+  agents: "Agentes: orçamento de IA e recusas de acesso",
   client: "Mensagens dos clientes no portal",
+  system: "Operação do Hub: jobs e publicação",
 };
 
 export function groupOf(type: string): NotificationGroup | null {
@@ -36,6 +38,7 @@ export function groupOf(type: string): NotificationGroup | null {
   }
   if (type.startsWith("agent.")) return "agents";
   if (type.startsWith("client.")) return "client";
+  if (type.startsWith("system.")) return "system";
   return null;
 }
 
@@ -187,6 +190,24 @@ export function describeNotification(
             : `${str(payload.agent_name) ?? "Um agente"} parou de usar IA: o orçamento do mês acabou`,
         detail: str(payload.detail),
         href: "/agentes",
+      };
+    case "agent.denials_recurring":
+      return {
+        text: `${str(payload.agent_name) ?? "Um agente"} teve ${String(payload.count ?? "várias")} recusas de acesso na última hora`,
+        detail: str(payload.detail),
+        href: "/agentes",
+      };
+    case "system.job_failed":
+      return {
+        text: `O job "${str(payload.label) ?? "do relógio"}" falhou depois de ${String(payload.attempts ?? "várias")} tentativas`,
+        detail: str(payload.detail),
+        href: "/agentes",
+      };
+    case "system.deploy_failed":
+      return {
+        text: "A publicação de uma versão nova falhou: o Hub continua na versão anterior",
+        detail: str(payload.detail),
+        href: null,
       };
     case "client.receipt":
       return {
