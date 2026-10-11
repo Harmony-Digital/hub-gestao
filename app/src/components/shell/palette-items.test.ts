@@ -27,6 +27,8 @@ const RESULTS: SearchResult = {
     { id: "m1", project_code: "EXE", code: "M2", title: "Mapa pronto" },
   ],
   workstreams: [{ id: "w1", project_code: "EXE", title: "Mapeamento" }],
+  people: [],
+  agents: [],
 };
 
 describe("janela ⌘K", () => {
@@ -84,6 +86,34 @@ describe("janela ⌘K", () => {
       ],
       ["Marcos", "Mapa pronto", "EXE · M2", "/projetos/EXE"],
       ["Frentes", "Mapeamento", "EXE", "/projetos/EXE"],
+    ]);
+  });
+
+  it("pessoas e agentes abrem a tela com as tarefas deles (RF-38)", () => {
+    const items = paletteItems({
+      query: "ka",
+      results: {
+        ...RESULTS,
+        projects: [],
+        tasks: [],
+        milestones: [],
+        workstreams: [],
+        people: [{ id: "p1", name: "Karla Lima", role: "admin" }],
+        agents: [
+          { id: "a1", name: "Kratos", status: "active", department: "Gestão" },
+          { id: "a2", name: "Kalel", status: "paused", department: null },
+        ],
+      },
+      canCreateProject: false,
+    });
+    expect(
+      items
+        .filter((i) => i.group === "Pessoas" || i.group === "Agentes")
+        .map((i) => [i.group, i.label, i.hint, i.href]),
+    ).toEqual([
+      ["Pessoas", "Karla Lima", "Administração", "/responsaveis/p1"],
+      ["Agentes", "Kratos", "Gestão", "/responsaveis/a1"],
+      ["Agentes", "Kalel", "agente · pausado", "/responsaveis/a2"],
     ]);
   });
 

@@ -2262,7 +2262,7 @@
           "Busca"
         ],
         "summary": "Busca global",
-        "description": "Escopo da chave: `projects:read`.",
+        "description": "Projetos, tarefas, marcos e frentes do escopo da chave, e pessoas da equipe e agentes pelo nome (só nome e papel; o id serve para atribuir). Sem diferenciar acento. Escopo da chave: `projects:read`.",
         "operationId": "getSearch",
         "parameters": [
           {
@@ -8949,6 +8949,74 @@
               ],
               "additionalProperties": false
             }
+          },
+          "people": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "owner",
+                    "admin",
+                    "member"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "role"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Pessoas da equipe pelo nome, só nome e papel (para atribuir: assignee { type: \"user\", id })."
+          },
+          "agents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "paused"
+                  ]
+                },
+                "department": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "status",
+                "department"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Agentes do workspace pelo nome (para atribuir: assignee { type: \"agent\", id })."
           }
         },
         "required": [
@@ -8956,7 +9024,9 @@
           "projects",
           "tasks",
           "milestones",
-          "workstreams"
+          "workstreams",
+          "people",
+          "agents"
         ],
         "additionalProperties": false
       },

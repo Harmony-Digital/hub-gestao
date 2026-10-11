@@ -19,14 +19,30 @@ export type MyTasks = {
 type Row = Parameters<typeof toTaskSummary>[0];
 
 export async function myTasks(t: TxCtx): Promise<MyTasks> {
+  return tasksOf(
+    t,
+    t.actor.id
+      ? { type: t.actor.type as "user" | "agent", id: t.actor.id }
+      : null,
+  );
+}
+
+/**
+ * As tarefas de um responsável (pessoa ou agente), só nos projetos que quem vê enxerga:
+ * a mesma leitura de Minhas tarefas, para a tela "Tarefas de" (busca ⌘K, RF-38).
+ */
+export async function tasksOf(
+  t: TxCtx,
+  who: { type: "user" | "agent"; id: string } | null,
+): Promise<MyTasks> {
   authorize(t.actor, "task.read");
   const today = (await maybeOne<{ today: string }>(
     t,
     "select current_date::text as today",
   ))!.today;
-  if (!t.actor.id) return { today, open: [], done: [], projects: [] };
+  if (!who) return { today, open: [], done: [], projects: [] };
 
-  const openParams: unknown[] = [t.actor.type, t.actor.id];
+  const openParams: unknown[] = [who.type, who.id];
   const open = await many<Row>(
     t,
     `${TASK_SUMMARY_SELECT}
@@ -40,7 +56,7 @@ export async function myTasks(t: TxCtx): Promise<MyTasks> {
       limit 300`,
     openParams,
   );
-  const doneParams: unknown[] = [t.actor.type, t.actor.id];
+  const doneParams: unknown[] = [who.type, who.id];
   const done = await many<Row>(
     t,
     `${TASK_SUMMARY_SELECT}
@@ -68,6 +84,46 @@ export async function myTasks(t: TxCtx): Promise<MyTasks> {
     done: done.map(toTaskSummary),
     projects,
   };
+}
+
+/** Quem é o responsável da tela "Tarefas de": pessoa da equipe ou agente do workspace. */
+export type Responsible = {
+  type: "user" | "agent";
+  id: string;
+  name: string;
+  /** Papel da pessoa (owner, admin, member) ou situação do agente. */
+  role: string;
+  /** Departamento do agente, se houver. */
+  department: string | null;
+};
+
+export async function responsibleOf(
+  t: TxCtx,
+  id: string,
+): Promise<Responsible | null> {
+  authorize(t.actor, "task.read");
+  const person = await maybeOne<{ name: string; role: string }>(
+    t,
+    `select p.full_name as name, m.role::text as role
+       from ${S}.memberships m join ${S}.profiles p on p.id = m.profile_id
+      where m.profile_id = $1`,
+    [id],
+  );
+  if (person) {
+    return { type: "user", id, ...person, department: null };
+  }
+  const agent = await maybeOne<{
+    name: string;
+    role: string;
+    department: string | null;
+  }>(
+    t,
+    `select a.name, a.status::text as role, d.name as department
+       from ${S}.agents a left join ${S}.departments d on d.id = a.department_id
+      where a.id = $1 and a.status <> 'revoked'`,
+    [id],
+  );
+  return agent ? { type: "agent", id, ...agent } : null;
 }
 
 export type DueBucket = {
