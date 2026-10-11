@@ -452,10 +452,20 @@ function UploadAttachment({ code, accept }: { code: string; accept: string }) {
   const form = useRef<HTMLFormElement>(null);
   const [tooBig, setTooBig] = useState<string | null>(null);
   const [state, action, pending] = useActionState(
-    async (previous: ActionState, data: FormData) => {
-      const result = await anexarArquivo(previous, data);
-      if (result.status === "ok") form.current?.reset();
-      return result;
+    async (previous: ActionState, data: FormData): Promise<ActionState> => {
+      // O envio pode cair antes de chegar à ação (corpo grande demais, conexão perdida):
+      // vira aviso no formulário, sem derrubar a tela da tarefa.
+      try {
+        const result = await anexarArquivo(previous, data);
+        if (result.status === "ok") form.current?.reset();
+        return result;
+      } catch {
+        return {
+          status: "error",
+          message:
+            "O arquivo não chegou ao Hub. Confira a conexão e tente de novo.",
+        };
+      }
     },
     IDLE,
   );
