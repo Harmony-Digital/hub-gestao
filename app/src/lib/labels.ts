@@ -134,6 +134,17 @@ export const APPROVAL_STATUS: Record<
 };
 
 /** Papéis do catálogo de agentes (AGENTES.md), pelo código gravado em cada escrita. */
+/** Os jobs da fila (relógio da VPS), como aparecem na Sala de Controle. */
+export const JOB_TYPE: Record<string, string> = {
+  "health-rollup": "Recálculo da saúde dos projetos",
+  "approval-aging": "Aviso de aprovações paradas",
+  "evidence-check": "Conferência de evidências",
+  "agent-spend": "Gasto de IA dos agentes",
+  "webhook-dispatch": "Entrega dos webhooks",
+  "idempotency-cleanup": "Limpeza das chaves de repetição",
+  "client-text-rewrite": "Reescrita do texto para o cliente (RC-12)",
+};
+
 export const AGENT_ROLE: Record<string, string> = {
   "KR-00": "Kratos",
   "GP-01": "Gestor de Projetos",

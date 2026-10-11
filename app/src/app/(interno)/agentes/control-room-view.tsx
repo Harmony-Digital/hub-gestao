@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Activity, ShieldAlert } from "lucide-react";
+import { Activity, ShieldAlert, TimerOff } from "lucide-react";
+import { JOB_TYPE } from "@/lib/labels";
 import type {
   ControlRoom,
   ControlRoomFilter,
@@ -64,6 +65,9 @@ export function ControlRoomView({
   const filtered = Boolean(filter.agent || filter.project);
   return (
     <div className="flex flex-col gap-6">
+      {room.system.queue === "stalled" || room.system.queue === "failing" ? (
+        <SystemNotice system={room.system} today={today} />
+      ) : null}
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi
           label="Agentes ativos"
@@ -256,5 +260,58 @@ function Kpi({
       </dd>
       {note ? <dd className="text-xs text-ink-2">{note}</dd> : null}
     </div>
+  );
+}
+
+/**
+ * Relógio dos jobs parado ou com falha (M8). Parado, o Hub não consegue avisar ninguém por
+ * webhook (a entrega também depende do relógio): por isso o aviso fica aqui, na tela.
+ */
+function SystemNotice({
+  system,
+  today,
+}: {
+  system: ControlRoom["system"];
+  today: string;
+}) {
+  const stalled = system.queue === "stalled";
+  return (
+    <section
+      aria-labelledby="sistema-titulo"
+      className="flex flex-col gap-2 rounded-xl bg-warn-soft p-4 text-sm text-warn-fg"
+    >
+      <h2
+        id="sistema-titulo"
+        className="flex items-center gap-2 font-heading text-base font-semibold"
+      >
+        <TimerOff aria-hidden="true" className="size-4 shrink-0" />
+        {stalled
+          ? "O relógio dos jobs está parado"
+          : "Jobs com falha nas últimas 24 horas"}
+      </h2>
+      {stalled ? (
+        <p>
+          {system.lastTickAt
+            ? `Último ciclo concluído: ${when(system.lastTickAt, today)}.`
+            : "Nenhum ciclo concluído ainda."}
+          {system.overdue > 0
+            ? ` ${system.overdue} ${system.overdue === 1 ? "job atrasado" : "jobs atrasados"} na fila.`
+            : ""}{" "}
+          Enquanto isso, os avisos, os webhooks e o recálculo da saúde dos
+          projetos esperam. O que fazer está no runbook (docs/operacao.md,
+          relógio dos jobs).
+        </p>
+      ) : null}
+      {system.failed.length > 0 ? (
+        <ul className="flex flex-col gap-1">
+          {system.failed.map((f, i) => (
+            <li key={`${f.type}-${f.at}-${i}`}>
+              <span className="font-medium">{JOB_TYPE[f.type] ?? f.type}</span>{" "}
+              ({when(f.at, today)}){f.error ? `: ${f.error}` : ""}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
   );
 }
