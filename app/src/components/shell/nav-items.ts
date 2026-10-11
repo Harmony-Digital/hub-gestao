@@ -1,5 +1,6 @@
 import {
   Bot,
+  Building2,
   CircleCheckBig,
   FileText,
   FolderKanban,
@@ -16,6 +17,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Hoje", icon: Sun },
   { href: "/minhas-tarefas", label: "Minhas tarefas", icon: ListTodo },
   { href: "/projetos", label: "Projetos", icon: FolderKanban },
+  { href: "/departamentos", label: "Departamentos", icon: Building2 },
   { href: "/aprovacoes", label: "Aprovações", icon: CircleCheckBig },
   { href: "/relatorios", label: "Relatórios", icon: FileText },
   { href: "/caixa-de-entrada", label: "Caixa de entrada", icon: Inbox },

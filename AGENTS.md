@@ -95,6 +95,7 @@ hub-gestao/
 │   │                                  #   archive, comments, approvals, agents (com os prompts versionados
 │   │                                  #   em agents/prompts), llm (chaves e modelo de IA), concierge (CO-10),
 │   │                                  #   planner (PL-11), portal (contatos, acesso e leituras do cliente),
+│   │                                  #   client-text (verificação e reescrita do RC-12), departments,
 │   │                                  #   sync (plan.md), github, reports, time, today, search, health,
 │   │                                  #   jobs, mcp, shell
 │   ├── src/lib/                       # authorize, audit, idempotency, auth, db (pg e PGlite), errors,

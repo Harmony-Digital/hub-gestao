@@ -10,6 +10,8 @@ export const SCREENS = [
   "/clientes",
   "/clientes/clinica-exemplo/portal",
   "/projetos",
+  "/departamentos",
+  "/departamentos/agentes-e-automacoes",
   "/projetos/EXE",
   "/projetos/EXE/lista",
   "/projetos/EXE/quadro",
