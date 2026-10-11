@@ -162,15 +162,49 @@ describe("campos da tarefa", () => {
     expect(empty.ok && empty.value.fields.description_md).toBeNull();
   });
 
+  it("início e referência externa (RF-14): data do calendário, uma linha só, vazio tira", () => {
+    const parsed = parseTaskFieldsForm(
+      form({
+        code: "HUB-3",
+        start_date: "2026-10-12",
+        external_ref: "  https://exemplo.com/card/42  ",
+      }),
+    );
+    expect(parsed.ok && parsed.value.fields).toEqual({
+      start_date: "2026-10-12",
+      external_ref: "https://exemplo.com/card/42",
+    });
+    const cleared = parseTaskFieldsForm(
+      form({ code: "HUB-3", start_date: "", external_ref: " " }),
+    );
+    expect(cleared.ok && cleared.value.fields).toEqual({
+      start_date: null,
+      external_ref: null,
+    });
+    expect(
+      parseTaskFieldsForm(form({ code: "HUB-3", start_date: "12/10/2026" })).ok,
+    ).toBe(false);
+    expect(
+      parseTaskFieldsForm(form({ code: "HUB-3", external_ref: "a\nb" })).ok,
+    ).toBe(false);
+    expect(
+      parseTaskFieldsForm(
+        form({ code: "HUB-3", external_ref: "x".repeat(501) }),
+      ).ok,
+    ).toBe(false);
+  });
+
   it("compara com a tarefa atual e devolve só o que mudou", () => {
     const current = {
       title: "Mapear",
       description_md: "texto",
       priority: "normal",
       assignee: { type: "agent", id: ID },
+      start_date: null,
       due_date: "2026-10-20",
       workstream: { id: WS },
       estimate_minutes: 90,
+      external_ref: "CHAMADO-7",
     };
     expect(
       changedTaskFields(current, {
@@ -185,6 +219,15 @@ describe("campos da tarefa", () => {
     ).toEqual({});
     expect(changedTaskFields(current, { estimate_minutes: null })).toEqual({
       estimate_minutes: null,
+    });
+    expect(
+      changedTaskFields(current, {
+        start_date: "2026-10-12",
+        external_ref: "CHAMADO-7",
+      }),
+    ).toEqual({ start_date: "2026-10-12" });
+    expect(changedTaskFields(current, { external_ref: null })).toEqual({
+      external_ref: null,
     });
     expect(
       changedTaskFields(current, {

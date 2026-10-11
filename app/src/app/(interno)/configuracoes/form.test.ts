@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  parseDepartmentForm,
   parseDepartmentLeadForm,
+  parseDepartmentRemoveForm,
   parseMemberForm,
   parseMemberRoleForm,
   parseMemberStatusForm,
@@ -133,5 +135,48 @@ describe("formulários das Configurações", () => {
         ]),
       ).ok,
     ).toBe(false);
+  });
+});
+
+describe("departamento (RF-27)", () => {
+  const ID = "4dc6721e-2ac8-463d-84cb-3b25ab170bbd";
+  const data = (values: Record<string, string>) => {
+    const f = new FormData();
+    for (const [k, v] of Object.entries(values)) f.append(k, v);
+    return f;
+  };
+  it("lê o nome e a cor; com o id, é edição", () => {
+    expect(
+      parseDepartmentForm(data({ name: " Eventos ", color: "#aa5500" })),
+    ).toEqual({
+      ok: true,
+      value: { id: null, name: "Eventos", color: "#AA5500" },
+    });
+    expect(
+      parseDepartmentForm(
+        data({ department_id: ID, name: "Eventos", color: "#AA5500" }),
+      ),
+    ).toEqual({
+      ok: true,
+      value: { id: ID, name: "Eventos", color: "#AA5500" },
+    });
+  });
+  it("recusa nome vazio, cor fora do formato e id estranho", () => {
+    expect(parseDepartmentForm(data({ name: "", color: "#000000" })).ok).toBe(
+      false,
+    );
+    expect(parseDepartmentForm(data({ name: "X", color: "vermelho" })).ok).toBe(
+      false,
+    );
+    expect(
+      parseDepartmentForm(
+        data({ department_id: "x", name: "X", color: "#000000" }),
+      ).ok,
+    ).toBe(false);
+    expect(parseDepartmentRemoveForm(data({ department_id: ID }))).toEqual({
+      ok: true,
+      value: ID,
+    });
+    expect(parseDepartmentRemoveForm(data({})).ok).toBe(false);
   });
 });
