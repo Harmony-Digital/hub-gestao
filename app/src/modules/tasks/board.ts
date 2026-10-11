@@ -1,3 +1,4 @@
+import { formatDuration } from "@/lib/duration";
 import { formatDate } from "@/lib/format";
 import { PRIORITY } from "@/lib/labels";
 import {
@@ -550,6 +551,19 @@ export function describeTaskEvent(
         text: `deixou de depender de ${text(a.blocked_by) ?? "outra tarefa"}`,
         detail: null,
       };
+    case "time.logged":
+      return {
+        text:
+          typeof a.minutes === "number" && a.minutes > 0
+            ? `lançou ${formatDuration(a.minutes)} de tempo`
+            : "lançou tempo",
+        detail:
+          typeof a.entry_date === "string"
+            ? `Dia ${formatDate(a.entry_date)}`
+            : null,
+      };
+    case "task.archived":
+      return { text: "arquivou a tarefa", detail: text(a.reason) };
     case "task.updated": {
       // Ordem fixa: o banco (jsonb) não guarda a ordem em que os campos mudaram. O motivo
       // do bloqueio, apagado ao sair do bloqueio, já está dito na mudança de status.
@@ -559,6 +573,7 @@ export function describeTaskEvent(
       return { text: joinPt(parts) || "atualizou a tarefa", detail: null };
     }
     default:
-      return { text: action, detail: null };
+      // Registro sem frase própria: nunca mostrar o código interno (como "time.logged").
+      return { text: "mexeu na tarefa", detail: null };
   }
 }

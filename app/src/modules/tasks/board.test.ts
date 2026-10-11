@@ -405,7 +405,20 @@ describe("histórico em PT-BR", () => {
       text: "reabriu a tarefa",
       detail: null,
     });
-    expect(describeTaskEvent("outra.coisa", null).text).toBe("outra.coisa");
+    expect(describeTaskEvent("outra.coisa", null).text).toBe("mexeu na tarefa");
+    expect(
+      describeTaskEvent("time.logged", {
+        minutes: 75,
+        entry_date: "2026-10-11",
+      }),
+    ).toEqual({ text: "lançou 1h15 de tempo", detail: "Dia 11/10/2026" });
+    expect(describeTaskEvent("time.logged", {}).text).toBe("lançou tempo");
+    expect(
+      describeTaskEvent("task.archived", {
+        codes: ["VIT-1"],
+        reason: "Duplicada.",
+      }),
+    ).toEqual({ text: "arquivou a tarefa", detail: "Duplicada." });
   });
 });
 
