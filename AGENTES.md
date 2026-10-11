@@ -144,6 +144,7 @@ Mesmo contrato do EX-06, com departamento e tipo de evidência próprios:
 - **Marketing e Conteúdo**: evidência = peça aprovada (copy, roteiro, criativo), métrica registrada ou link publicado **após aprovação humana** (publicar é ação externa → `approvals`).
 - **Dados**: evidência = consulta, relatório ou dashboard com fonte; nunca dados pessoais em comentários.
 - **Fase**: M4 (design, marketing), M7 (dados).
+- **Executor de Dados no Hub (EX-09)**: o Hub não precisa de nada novo para ele; é uma sessão (Claude Code ou Codex) que trabalha nas tarefas de dados como o EX-06. **Para ligar** (Fábio, na Sala de Controle): o agente "Executor de Dados" (tipo Sessão, departamento Dados, papel EX-09) e uma chave com os escopos do EX-06, só nos projetos de dados (sem `sync:plan` quando o projeto não tiver repositório). A sessão conecta pelo MCP como em `docs/agentes-conexao.md` e conclui com a evidência de dados (consulta, relatório ou painel, com a fonte).
 
 ### CO-10 · Concierge do Hub
 
@@ -213,6 +214,7 @@ Mesmo contrato do EX-06, com departamento e tipo de evidência próprios:
 - **Tipo / runtime**: D, chave de agente com escopo mínimo por fluxo.
 - **Escopos**: `tasks:write`, `comments:write` (por projeto).
 - **Fase**: M7.
+- **No Hub (PR #73)**: o fluxo pronto para importar no n8n, `agents/n8n/hub-nova-tarefa.json` ("Hub · nova tarefa (N8-17)"): outros fluxos chamam pelo nó Execute Workflow, ou se testa com um exemplo; ele cria a tarefa pela API com a `Idempotency-Key` montada a partir do id de origem (`id_externo`, guardado em `external_ref`), sem duplicar. Passo a passo e campos em `docs/n8n.md`. O teste automático manda o pedido do fluxo para a API com uma chave só `tasks:write` num projeto. **Para ligar** (Fábio): o agente "n8n Bridge" (tipo Integração, papel N8-17) e a chave na Sala de Controle, a credencial Header Auth no n8n, importar o fluxo e rodar o teste. Receber avisos do Hub no n8n é opcional (Webhooks de saída, `docs/webhooks.md`).
 
 ### KR-00 · Kratos (agente pessoal do Fábio, já existente no Hermes)
 
