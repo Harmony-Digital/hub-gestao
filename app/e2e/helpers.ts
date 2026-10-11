@@ -17,6 +17,7 @@ export const SCREENS = [
   "/projetos/EXE/quadro",
   "/projetos/EXE/linha-do-tempo",
   "/projetos/EXE/calendario",
+  "/projetos/EXE/painel",
   "/projetos/EXE/editar",
   "/projetos/EXE/importar",
   "/agentes",

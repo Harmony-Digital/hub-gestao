@@ -148,6 +148,7 @@ test.describe("celular", () => {
       "/projetos/EXE",
       "/projetos/EXE/lista",
       "/projetos/EXE/quadro",
+      "/projetos/EXE/painel",
     ]) {
       await page.goto(path);
       await settle(page);
