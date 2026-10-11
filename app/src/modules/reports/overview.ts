@@ -1,5 +1,5 @@
 import { authorize } from "@/lib/authorize";
-import { iso, ProjectCode } from "@/modules/common";
+import { ACTOR_NAME_SQL, iso, ProjectCode } from "@/modules/common";
 import { many, S, type TxCtx } from "@/modules/context";
 
 /**
@@ -100,7 +100,9 @@ export async function reportsOverview(
     `select r.id, p.code as project_code, p.name as project_name,
             r.audience::text as audience, r.period_start::text as period_start,
             r.period_end::text as period_end, r.version, r.body_md, r.created_at,
-            r.published_at, ag.name as author, r.approval_id,
+            r.published_at,
+            coalesce(ag.name, ${ACTOR_NAME_SQL("a.requested_by_type::text", "a.requested_by_id")}) as author,
+            r.approval_id,
             a.status::text as approval_status, a.entity_id as approval_entity
        from ${S}.status_reports r
        join ${S}.projects p on p.id = r.project_id
