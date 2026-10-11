@@ -120,6 +120,15 @@ type AgentRow = {
 
 const DEFAULT_MAX_OUTPUT = 1024;
 
+/**
+ * Folga para o raciocínio, somada ao limite de saída de cada chamada. Nos modelos que
+ * pensam antes de responder (os Claude 5.5 pensam sempre; os de raciocínio da OpenAI e da
+ * xAI também), o raciocínio conta no limite mesmo sem aparecer: sem a folga, a resposta
+ * sai cortada e a estruturada vira `invalid_output`. A estimativa do orçamento inclui a
+ * folga; o custo registrado é só o que foi gerado.
+ */
+export const REASONING_HEADROOM = 4096;
+
 /** Mês corrente no fuso da Harmony (o orçamento é mensal). */
 const MONTH_START = `date_trunc('month', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo'`;
 
@@ -289,7 +298,9 @@ async function prepare(
     );
   }
   const price = { in: agent.price_in, out: agent.price_out };
-  const maxOutputTokens = request.maxOutputTokens ?? DEFAULT_MAX_OUTPUT;
+  // O limite pedido é o da resposta; a folga cobre o raciocínio.
+  const maxOutputTokens =
+    (request.maxOutputTokens ?? DEFAULT_MAX_OUTPUT) + REASONING_HEADROOM;
   // Estimativa conservadora: ~4 caracteres por token na entrada e a saída máxima.
   const estimate = costOf(
     {

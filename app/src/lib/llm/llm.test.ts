@@ -8,7 +8,13 @@ import { createCredential, revokeCredential } from "@/modules/llm/credentials";
 import type { LlmProvider } from "@/modules/llm/providers";
 import { count, ctxFor, openTestHub, type TestHub } from "@/test/hub";
 import { fakeModel } from "./dev-fake";
-import { costOf, generate, generateObject, type ModelFactory } from "./index";
+import {
+  costOf,
+  generate,
+  generateObject,
+  REASONING_HEADROOM,
+  type ModelFactory,
+} from "./index";
 
 const S = "proj_hub_gestao";
 // Chaves de mentira, só para o teste.
@@ -230,6 +236,43 @@ describe("adaptador de IA", () => {
     );
     expect(row.rows[0].error).not.toContain(KEYS.anthropic);
   });
+  it("o limite de saída leva a folga do raciocínio (o Claude 5.5 sempre pensa antes de responder)", async () => {
+    await configure("anthropic");
+    const limits: (number | undefined)[] = [];
+    const factory: ModelFactory = () =>
+      new MockLanguageModelV4({
+        doGenerate: async (options) => {
+          limits.push(options.maxOutputTokens);
+          return {
+            content: [{ type: "text", text: "ok" }],
+            finishReason: { unified: "stop", raw: undefined },
+            usage: {
+              inputTokens: {
+                total: 10,
+                noCache: 10,
+                cacheRead: undefined,
+                cacheWrite: undefined,
+              },
+              outputTokens: { total: 2, text: 2, reasoning: undefined },
+            },
+            warnings: [],
+          };
+        },
+      });
+    const ask = (maxOutputTokens?: number) =>
+      generate(
+        system(),
+        { ...request, agentId: h.agents.kratos, maxOutputTokens },
+        { modelFor: factory },
+      );
+    expect(await ask(800)).toMatchObject({ ok: true });
+    expect(await ask()).toMatchObject({ ok: true });
+    expect(limits).toEqual([
+      800 + REASONING_HEADROOM,
+      1024 + REASONING_HEADROOM,
+    ]);
+  });
+
   it("resposta estruturada: o objeto vem conferido pelo esquema; fora do formato vira recusa registrada", async () => {
     await configure("openai");
     const Intent = z.object({
