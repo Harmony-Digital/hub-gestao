@@ -15,6 +15,7 @@ import {
   updateProject,
   UpdateProjectInput,
 } from "@/modules/projects/admin";
+import { getTemplate } from "@/modules/templates/service";
 import { parseClientForm, parseProjectForm } from "./form";
 
 /** Cria ou edita o projeto (e, se pedido, o cliente novo, na mesma transação). */
@@ -34,10 +35,18 @@ export async function salvarProjeto(
             .id
         : v.clientId!;
       if (v.mode === "create") {
+        // O modelo traz os departamentos do projeto; o esqueleto entra pela importação.
+        const template = v.template ? await getTemplate(t, v.template) : null;
         const created = await createProject(
           t,
           CreateProjectInput.parse({
             ...v.fields,
+            departments: [
+              ...new Set([
+                ...v.fields.departments,
+                ...(template?.departments.map((d) => d.slug) ?? []),
+              ]),
+            ],
             code: v.code,
             client_id: clientId,
           }),
@@ -72,7 +81,12 @@ export async function salvarProjeto(
   // Projeto novo ou renomeado muda a barra lateral (projetos em destaque): o layout
   // vem de novo junto com a página. Fora do try: o redirect é lançado como exceção.
   revalidatePath("/", "layout");
-  redirect(`/projetos/${code}`);
+  // Com modelo, o projeto abre na importação com o esqueleto: a prévia mostra o que entra.
+  redirect(
+    v.template
+      ? `/projetos/${code}/importar?modelo=${v.template}`
+      : `/projetos/${code}`,
+  );
 }
 
 export async function salvarCliente(

@@ -41,6 +41,7 @@ describe("formulário de projeto", () => {
         clientId: ID,
         newClientName: null,
         expectedUpdatedAt: null,
+        template: null,
         fields: {
           name: "Atendimento da clínica",
           phase: "validar",
@@ -75,6 +76,16 @@ describe("formulário de projeto", () => {
     expect(edit.ok && edit.value.expectedUpdatedAt).toBe(
       "2026-10-10T11:00:00.000Z",
     );
+  });
+
+  it("o modelo vale só na criação; id estranho pede para recarregar", () => {
+    const withTemplate = parseProjectForm(form({ ...base, template: ID }));
+    expect(withTemplate.ok && withTemplate.value.template).toBe(ID);
+    const edit = parseProjectForm(
+      form({ ...base, mode: "edit", template: ID }),
+    );
+    expect(edit.ok && edit.value.template).toBeNull();
+    expect(parseProjectForm(form({ ...base, template: "x" })).ok).toBe(false);
   });
 
   it("recusa código, cliente, fase, status, datas e repositório inválidos", () => {

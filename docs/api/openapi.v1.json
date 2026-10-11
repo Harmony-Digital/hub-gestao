@@ -8332,7 +8332,8 @@
                     "milestone_missing",
                     "hub_wins",
                     "no_evidence",
-                    "refused"
+                    "refused",
+                    "department_unknown"
                   ]
                 },
                 "line": {

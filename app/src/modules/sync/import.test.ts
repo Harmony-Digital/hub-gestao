@@ -72,6 +72,44 @@ const PLAN = [
 
 const owner = () => ctxFor(h, h.owner_actor, "ui");
 
+describe("departamento das frentes no plan.md", () => {
+  it("frente nova entra com o departamento escrito embaixo dela", async () => {
+    await emptyProject("IMPD");
+    const markdown = [
+      "## M1 — Site",
+      "### Layout",
+      "",
+      "Departamento: Design.",
+      "",
+      "- [ ] Desenhar a home",
+      "### Integrações",
+      "**Departamento sugerido:** sistemas",
+      "- [ ] Ligar o formulário",
+      "### Textos",
+      "Departamento: Contabilidade.",
+      "- [ ] Escrever a home",
+      "",
+    ].join("\n");
+    const result = await inTx(owner(), (t) =>
+      importPlan(t, { project: "IMPD", markdown }),
+    );
+    const fronts = await h.raw.query<{ title: string; slug: string | null }>(
+      `select w.title, d.slug from ${S}.workstreams w
+         join ${S}.projects p on p.id = w.project_id
+         left join ${S}.departments d on d.id = w.department_id
+        where p.code = 'IMPD' order by w.title`,
+    );
+    expect(fronts.rows).toEqual([
+      { title: "Integrações", slug: "sistemas" },
+      { title: "Layout", slug: "design" },
+      { title: "Textos", slug: null },
+    ]);
+    expect(
+      result.conflicts.filter((c) => c.kind === "department_unknown"),
+    ).toMatchObject([{ line: 10 }]);
+  });
+});
+
 describe("importação do plan.md", () => {
   it("cria marcos com o código e a ordem do arquivo, frentes, tarefas e critérios", async () => {
     await emptyProject("IMPA");

@@ -19,6 +19,7 @@ Todo o resto (títulos, textos, tabelas, quebras de linha, inclusive `\r\n`, esp
 | `## M2 — Publicação inicial` | marco `M2`, título "Publicação inicial" |
 | `## ✅ Preparação` | marco já concluído, sem código |
 | `### Pipeline` (dentro de um marco) | frente do marco |
+| `Departamento: Sistemas.` (texto logo abaixo do `###`, antes dos itens) | departamento da frente, quando ela é criada pelo arquivo |
 | `- [ ] Tarefa (HUB-57)` | tarefa `HUB-57` (aberta) |
 | `- [x] Tarefa (HUB-57)` | tarefa `HUB-57` (concluída) |
 | `  - [ ] Subitem (HUB-58)` (com recuo) | subtarefa de `HUB-57` (um nível só) |
@@ -35,6 +36,10 @@ Uma seção `##` vira marco quando o título traz o código (`## M3 — ...`, me
 - Item **riscado** (`- [ ] ~~Perfil dedicado~~ — cancelado`) é marcado como cancelado no plano.
 - Um item pode continuar nas **linhas de baixo**, com recuo maior que o do `-`; tudo entra no texto do item, e o código vai no fim da última linha.
 - Itens dentro de **cercas de código** (` ``` ` ou `~~~`) são ignorados.
+
+## Departamento da frente
+
+Uma linha de texto logo abaixo do título da frente, antes do primeiro item, diz o departamento dela: `Departamento: Sistemas.` (também vale `Departamento sugerido: ...`, como o Planejador escreve, e com negrito). O nome ou o slug, sem diferença de acento ou de maiúsculas. Vale só quando a frente é **criada** pelo arquivo (push ou importação): frente que já existe no Hub fica com o departamento de lá, que é a fonte de verdade. Departamento que não existe vira o aviso `department_unknown`, e a frente entra sem departamento. Depois do primeiro item, a linha é só texto do plano.
 
 ## Seção ignorada
 
@@ -97,4 +102,8 @@ O agente importador (chave com `projects:import` e todos os projetos) traz proje
 
 ### Proposta do Planejador (PL-11)
 
-Na mesma tela, o cartão **Propor com o Planejador** transforma um documento (PRD, brief ou transcrição) numa proposta neste formato: marcos numerados depois dos que o projeto já tem (`## M3 — ...`), frentes (`### ...`), tarefas e subtarefas, os critérios de aceite no GATE de cada marco (`### 🔒 GATE M3 (critérios de aceite)`), o prazo como linha "Prazo sugerido" e os textos para o cliente como citação de sugestão (texto livre: nada disso vira campo do Hub sozinho), e as premissas e dúvidas numa seção com `<!-- hub: ignorar -->`. **Levar para a importação** põe o texto no campo acima; dali em diante é a importação de sempre (Ver o que entra, depois Importar). Os títulos saem limpos para este leitor: uma linha, sem caixa, sem código de tarefa, sem risco e sem o travessão com espaços que abriria a nota.
+Na mesma tela, o cartão **Propor com o Planejador** transforma um documento (PRD, brief ou transcrição) numa proposta neste formato: marcos numerados depois dos que o projeto já tem (`## M3 — ...`), frentes (`### ...`, com a linha "Departamento sugerido: ...", que a importação aplica), tarefas e subtarefas, os critérios de aceite no GATE de cada marco (`### 🔒 GATE M3 (critérios de aceite)`), o prazo como linha "Prazo sugerido" e os textos para o cliente como citação de sugestão (texto livre: nada disso vira campo do Hub sozinho), e as premissas e dúvidas numa seção com `<!-- hub: ignorar -->`. **Levar para a importação** põe o texto no campo acima; dali em diante é a importação de sempre (Ver o que entra, depois Importar). Os títulos saem limpos para este leitor: uma linha, sem caixa, sem código de tarefa, sem risco e sem o travessão com espaços que abriria a nota.
+
+### Modelos de projeto
+
+Um modelo de projeto (tela **Modelos de projeto**, `/modelos`, do dono e da administração) é um esqueleto neste formato, sem códigos de tarefa e com as caixas desmarcadas: marcos (`## M1 — ...`), frentes com a linha `Departamento: ...`, tarefas, subtarefas e os critérios de aceite no GATE de cada marco, mais os departamentos do projeto. No **Novo projeto**, escolher um modelo marca os departamentos dele e, depois de criar, abre o projeto nesta tela com o esqueleto no campo: Ver o que entra, depois Importar. Na própria tela, "Usar um modelo" leva o esqueleto de qualquer modelo para o campo. "Salvar como modelo", no Editar projeto, gera o esqueleto de um projeto (marcos renumerados a partir de M1, tudo desmarcado e sem códigos). Os seis modelos iniciais da Harmony ficam em `supabase/seeds/harmony_templates.sql`.

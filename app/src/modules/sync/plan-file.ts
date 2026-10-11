@@ -36,6 +36,11 @@ export type PlanWorkstream = {
   title: string;
   /** Índice em `milestones`; `null` na seção "Sem marco". */
   milestone: number | null;
+  /**
+   * Departamento escrito logo abaixo do título, antes dos itens (`Departamento: Sistemas.`
+   * ou `Departamento sugerido: ...`, como o Planejador escreve). Vale só para frente nova.
+   */
+  department: string | null;
 };
 
 export type PlanGate = {
@@ -104,6 +109,9 @@ const UNPLANNED = /^sem marco$/i;
 /** `<!-- hub: ignorar -->` numa seção `##`: a sincronização trata a seção como texto livre. */
 const IGNORE = /^\s*<!--\s*hub:\s*(?:ignorar|ignore)\s*-->\s*$/i;
 const NO_WORKSTREAM = /^tarefas sem frente$/i;
+/** Linha de texto logo abaixo do título da frente: o departamento dela. */
+const DEPARTMENT =
+  /^\s*(?:\*\*)?departamento(?: sugerido)?:(?:\*\*)?\s*(.+?)\.?\s*$/i;
 
 type LineKind =
   | { type: "heading"; level: number; title: string }
@@ -301,6 +309,7 @@ export function parsePlanFile(
   let inSection = false; // dentro de um marco ou da seção "Sem marco"
   let gateMode = false;
   let lastTop: number | null = null; // último item de nível 0 (pai das subtarefas)
+  const withItems = new Set<number>(); // frentes que já têm item (o departamento vem antes)
   let open: { item: number; indent: number } | null = null; // aceita continuação
 
   for (let n = 0; n < kinds.length; n++) {
@@ -366,6 +375,7 @@ export function parsePlanFile(
                 end: n,
                 title: plain(k.title),
                 milestone,
+                department: null,
               }) - 1;
           openWorkstream = workstream;
         }
@@ -393,6 +403,7 @@ export function parsePlanFile(
           code: null,
         }) - 1;
       if (!sub) lastTop = index;
+      if (workstream !== null && !gateMode) withItems.add(workstream);
       open = { item: index, indent: k.indent };
       continue;
     }
@@ -406,6 +417,18 @@ export function parsePlanFile(
     }
     open = null;
     if (k.type === "text" && k.indent === 0) lastTop = null;
+    // Departamento da frente: só antes do primeiro item dela.
+    if (
+      k.type === "text" &&
+      workstream !== null &&
+      !gateMode &&
+      !ignored &&
+      !withItems.has(workstream)
+    ) {
+      const dept = DEPARTMENT.exec(lines[n].text);
+      const ws = parsed.workstreams[workstream];
+      if (dept && ws.department === null) ws.department = plain(dept[1]);
+    }
   }
   closeAll(lines.length - 1);
 

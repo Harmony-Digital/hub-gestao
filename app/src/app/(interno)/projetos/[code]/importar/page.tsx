@@ -9,6 +9,7 @@ import { inTx } from "@/modules/context";
 import type { ProjectDetail } from "@/modules/projects/schemas";
 import { NO_PLANNER, plannerAgent } from "@/modules/planner/service";
 import { getProject } from "@/modules/projects/service";
+import { listTemplates, type TemplateDto } from "@/modules/templates/service";
 import { PROJECT_CODE } from "../_tasks/params";
 import { ImportArea } from "./import-area";
 
@@ -25,6 +26,7 @@ export async function generateMetadata({
 
 export default function ImportarPlanoPage({
   params,
+  searchParams,
 }: PageProps<"/projetos/[code]/importar">) {
   return (
     <Suspense
@@ -35,21 +37,25 @@ export default function ImportarPlanoPage({
         </div>
       }
     >
-      <ImportPlan params={params} />
+      <ImportPlan params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
 
 async function ImportPlan({
   params,
-}: Pick<PageProps<"/projetos/[code]/importar">, "params">) {
+  searchParams,
+}: PageProps<"/projetos/[code]/importar">) {
   const { code } = await params;
   if (!PROJECT_CODE.test(code)) notFound();
+  const query = await searchParams;
+  const chosen = typeof query.modelo === "string" ? query.modelo : null;
   const { user, ctx } = await pageContext();
   let project: ProjectDetail;
   let planner: string | null;
+  let templates: TemplateDto[];
   try {
-    [project, planner] = await inTx(ctx, async (t) => {
+    [project, planner, templates] = await inTx(ctx, async (t) => {
       const found = await getProject(t, code);
       // O Planejador (PL-11): pronto, ou o motivo de não estar ligado.
       const agent = await plannerAgent(t);
@@ -60,6 +66,7 @@ async function ImportPlan({
           : agent.configured
             ? null
             : `O Planejador (${agent.name}) ainda não tem modelo de IA: escolha em Modelo de IA, na Sala de Controle.`,
+        can(user.actor, "workspace.admin") ? await listTemplates(t) : [],
       ] as const;
     });
   } catch (err) {
@@ -116,9 +123,15 @@ async function ImportPlan({
               </li>
             </ul>
             <ImportArea
+              key={chosen ?? "-"}
               projectCode={project.code}
               planPath={planPath}
               planner={planner}
+              templates={templates.map((tpl) => ({
+                id: tpl.id,
+                name: tpl.name,
+              }))}
+              template={templates.find((tpl) => tpl.id === chosen) ?? null}
             />
           </>
         )}

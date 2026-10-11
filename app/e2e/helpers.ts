@@ -18,6 +18,8 @@ export const SCREENS = [
   "/projetos/EXE/linha-do-tempo",
   "/projetos/EXE/calendario",
   "/projetos/EXE/painel",
+  "/modelos",
+  "/projetos/novo",
   "/projetos/EXE/editar",
   "/projetos/EXE/importar",
   "/agentes",

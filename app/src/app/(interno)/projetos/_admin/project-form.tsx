@@ -65,6 +65,8 @@ export function ProjectForm({
   const [client, setClient] = useState(
     initial.clientId || (options.clients.length === 0 ? "novo" : ""),
   );
+  const [departments, setDepartments] = useState<string[]>(initial.departments);
+  const templates = mode === "create" ? (options.templates ?? []) : [];
   const ids = useId();
   const id = (name: string) => `${ids}-${name}`;
 
@@ -73,6 +75,41 @@ export function ProjectForm({
       <input type="hidden" name="mode" value={mode} />
       {mode === "edit" ? (
         <input type="hidden" name="updated_at" value={initial.updatedAt} />
+      ) : null}
+
+      {templates.length > 0 ? (
+        <Group title="Modelo">
+          <Field
+            id={id("template")}
+            label="Começar de um modelo (opcional)"
+            hint="O modelo marca os departamentos dele aqui. Depois de criar, o projeto abre na importação com o esqueleto, para você ver o que entra antes de gravar."
+          >
+            <select
+              id={id("template")}
+              name="template"
+              defaultValue=""
+              disabled={pending}
+              onChange={(e) => {
+                const chosen = templates.find(
+                  (tpl) => tpl.id === e.currentTarget.value,
+                );
+                if (chosen) {
+                  setDepartments((current) => [
+                    ...new Set([...current, ...chosen.departments]),
+                  ]);
+                }
+              }}
+              className={inputClass}
+            >
+              <option value="">Sem modelo</option>
+              {templates.map((tpl) => (
+                <option key={tpl.id} value={tpl.id}>
+                  {tpl.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </Group>
       ) : null}
 
       <Group title="Identificação">
@@ -264,7 +301,15 @@ export function ProjectForm({
                     type="checkbox"
                     name="department"
                     value={d.slug}
-                    defaultChecked={initial.departments.includes(d.slug)}
+                    checked={departments.includes(d.slug)}
+                    onChange={(e) => {
+                      const on = e.currentTarget.checked;
+                      setDepartments((current) =>
+                        on
+                          ? [...new Set([...current, d.slug])]
+                          : current.filter((slug) => slug !== d.slug),
+                      );
+                    }}
                     disabled={pending}
                     className="size-4 accent-[var(--color-brand)]"
                   />

@@ -112,11 +112,17 @@ export function seedsDir(): string {
   return path.resolve(migrationsDir(), "..", "seeds");
 }
 
-/** Seed do workspace da Harmony (idempotente), o mesmo aplicado no banco compartilhado. */
+/** Arquivos de seed, na ordem: o workspace primeiro, depois o que depende dele. */
+export const SEED_FILES = [
+  "harmony_workspace.sql",
+  "harmony_templates.sql",
+] as const;
+
+/** Seed da Harmony (idempotente), o mesmo aplicado no banco compartilhado. */
 export async function applySeed(pg: PGlite, dir = seedsDir()): Promise<void> {
-  await pg.exec(
-    await readFile(path.join(dir, "harmony_workspace.sql"), "utf8"),
-  );
+  for (const file of SEED_FILES) {
+    await pg.exec(await readFile(path.join(dir, file), "utf8"));
+  }
 }
 
 /** Banco local pronto: migrations aplicadas e papel do app criado. */
