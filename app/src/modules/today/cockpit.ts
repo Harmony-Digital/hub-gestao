@@ -1,6 +1,7 @@
 import { can } from "@/lib/authorize";
 import { iso, projectScopeSql } from "@/modules/common";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
+import { risksFrom, type Risk } from "@/modules/health/rule";
 import { describeActivity } from "@/modules/projects/overview";
 import { today, type TodayDto } from "./service";
 
@@ -15,6 +16,8 @@ export type CockpitProject = {
   health: "healthy" | "attention" | "at_risk";
   /** Motivos da saúde, gravados pela regra (PRD §5.7). */
   reasons: string[];
+  /** Cada motivo com a ação sugerida e o lugar de resolver (RF-24). */
+  risks: Risk[];
 };
 
 /** Uma ação de agente nas últimas 24 horas, já com o verbo em PT-BR. */
@@ -41,7 +44,7 @@ type ProjectRow = {
   code: string;
   name: string;
   health: CockpitProject["health"];
-  health_reason: { reasons?: unknown } | null;
+  health_reason: { reasons?: unknown; signals?: unknown } | null;
 };
 
 type EventRow = {
@@ -120,6 +123,7 @@ export async function cockpit(t: TxCtx): Promise<Cockpit> {
             (r): r is string => typeof r === "string",
           )
         : [],
+      risks: risksFrom(p.health_reason, p.code),
     })),
     agentEvents: agentEvents.map((e) => ({
       at: iso(e.created_at),
