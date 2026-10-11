@@ -4,6 +4,7 @@ import {
   Archive,
   CalendarDays,
   ChartGantt,
+  Gauge,
   LayoutDashboard,
   List,
   SquareKanban,
@@ -16,7 +17,7 @@ import type { ProjectDetail } from "@/modules/projects/schemas";
 import { RestoreButton } from "../../../_archive/archive-controls";
 
 export type ProjectTab =
-  "overview" | "list" | "board" | "timeline" | "calendar";
+  "overview" | "list" | "board" | "timeline" | "calendar" | "dashboard";
 
 const TABS = [
   { key: "overview", label: "Visão geral", path: "", icon: LayoutDashboard },
@@ -34,6 +35,7 @@ const TABS = [
     path: "/calendario",
     icon: CalendarDays,
   },
+  { key: "dashboard", label: "Painel", path: "/painel", icon: Gauge },
 ] as const;
 
 /** Topo das telas de um projeto: identificação, saúde, fase e as abas de visão. */
