@@ -1,0 +1,124 @@
+"use server";
+
+import { refresh } from "next/cache";
+import type { ActionState } from "@/lib/action-state";
+import { actionContext, actionErrorMessage } from "@/lib/ui-context";
+import { inTx } from "@/modules/context";
+import {
+  addMember,
+  renameWorkspace,
+  setDepartmentLead,
+  setMemberRole,
+  setMemberStatus,
+} from "@/modules/workspace/settings";
+import {
+  parseDepartmentLeadForm,
+  parseMemberForm,
+  parseMemberRoleForm,
+  parseMemberStatusForm,
+  parseWorkspaceNameForm,
+} from "./form";
+
+const failure = (err: unknown, requestId: string): ActionState => ({
+  status: "error",
+  message: actionErrorMessage(
+    err,
+    requestId,
+    "Falha ao salvar a configuração.",
+  ),
+});
+
+export async function renomearWorkspace(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseWorkspaceNameForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  try {
+    await inTx(ctx, (t) => renameWorkspace(t, { name: parsed.value }));
+    refresh();
+    return { status: "ok", message: "Nome salvo." };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+export async function adicionarPessoa(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseMemberForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  try {
+    await inTx(ctx, (t) => addMember(t, parsed.value));
+    refresh();
+    return {
+      status: "ok",
+      message: `${parsed.value.name} está na equipe e entra com ${parsed.value.email}.`,
+    };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+export async function mudarPapel(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseMemberRoleForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  try {
+    await inTx(ctx, (t) =>
+      setMemberRole(t, parsed.value.profileId, parsed.value.role),
+    );
+    refresh();
+    return { status: "ok", message: "Papel salvo." };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+export async function mudarAcesso(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseMemberStatusForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  try {
+    await inTx(ctx, (t) =>
+      setMemberStatus(t, parsed.value.profileId, parsed.value.status),
+    );
+    refresh();
+    return {
+      status: "ok",
+      message:
+        parsed.value.status === "suspended"
+          ? "Acesso suspenso: a pessoa sai na próxima tela que abrir."
+          : "Acesso devolvido.",
+    };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+export async function definirResponsavel(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseDepartmentLeadForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  try {
+    await inTx(ctx, (t) =>
+      setDepartmentLead(t, parsed.value.departmentId, parsed.value.profileId),
+    );
+    refresh();
+    return { status: "ok", message: "Responsável salvo." };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
