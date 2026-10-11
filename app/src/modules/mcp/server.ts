@@ -26,7 +26,18 @@ import {
   CreateCommentInput,
   listComments,
 } from "@/modules/comments/service";
-import { ProjectCode, RoleCode, TaskCode, Text, Uuid } from "@/modules/common";
+import {
+  MilestoneCode,
+  ProjectCode,
+  RoleCode,
+  TaskCode,
+  Text,
+  Uuid,
+} from "@/modules/common";
+import {
+  getMilestoneDetailByCode,
+  MilestoneDetailDto,
+} from "@/modules/milestones/dates";
 import { inTx, type Ctx, type TxCtx } from "@/modules/context";
 import {
   PlanDto,
@@ -331,6 +342,25 @@ export function buildMcpServer(
         annotations: readOnly,
       },
       async (args) => read((t) => listApprovals(t, args)),
+    );
+  }
+
+  if (has("milestones:read")) {
+    server.registerTool(
+      "hub_get_milestone",
+      {
+        title: "Detalhe do marco",
+        description:
+          "Um marco pelo código do projeto e o do marco (ex.: VIT e M2): progresso, critérios de aceite, GATE e o histórico de datas com o motivo de cada mudança (interno).",
+        inputSchema: z.strictObject({
+          project: ProjectCode,
+          milestone: MilestoneCode,
+        }),
+        outputSchema: MilestoneDetailDto,
+        annotations: readOnly,
+      },
+      async ({ project, milestone }) =>
+        read((t) => getMilestoneDetailByCode(t, project, milestone)),
     );
   }
 
