@@ -314,6 +314,38 @@ export function parseCustomFieldsForm(form: FormData): Parsed<{
   return { ok: true, value: { ...ref.value, values } };
 }
 
+/**
+ * As etiquetas da tarefa no painel (RF-18): a lista inteira, uma entrada `label` por
+ * etiqueta; o núcleo confere nome e limite.
+ */
+export function parseLabelsForm(form: FormData): Parsed<{
+  code: string;
+  version: number | undefined;
+  labels: string[];
+}> {
+  const ref = taskRef(form);
+  if (!ref.ok) return ref;
+  const labels: string[] = [];
+  for (const value of form.getAll("label")) {
+    if (typeof value !== "string") return { ok: false, message: RELOAD };
+    const name = value.replace(/\s+/g, " ").trim();
+    if (!name) continue;
+    if (name.length > 40 || CONTROL.test(name) || name.includes(",")) {
+      return {
+        ok: false,
+        message: "Etiqueta com até 40 caracteres, sem vírgula, numa linha só.",
+      };
+    }
+    if (!labels.some((l) => l.toLowerCase() === name.toLowerCase())) {
+      labels.push(name);
+    }
+  }
+  if (labels.length > 10) {
+    return { ok: false, message: "Até 10 etiquetas por tarefa." };
+  }
+  return { ok: true, value: { ...ref.value, labels } };
+}
+
 // Tempo ------------------------------------------------------------------------------
 
 /** Lançar tempo numa tarefa: a duração escrita, o dia (padrão: hoje) e uma nota. */

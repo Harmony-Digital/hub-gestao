@@ -21,8 +21,11 @@ import {
   updateDepartment,
 } from "@/modules/workspace/settings";
 import { setRetention } from "@/modules/privacy/retention";
+import { removeLabel, updateLabel } from "@/modules/tasks/labels";
 import {
   parseDepartmentForm,
+  parseLabelForm,
+  parseLabelRemoveForm,
   parseRetentionForm,
   parseDepartmentLeadForm,
   parseDepartmentRemoveForm,
@@ -221,6 +224,41 @@ export async function salvarRetencao(
       status: "ok",
       message: "Prazos salvos. Valem a partir da próxima limpeza diária.",
     };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+/** Renomeia ou muda a cor de uma etiqueta (RF-18), em todas as tarefas. */
+export async function salvarEtiqueta(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseLabelForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  const { id, ...fields } = parsed.value;
+  try {
+    await inTx(ctx, (t) => updateLabel(t, id, fields));
+    refresh();
+    return { status: "ok", message: `Etiqueta “${fields.name}” salva.` };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+/** Remove a etiqueta de todas as tarefas (RF-18). */
+export async function removerEtiqueta(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseLabelRemoveForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  try {
+    await inTx(ctx, (t) => removeLabel(t, parsed.value));
+    refresh();
+    return { status: "ok", message: "Etiqueta removida." };
   } catch (err) {
     return failure(err, ctx.requestId);
   }

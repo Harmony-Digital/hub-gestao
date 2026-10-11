@@ -32,6 +32,7 @@ import { many, maybeOne, S, type Source, type TxCtx } from "@/modules/context";
 import { emitEvent, recomputeRollup } from "@/modules/events";
 import { notifyProfile } from "@/modules/notifications";
 import { setTaskFieldValues } from "./custom-fields";
+import { setTaskLabels } from "./labels";
 import type {
   CreateTaskInput,
   TaskDto,
@@ -58,7 +59,12 @@ export const TASK_SELECT = `
          coalesce((select jsonb_object_agg(cf.name, cv.value)
                      from ${S}.custom_field_values cv
                      join ${S}.custom_fields cf on cf.id = cv.field_id
-                    where cv.task_id = t.id), '{}'::jsonb) as custom_fields
+                    where cv.task_id = t.id), '{}'::jsonb) as custom_fields,
+         coalesce((select jsonb_agg(jsonb_build_object('name', l.name, 'color', l.color)
+                                    order by lower(l.name))
+                     from ${S}.task_labels tl
+                     join ${S}.labels l on l.id = tl.label_id
+                    where tl.task_id = t.id), '[]'::jsonb) as labels
     from ${S}.tasks t
     join ${S}.projects p on p.id = t.project_id
     join ${S}.task_statuses s on s.id = t.status_id
@@ -107,6 +113,7 @@ export type TaskRow = {
   archived_at: Date | string | null;
   cursor_at: string;
   custom_fields: Record<string, string> | null;
+  labels: { name: string; color: string }[] | null;
 };
 
 export function toTaskDto(r: TaskRow): TaskDto {
@@ -136,6 +143,7 @@ export function toTaskDto(r: TaskRow): TaskDto {
     source: r.source,
     external_ref: r.external_ref,
     custom_fields: r.custom_fields ?? {},
+    labels: r.labels ?? [],
     done_evidence: r.done_evidence,
     blocked_reason: r.blocked_reason,
     blocked_on: actorRef(r.blocked_on_type, r.blocked_on_id, r.blocked_on_name),
@@ -287,6 +295,13 @@ export async function listTasks(
     where.push(
       `t.workstream_id in (select w.id from ${S}.workstreams w
                             where w.department_id = $${params.length} and w.archived_at is null)`,
+    );
+  }
+  if (filter.label) {
+    params.push(filter.label);
+    where.push(
+      `exists (select 1 from ${S}.task_labels tl join ${S}.labels l on l.id = tl.label_id
+                where tl.task_id = t.id and lower(l.name) = lower($${params.length}))`,
     );
   }
   if (filter.parent) {
@@ -472,6 +487,9 @@ export async function createTask(
       t.actor.id,
     ],
   );
+  if (input.labels?.length) {
+    await setTaskLabels(t, { id: inserted!.id }, input.labels);
+  }
   await recomputeRollup(t, project.id);
   const dto = await taskById(t, inserted!.id);
   await audit(t, {
@@ -487,6 +505,7 @@ export async function createTask(
       assignee: dto.assignee,
       workstream_id: workstreamId,
       parent_code: dto.parent_code,
+      ...(dto.labels.length ? { labels: dto.labels.map((l) => l.name) } : {}),
     },
   });
   await emitEvent(t, "task.created", {
@@ -512,6 +531,7 @@ const UPDATE_AUDIT_KEYS = [
   "external_ref",
   "blocked_reason",
   "custom_fields",
+  "labels",
 ] as const;
 
 export async function updateTask(
@@ -617,8 +637,11 @@ export async function updateTask(
   const fieldsChanged =
     input.custom_fields !== undefined &&
     (await setTaskFieldValues(t, row, input.custom_fields));
+  // Etiquetas (RF-18): a lista inteira, pelo nome; também dão versão nova se mudarem.
+  const labelsChanged =
+    input.labels !== undefined && (await setTaskLabels(t, row, input.labels));
   if (sets.length === 0) {
-    if (!fieldsChanged) return before;
+    if (!fieldsChanged && !labelsChanged) return before;
     sets.push("updated_at = now()");
   }
   params.push(row.id);
@@ -633,6 +656,7 @@ export async function updateTask(
     status: d.status.name,
     workstream: d.workstream?.id ?? null,
     assignee: d.assignee ? `${d.assignee.type}:${d.assignee.id}` : null,
+    labels: d.labels.map((l) => l.name),
   });
   await audit(t, {
     action: "task.updated",

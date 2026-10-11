@@ -1,6 +1,6 @@
 /**
  * Estado da Lista e do Quadro guardado no endereço: filtros combináveis (departamento,
- * frente, responsável, prioridade, prazo, busca) e, na Lista, agrupamento, ordem e
+ * frente, etiqueta, responsável, prioridade, prazo, busca) e, na Lista, agrupamento, ordem e
  * colunas. Puro: vale no servidor, no navegador e nos testes. Valor fora do formato é
  * ignorado.
  */
@@ -49,6 +49,8 @@ export type ListState = {
   frente: string | null;
   /** Slug de um departamento: só as tarefas das frentes dele (RF-23). */
   depto: string | null;
+  /** Nome de uma etiqueta (RF-18). */
+  etiqueta: string | null;
   /** "eu", "nenhum", "user:<id>" ou "agent:<id>". */
   resp: string | null;
   prio: Priority[];
@@ -86,6 +88,7 @@ function pick<T extends string>(
 export function readListState(query: Query): ListState {
   const frente = one(query.frente);
   const depto = one(query.depto);
+  const etiqueta = one(query.etiqueta)?.replace(/\s+/g, " ").trim();
   const resp = one(query.resp);
   const busca = one(query.busca)?.trim();
   const cols = all(query.col).filter((c): c is Column =>
@@ -94,6 +97,10 @@ export function readListState(query: Query): ListState {
   return {
     frente: frente === "none" || (frente && UUID.test(frente)) ? frente : null,
     depto: depto && depto.length <= 60 && SLUG.test(depto) ? depto : null,
+    etiqueta:
+      etiqueta && etiqueta.length <= 40 && !CONTROL.test(etiqueta)
+        ? etiqueta
+        : null,
     resp:
       resp === "eu" ||
       resp === "nenhum" ||
@@ -131,6 +138,7 @@ export function listQuery(state: ListState): URLSearchParams {
   const q = new URLSearchParams();
   if (state.frente) q.set("frente", state.frente);
   if (state.depto) q.set("depto", state.depto);
+  if (state.etiqueta) q.set("etiqueta", state.etiqueta);
   if (state.resp) q.set("resp", state.resp);
   if (state.prio.length) q.set("prio", state.prio.join(","));
   if (state.prazo) q.set("prazo", state.prazo);
@@ -151,6 +159,7 @@ export function hasFilters(state: ListState): boolean {
   return Boolean(
     state.frente ||
     state.depto ||
+    state.etiqueta ||
     state.resp ||
     state.prio.length ||
     state.prazo ||
@@ -321,6 +330,7 @@ export function groupTasks(
 export function toTaskFilter(state: ListState): {
   workstream: string | null;
   department: string | null;
+  label: string | null;
   assignee: string | null;
   priorities: Priority[];
   due: "late" | "week" | "none" | null;
@@ -329,6 +339,7 @@ export function toTaskFilter(state: ListState): {
   return {
     workstream: state.frente,
     department: state.depto,
+    label: state.etiqueta,
     assignee:
       state.resp === "eu"
         ? "me"

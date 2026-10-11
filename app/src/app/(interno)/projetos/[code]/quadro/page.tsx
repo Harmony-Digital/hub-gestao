@@ -154,6 +154,7 @@ async function BoardView({
             basePath={basePath}
             state={state}
             departments={data.departments}
+            labels={data.labels}
             workstreams={data.workstreams}
             assignees={data.assignees}
             mode="board"

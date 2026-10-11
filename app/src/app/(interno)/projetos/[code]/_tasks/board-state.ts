@@ -25,6 +25,8 @@ export type BoardCard = {
   done: boolean;
   /** Tarefas abertas de que esta depende (códigos); vazio em tarefa concluída. */
   waitingOn: string[];
+  /** Etiquetas (RF-18), em ordem alfabética. */
+  labels: { name: string; color: string }[];
   /** Endereço que abre o painel da tarefa nesta tela. */
   href: string;
 };
@@ -64,6 +66,7 @@ export function toBoardCard(
     parent: task.parent_code,
     done,
     waitingOn: done ? [] : waitingOn,
+    labels: task.labels,
     href,
   };
 }
