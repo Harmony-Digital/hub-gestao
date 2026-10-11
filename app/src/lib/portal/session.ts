@@ -178,6 +178,56 @@ export async function postPortalComment(
   };
 }
 
+export type PortalReceiptResult =
+  | {
+      status: "ok";
+      milestoneId: string;
+      projectId: string;
+      workspaceId: string;
+    }
+  | { status: "no_session" | "not_allowed" | "not_found" | "already" };
+
+/**
+ * O contato decisor confirma que recebeu uma entrega (opção do projeto, D9; não é o
+ * aceite). Tudo é conferido no banco, a partir da sessão (função
+ * confirm_milestone_receipt, migração 0018).
+ */
+export async function confirmPortalReceipt(
+  db: Db,
+  sessionHash: string,
+  projectCode: string,
+  milestoneId: string,
+): Promise<PortalReceiptResult> {
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      milestoneId,
+    )
+  ) {
+    return { status: "not_found" };
+  }
+  const rows = await bare<{ result: Record<string, string> }>(
+    db,
+    `select proj_hub_gestao.confirm_milestone_receipt($1, $2, $3::uuid) as result`,
+    [sessionHash, projectCode, milestoneId],
+  );
+  const r = rows[0]?.result;
+  if (r?.status === "ok") {
+    return {
+      status: "ok",
+      milestoneId: r.milestone_id,
+      projectId: r.project_id,
+      workspaceId: r.workspace_id,
+    };
+  }
+  const status = r?.status;
+  return {
+    status:
+      status === "not_allowed" || status === "not_found" || status === "already"
+        ? status
+        : "no_session",
+  };
+}
+
 /** Opções do cookie da sessão: só o portal, sem JavaScript, por poucas horas. */
 export function portalCookieOptions(maxAgeSeconds: number) {
   return {

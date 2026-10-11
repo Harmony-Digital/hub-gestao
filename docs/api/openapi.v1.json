@@ -4089,6 +4089,20 @@
                     }
                   ]
                 },
+                "client_received_at": {
+                  "description": "Quando o cliente confirmou no portal que recebeu a entrega (opção do projeto). Não é o aceite, que é do dono (D9).",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "client_received_by": {
+                  "description": "Nome do contato do cliente que confirmou o recebimento.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "workstreams": {
                   "type": "array",
                   "items": {
@@ -4655,6 +4669,8 @@
                 "delivered_at",
                 "accepted_at",
                 "accepted_by",
+                "client_received_at",
+                "client_received_by",
                 "workstreams"
               ],
               "additionalProperties": false
@@ -5848,6 +5864,20 @@
                 "type": "null"
               }
             ]
+          },
+          "client_received_at": {
+            "description": "Quando o cliente confirmou no portal que recebeu a entrega (opção do projeto). Não é o aceite, que é do dono (D9).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "client_received_by": {
+            "description": "Nome do contato do cliente que confirmou o recebimento.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -5869,7 +5899,9 @@
           "done_count",
           "delivered_at",
           "accepted_at",
-          "accepted_by"
+          "accepted_by",
+          "client_received_at",
+          "client_received_by"
         ],
         "additionalProperties": false
       },

@@ -531,6 +531,14 @@ function Milestones({
                   : ""}
                 {m.visibility === "internal" ? " · interno" : ""}
               </span>
+              {m.client_received_at ? (
+                <span className="block text-xs text-ok-fg">
+                  Recebimento confirmado pelo cliente
+                  {m.client_received_by
+                    ? ` (${m.client_received_by})`
+                    : ""} em {formatTimestampDay(m.client_received_at)}
+                </span>
+              ) : null}
             </span>
             <Pill tone={m.late && !m.accepted_at ? "danger" : status.tone}>
               {m.late && !m.accepted_at ? "Atrasado" : status.label}

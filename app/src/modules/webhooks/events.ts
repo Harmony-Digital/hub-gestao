@@ -18,6 +18,7 @@ export const WEBHOOK_EVENTS = [
   "task.blocked",
   "workstream.updated",
   "client.commented",
+  "client.receipt_confirmed",
 ] as const satisfies readonly HubEvent[];
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 
@@ -34,6 +35,7 @@ export const EVENT_LABEL: Record<WebhookEvent | "webhook.test", string> = {
   "task.blocked": "Tarefa bloqueada",
   "workstream.updated": "Frente atualizada",
   "client.commented": "Cliente escreveu no portal",
+  "client.receipt_confirmed": "Cliente confirmou o recebimento de uma entrega",
   "webhook.test": "Teste",
 };
 

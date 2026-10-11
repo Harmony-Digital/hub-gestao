@@ -74,6 +74,13 @@ export const MilestoneDto = z.object({
   delivered_at: Timestamp.nullable(),
   accepted_at: Timestamp.nullable(),
   accepted_by: ActorRef.nullable(),
+  client_received_at: Timestamp.nullable().describe(
+    "Quando o cliente confirmou no portal que recebeu a entrega (opção do projeto). Não é o aceite, que é do dono (D9).",
+  ),
+  client_received_by: z
+    .string()
+    .nullable()
+    .describe("Nome do contato do cliente que confirmou o recebimento."),
 });
 export type MilestoneDto = z.infer<typeof MilestoneDto>;
 

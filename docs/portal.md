@@ -2,7 +2,7 @@
 
 O portal é onde o contato de um cliente acompanha os projetos dele com a Harmony. Ele vê a camada estratégica (e a tática, quando o item estiver marcado para o cliente), com os textos escritos para ele. Nunca vê tarefas, textos internos, agentes nem projetos em revisão ou arquivados.
 
-Estado em 2026-10-10 (M6): acesso por convite e a lista de projetos do cliente (PR #51); a página de cada projeto, com as entregas, as frentes e os relatórios publicados, e o teste automático de vazamento (PR #52); a conversa do projeto entre o cliente e a equipe (PR #53); os arquivos entregues (PR #54). O confirmar recebimento vem no próximo passo do M6.
+Estado em 2026-10-10 (M6): acesso por convite e a lista de projetos do cliente (PR #51); a página de cada projeto, com as entregas, as frentes e os relatórios publicados, e o teste automático de vazamento (PR #52); a conversa do projeto entre o cliente e a equipe (PR #53); os arquivos entregues (PR #54); o confirmar recebimento de entrega (PR #55).
 
 ## O que o contato vê hoje
 
@@ -61,6 +61,14 @@ A tela mostra, para cada contato: a situação (Sem acesso; Link enviado, ainda 
 - **O cliente baixa** pela página do projeto, por um endereço do próprio portal (`/portal/<cliente>/<código>/arquivos/<id>`), que exige a sessão do cliente e lê com o ator de cliente: a RLS só entrega o conteúdo dos arquivos marcados para ele. Imagem e PDF abrem no navegador; o resto baixa; nada é interpretado como página (`nosniff`, `no-store`).
 - Tirar o arquivo tira do portal na hora; o histórico guarda quem entregou e quem tirou, com o nome do arquivo.
 
+## Confirmar recebimento (D9)
+
+- **Opção por projeto**, desligada por padrão: em Editar projeto, "O cliente pode confirmar o recebimento das entregas no portal (o aceite do marco continua com você)".
+- Com a opção ligada, o contato **decisor** ("Decisor: também confirma o recebimento de marcos") vê **Confirmar recebimento** em cada entrega já entregue ou concluída, com a pergunta antes ("Confirmar que você recebeu esta entrega?"). Quem só acompanha não vê o botão.
+- A confirmação passa por uma função do banco (`confirm_milestone_receipt`, migração 0018) que confere tudo a partir da sessão: contato decisor com acesso e com o aceite do uso dos dados, projeto do cliente com a opção ligada, entrega visível ao cliente e ainda sem confirmação. Grava quando e quem (o nome do contato fica no marco) e o histórico, em nome do contato.
+- **Não é o aceite:** o aceite do marco continua do dono (D9) e não muda com a confirmação.
+- A equipe vê "Recebimento confirmado pelo cliente (nome) em dd/mm" no marco, na Visão geral, e pela API (`client_received_at` e `client_received_by` do marco); os donos recebem o aviso na caixa de entrada e os webhooks que assinam `client.receipt_confirmed` recebem o evento.
+
 ## Teste de vazamento (PRD §5.2 e §9)
 
 Roda no `npm test` e no CI, com a sessão de verdade de um contato:
@@ -71,13 +79,12 @@ Roda no `npm test` e no CI, com a sessão de verdade de um contato:
 
 ## Ainda não (próximos passos)
 
-- O confirmar recebimento de marco (quando o projeto ligar a opção).
 - O convite por e-mail pelo próprio Hub, e o contato pedir um link novo sozinho pelo e-mail: dependem do envio de e-mail (Resend), que o Fábio configura.
 - A identidade do portal com a cor de destaque do cliente.
 
 ## Onde está no código
 
-- Banco: `supabase/migrations/hub_gestao_0015_portal_access.sql` (acesso), `hub_gestao_0016_portal_milestone_revisions.sql` (contagem de revisões de data) e `hub_gestao_0017_portal_client_channel.sql` (o cliente escreve no canal).
+- Banco: `supabase/migrations/hub_gestao_0015_portal_access.sql` (acesso), `hub_gestao_0016_portal_milestone_revisions.sql` (contagem de revisões de data) e `hub_gestao_0017_portal_client_channel.sql` (o cliente escreve no canal) e `hub_gestao_0018_portal_milestone_receipt.sql` (confirmar recebimento).
 - Núcleo: `app/src/modules/portal/access.ts` (contatos, liberar, gerar link, revogar) e `views.ts` (leituras do portal); sessão em `app/src/lib/portal/session.ts` e `token.ts`; o canal em `app/src/modules/comments/client-channel.ts` (leitura e resposta da equipe e o aviso); os arquivos em `app/src/modules/attachments/client-files.ts`.
 - Telas: `app/src/app/portal/` (entrar, aceite, projetos, a página de cada projeto em `[cliente]/[codigo]`, sair, sem acesso; as peças comuns em `_ui/`) e `app/src/app/(interno)/clientes/[slug]/portal/` (a tela da equipe).
 - Testes: `app/src/modules/portal/portal.test.ts` (o caminho completo do acesso no banco), `leak.test.ts` (o teste de vazamento), `form.test.ts` da tela da equipe e `app/e2e/portal.spec.ts` (o dono libera, o contato entra num navegador sem a sessão da equipe, aceita, vê os projetos e a página do projeto sem nada interno, sai; o link não vale de novo; o dono revoga; com a revisão de acessibilidade das páginas do portal).

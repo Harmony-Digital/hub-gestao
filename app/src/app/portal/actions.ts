@@ -8,6 +8,7 @@ import { getDb } from "@/lib/db";
 import { apiKeyPepper } from "@/lib/env";
 import { log } from "@/lib/log";
 import {
+  confirmPortalReceipt,
   currentPortalSession,
   endPortalSession,
   PORTAL_COOKIE,
@@ -17,6 +18,7 @@ import {
   redeemPortalLink,
 } from "@/lib/portal/session";
 import { noteClientMessage } from "@/modules/comments/client-channel";
+import { noteReceiptConfirmed } from "@/modules/milestones/receipt";
 import { inTx } from "@/modules/context";
 import { systemActor } from "@/modules/jobs/service";
 import { parseMessageForm, type MessageState } from "./message-form";
@@ -101,4 +103,55 @@ export async function escreverParaEquipe(
     status: "ok",
     message: "Mensagem enviada. A equipe da Harmony recebeu o aviso.",
   };
+}
+
+const RECEIPT_ERROR: Record<
+  "no_session" | "not_allowed" | "not_found" | "already",
+  string
+> = {
+  no_session: POST_ERROR.no_session,
+  not_allowed:
+    "A confirmação de recebimento não está liberada para você neste projeto.",
+  not_found: "Esta entrega não está disponível para confirmação.",
+  already: "O recebimento desta entrega já foi confirmado.",
+};
+
+/** O contato decisor confirma que recebeu uma entrega (não é o aceite, D9). */
+export async function confirmarRecebimento(
+  _previous: MessageState,
+  form: FormData,
+): Promise<MessageState> {
+  const session = await currentPortalSession();
+  if (!session) return { status: "error", message: RECEIPT_ERROR.no_session };
+  const project = String(form.get("project") ?? "");
+  const milestone = String(form.get("milestone") ?? "");
+  if (!/^[A-Z0-9]{2,8}$/.test(project)) {
+    return { status: "error", message: RECEIPT_ERROR.not_found };
+  }
+  const db = await getDb();
+  const result = await confirmPortalReceipt(
+    db,
+    session.sessionHash,
+    project,
+    milestone,
+  );
+  if (result.status !== "ok") {
+    if (result.status === "already") refresh();
+    return { status: "error", message: RECEIPT_ERROR[result.status] };
+  }
+  try {
+    await inTx(
+      {
+        db,
+        actor: systemActor(result.workspaceId),
+        source: "ui",
+        requestId: randomUUID(),
+      },
+      (t) => noteReceiptConfirmed(t, result.milestoneId),
+    );
+  } catch (err) {
+    log.error({ err, milestone: result.milestoneId }, "aviso de recebimento");
+  }
+  refresh();
+  return { status: "ok", message: "Recebimento confirmado. Obrigado!" };
 }

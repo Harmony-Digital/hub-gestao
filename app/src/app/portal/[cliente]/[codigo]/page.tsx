@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { PackageCheck } from "lucide-react";
 import { ChannelThread } from "@/components/channel-thread";
 import { Markdown } from "@/components/markdown";
 import { Pill, Progress } from "@/components/shell/pill";
@@ -22,6 +23,7 @@ import {
   type PortalWorkstream,
 } from "@/modules/portal/views";
 import { MessageBox } from "../../_ui/message-box";
+import { ReceiptButton } from "../../_ui/receipt-button";
 import { NoAccess, PortalTop } from "../../_ui/parts";
 import { portalContext, portalSessionFor } from "../../_ui/session";
 
@@ -168,7 +170,15 @@ async function Project({
         ) : (
           <ol className="flex flex-col gap-3">
             {project.milestones.map((m, i) => (
-              <MilestoneCard key={i} milestone={m} />
+              <MilestoneCard
+                key={i}
+                milestone={m}
+                projectCode={project.code}
+                canConfirm={
+                  project.clientCanConfirm &&
+                  session.actor.contactRole === "client_approver"
+                }
+              />
             ))}
           </ol>
         )}
@@ -284,8 +294,18 @@ async function Project({
   );
 }
 
-function MilestoneCard({ milestone: m }: { milestone: PortalMilestone }) {
+function MilestoneCard({
+  milestone: m,
+  projectCode,
+  canConfirm,
+}: {
+  milestone: PortalMilestone;
+  projectCode: string;
+  /** O projeto liga a opção e o contato é o decisor (D9). */
+  canConfirm: boolean;
+}) {
   const status = MILESTONE[m.status];
+  const delivered = m.status === "delivered" || m.status === "accepted";
   return (
     <li className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -307,6 +327,20 @@ function MilestoneCard({ milestone: m }: { milestone: PortalMilestone }) {
           ? ` · data revista ${m.revisions === 1 ? "1 vez" : `${m.revisions} vezes`}`
           : ""}
       </p>
+      {m.receivedAt ? (
+        <p className="flex items-center gap-1.5 text-sm text-ok-fg">
+          <PackageCheck aria-hidden="true" className="size-4 shrink-0" />
+          Recebimento confirmado
+          {m.receivedBy ? ` por ${m.receivedBy}` : ""} em{" "}
+          {formatTimestampDate(m.receivedAt)}
+        </p>
+      ) : canConfirm && delivered ? (
+        <ReceiptButton
+          projectCode={projectCode}
+          milestoneId={m.id}
+          title={m.title}
+        />
+      ) : null}
       {m.workstreams.length > 0 ? (
         <div className="flex flex-col gap-2 border-t border-line pt-3">
           <p className="text-sm font-medium text-navy">Frentes de trabalho</p>

@@ -188,6 +188,12 @@ export function describeNotification(
         detail: str(payload.detail),
         href: "/agentes",
       };
+    case "client.receipt":
+      return {
+        text: `${who} confirmou o recebimento de ${str(payload.milestone) ?? "uma entrega"}${project ? ` em ${project}` : ""}`,
+        detail: str(payload.title),
+        href: project ? `/projetos/${project}` : null,
+      };
     case "client.comment":
       return {
         text: `${who} escreveu no portal${project ? `, em ${project}` : ""}`,
