@@ -7,9 +7,11 @@ import {
   CornerDownRight,
   LoaderCircle,
   MessageSquareText,
+  TriangleAlert,
   X,
 } from "lucide-react";
 import { ErrorNote, textareaClass, useSubmit } from "@/components/forms";
+import { Markdown } from "@/components/markdown";
 import { Avatar, Pill } from "@/components/shell/pill";
 import { Button } from "@/components/ui/button";
 import { IDLE, type ActionState } from "@/lib/action-state";
@@ -136,6 +138,35 @@ function DecisionCard({
         <p className="text-sm leading-relaxed break-words whitespace-pre-wrap text-ink-2">
           {item.summary}
         </p>
+      ) : null}
+
+      {item.checks.length > 0 ? (
+        <div className="flex flex-col gap-1 rounded-xl bg-warn-soft p-3 text-sm text-warn-fg">
+          <p className="flex items-center gap-2 font-semibold">
+            <TriangleAlert aria-hidden="true" className="size-4 shrink-0" />
+            Verificação do texto para o cliente
+          </p>
+          <ul className="list-disc pl-6">
+            {item.checks.map((c) => (
+              <li key={c}>{c}</li>
+            ))}
+          </ul>
+          <p className="text-xs">
+            O cliente nunca deve ler isso no portal. Ajuste o texto ou devolva
+            para quem preparou.
+          </p>
+        </div>
+      ) : null}
+
+      {item.reportBody ? (
+        <details className="group rounded-xl border border-line">
+          <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-navy">
+            Ver o texto do relatório
+          </summary>
+          <div className="border-t border-line px-3 py-2 text-sm text-ink">
+            <Markdown text={item.reportBody} />
+          </div>
+        </details>
       ) : null}
 
       {item.details.length > 0 ? (

@@ -32,7 +32,7 @@ Toda escrita no Hub leva `papel: "RL-03"` e uma `idempotency_key` nova.
 
 ## Para o cliente (M6)
 
-Segunda pessoa, resultado e não tarefa, sem jargão interno, sem códigos HUB-n, sem nome de ferramenta, de agente ou de outro cliente, sem valores. Só marcos e frentes marcados para o cliente. O texto passa pelo Redator do Cliente (RC-12) antes do pedido.
+Segunda pessoa, resultado e não tarefa, sem jargão interno, sem códigos HUB-n, sem nome de ferramenta, de agente ou de outro cliente, sem valores. Só marcos e frentes marcados para o cliente. O texto passa pelo Redator do Cliente (RC-12) antes do pedido: o Hub confere o texto e devolve os alertas em `checks` (código de tarefa, agente, ferramenta interna, commit, PR, valor, outro cliente). Se vier algum, corrija e chame `hub_draft_status_report` de novo com o mesmo período: a versão nova substitui a sua anterior ainda pendente, e o Fábio decide sobre a mais recente.
 
 ## Nunca
 

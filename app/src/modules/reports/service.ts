@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { audit } from "@/lib/audit";
 import { badRequest } from "@/lib/errors";
+import { formatDate } from "@/lib/format";
 import { assertNoSecrets } from "@/lib/text-guards";
 import {
   iso,
@@ -14,6 +15,8 @@ import {
 } from "@/modules/common";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
 import { approvalById, ApprovalDto } from "@/modules/approvals/service";
+import { describeIssue } from "@/modules/client-text/check";
+import { checkProjectClientTexts } from "@/modules/client-text/context";
 import { emitEvent } from "@/modules/events";
 import { notifyOwners } from "@/modules/notifications";
 
@@ -42,9 +45,28 @@ export const ReportDto = z.object({
 });
 export type ReportDto = z.infer<typeof ReportDto>;
 
+export const ClientTextCheck = z.object({
+  kind: z.enum([
+    "task_code",
+    "agent",
+    "tool",
+    "commit",
+    "pull_request",
+    "money",
+    "other_client",
+  ]),
+  term: z.string(),
+  text: z.string().describe("O alerta em PT-BR, como aparece para o Fábio."),
+});
+
 export const DraftReportResult = z.object({
   report: ReportDto,
   approval: ApprovalDto,
+  checks: z
+    .array(ClientTextCheck)
+    .describe(
+      "Verificação do texto para o cliente (RC-12): o que nunca deve ir para o portal (código de tarefa, agente, ferramenta interna, commit, PR, valor, outro cliente). O pedido segue para o Fábio com os alertas; corrija e mande uma nova versão.",
+    ),
 });
 
 type ReportRow = {
@@ -88,7 +110,11 @@ function toReportDto(r: ReportRow): ReportDto {
 export async function draftReport(
   t: TxCtx,
   input: DraftReportInput,
-): Promise<{ report: ReportDto; approval: ApprovalDto }> {
+): Promise<{
+  report: ReportDto;
+  approval: ApprovalDto;
+  checks: z.infer<typeof ClientTextCheck>[];
+}> {
   const project = await resolveProject(t, input.project, "report.draft");
   if (input.period_end < input.period_start) {
     throw badRequest("O fim do período não pode ser anterior ao início.");
@@ -126,20 +152,35 @@ export async function draftReport(
     `select profile_id from ${S}.memberships where role = 'owner' and status = 'active'
       order by created_at limit 1`,
   );
-  const audienceLabel = input.audience === "client" ? "cliente" : "interno";
+  const audienceLabel =
+    input.audience === "client" ? "para o cliente" : "interno";
+  // RC-12: o texto para o cliente passa pela verificação antes de chegar ao Fábio.
+  const checks =
+    input.audience === "client"
+      ? (await checkProjectClientTexts(t, project.id, [input.body_md])).map(
+          (issue) => ({ ...issue, text: describeIssue(issue) }),
+        )
+      : [];
   const approval = await maybeOne<{ id: string }>(
     t,
     `insert into ${S}.approvals
-       (workspace_id, project_id, type, entity_type, entity_id, title, summary,
+       (workspace_id, project_id, type, entity_type, entity_id, title, summary, payload,
         requested_by_type, requested_by_id, acting_role, approver_profile_id)
-     values ($1, $2, 'status_report', 'report', $3, $4, $5, $6, $7, $8, $9)
+     values ($1, $2, 'status_report', 'report', $3, $4, $5, $6::jsonb, $7, $8, $9, $10)
      returning id`,
     [
       t.actor.workspaceId,
       project.id,
       report!.id,
-      `Status ${audienceLabel} de ${project.code}: ${input.period_start} a ${input.period_end}`,
-      `Rascunho versão ${version}. Aprovar publica o relatório${input.audience === "client" ? " no portal do cliente" : ""}.`,
+      `Status ${audienceLabel} de ${project.code}: ${formatDate(input.period_start)} a ${formatDate(input.period_end)}`,
+      `Rascunho versão ${version}. Aprovar publica o relatório${input.audience === "client" ? " no portal do cliente" : ""}.${checks.length ? ` A verificação do texto para o cliente achou ${checks.length === 1 ? "1 ponto" : `${checks.length} pontos`} para revisar.` : ""}`,
+      JSON.stringify({
+        audience: input.audience,
+        report_body: input.body_md,
+        ...(input.audience === "client"
+          ? { checks: checks.map(({ kind, term }) => ({ kind, term })) }
+          : {}),
+      }),
       t.actor.type,
       t.actor.id,
       t.actor.actingRole ?? null,
@@ -149,6 +190,27 @@ export async function draftReport(
   await t.tx.query(
     `update ${S}.status_reports set approval_id = $2 where id = $1`,
     [report!.id, approval!.id],
+  );
+  // A versão nova substitui a anterior ainda pendente (mesmo período, mesma audiência,
+  // mesmo autor): o Fábio decide sobre o texto mais recente, e as versões ficam guardadas.
+  await t.tx.query(
+    `update ${S}.approvals a set status = 'cancelled'
+      where a.type = 'status_report' and a.status = 'pending' and a.id <> $1
+        and a.requested_by_type = $2::${S}.actor_type
+        and a.requested_by_id is not distinct from $3
+        and a.entity_id in (
+          select r.id from ${S}.status_reports r
+           where r.project_id = $4 and r.period_start = $5 and r.period_end = $6
+             and r.audience = $7)`,
+    [
+      approval!.id,
+      t.actor.type,
+      t.actor.id,
+      project.id,
+      input.period_start,
+      input.period_end,
+      input.audience,
+    ],
   );
   const dto = toReportDto(
     (await maybeOne<ReportRow>(t, `${REPORT_SELECT} where r.id = $1`, [
@@ -183,7 +245,7 @@ export async function draftReport(
     project_code: project.code,
     title: approvalDto.title,
   });
-  return { report: dto, approval: approvalDto };
+  return { report: dto, approval: approvalDto, checks };
 }
 
 export async function listReports(

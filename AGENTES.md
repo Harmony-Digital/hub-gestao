@@ -175,6 +175,7 @@ Mesmo contrato do EX-06, com departamento e tipo de evidência próprios:
 - **Red lines**: nunca grava em `*_client` sem aprovação; nunca inclui item operacional; nunca cita ferramenta interna ou agente.
 - **Métricas**: zero vazamento em revisão; "Aprovar sem ajuste" ≥ 70%.
 - **Fase**: M6.
+- **No Hub (desde o PR #56)**: a verificação de vazamento, regra em código e sem IA (`app/src/modules/client-text/check.ts`), roda em todo rascunho de status para o cliente e em todo pedido de mostrar frente ao cliente: os alertas voltam para o agente (`checks`) e aparecem no pedido, junto com o texto do relatório, para o Fábio decidir. A versão nova de um rascunho substitui a anterior pendente do mesmo autor e período. A reescrita pela IA (tom Harmony) é o passo seguinte, com o agente interno do papel RC-12 e a chave de IA.
 
 ### OB-13 · Onboarding de Cliente
 

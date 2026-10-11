@@ -7206,11 +7206,46 @@
           },
           "approval": {
             "$ref": "#/components/schemas/Approval"
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "task_code",
+                    "agent",
+                    "tool",
+                    "commit",
+                    "pull_request",
+                    "money",
+                    "other_client"
+                  ]
+                },
+                "term": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string",
+                  "description": "O alerta em PT-BR, como aparece para o Fábio."
+                }
+              },
+              "required": [
+                "kind",
+                "term",
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Verificação do texto para o cliente (RC-12): o que nunca deve ir para o portal (código de tarefa, agente, ferramenta interna, commit, PR, valor, outro cliente). O pedido segue para o Fábio com os alertas; corrija e mande uma nova versão."
           }
         },
         "required": [
           "report",
-          "approval"
+          "approval",
+          "checks"
         ],
         "additionalProperties": false
       },

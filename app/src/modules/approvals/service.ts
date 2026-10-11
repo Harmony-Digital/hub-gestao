@@ -19,6 +19,7 @@ import {
   Uuid,
 } from "@/modules/common";
 import { attempt } from "@/modules/attempt";
+import { checkProjectClientTexts } from "@/modules/client-text/context";
 import { json, many, maybeOne, S, type TxCtx } from "@/modules/context";
 import { emitEvent } from "@/modules/events";
 import { notifyOwners, notifyProfile } from "@/modules/notifications";
@@ -226,6 +227,9 @@ async function ownerProfileId(t: TxCtx): Promise<string | null> {
   );
 }
 
+/** Campos do pedido que só o Hub preenche; vindos de fora, são descartados. */
+const SERVER_PAYLOAD_KEYS = new Set(["checks", "report_body", "audience"]);
+
 /**
  * Abre um pedido de decisão humana. Agentes só pedem; quem decide é uma pessoa, pela
  * interface (PRD RF-26). Mesmo pedido pendente para o mesmo item vira conflito.
@@ -236,7 +240,12 @@ export async function requestApproval(
 ): Promise<ApprovalDto> {
   const project = await resolveProject(t, input.project, "approval.request");
   assertNoSecrets({ title: input.title, summary: input.summary });
-  const payload = input.payload ?? {};
+  // Campos que só o Hub preenche (verificação e texto do relatório) nunca vêm de fora.
+  const payload: Record<string, unknown> = Object.fromEntries(
+    Object.entries(input.payload ?? {}).filter(
+      ([key]) => !SERVER_PAYLOAD_KEYS.has(key),
+    ),
+  );
   assertNoSecrets(
     Object.fromEntries(
       Object.entries(payload).map(([k, v]) => [
@@ -291,6 +300,13 @@ export async function requestApproval(
     if (w.visibility === "client")
       throw conflict("Esta frente já aparece para o cliente.");
     entity = { type: "workstream", id: w.id };
+    // RC-12: os textos propostos para o cliente passam pela verificação.
+    payload.checks = await checkProjectClientTexts(t, project.id, [
+      titleClient,
+      typeof payload.description_client === "string"
+        ? payload.description_client
+        : null,
+    ]);
   } else if (input.type === "milestone_proposal") {
     if (
       typeof payload.title !== "string" ||
