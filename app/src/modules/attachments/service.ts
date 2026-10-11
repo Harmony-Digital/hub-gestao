@@ -43,7 +43,7 @@ const TYPES: Record<string, string[]> = {
 };
 
 /** Assinatura dos primeiros bytes, para quem declara ser imagem, PDF ou zip. */
-function signatureOk(mime: string, bytes: Uint8Array): boolean {
+export function signatureOk(mime: string, bytes: Uint8Array): boolean {
   const starts = (...sig: number[]) => sig.every((b, i) => bytes[i] === b);
   switch (mime) {
     case "image/png":
