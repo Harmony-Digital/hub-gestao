@@ -15,13 +15,18 @@ const CTX: ConciergeContext = {
   screenProject: null,
   me: { id: ME, name: "Fábio Almeida" },
   projects: [
-    { id: "p1", code: "CER", name: "Certato", client: "MMA" },
-    { id: "p2", code: "ACM", name: "Radar ACM", client: "Águas Claras Mídia" },
+    { id: "p1", code: "LOJ", name: "Loja Virtual", client: "Comércio Modelo" },
+    {
+      id: "p2",
+      code: "JRN",
+      name: "Radar de Notícias",
+      client: "Editora Água Doce",
+    },
     { id: "p3", code: "SIT", name: "Site Harmony", client: "Harmony" },
   ],
   team: [
     { type: "user", id: ME, name: "Fábio Almeida" },
-    { type: "user", id: "u2", name: "Patrícia Souza" },
+    { type: "user", id: "u2", name: "Márcia Lima" },
     { type: "agent", id: "a1", name: "Kratos" },
     { type: "agent", id: "a2", name: "Claude Code do Fábio" },
   ],
@@ -30,21 +35,21 @@ const CTX: ConciergeContext = {
       ref: 1,
       id: "ap1",
       typeLabel: "Relatório de status",
-      title: "Status semanal\nda ACM",
-      project: "ACM",
+      title: "Status semanal\ndo Radar",
+      project: "JRN",
     },
   ],
 };
 
 describe("conferência do Concierge", () => {
   it("acha o projeto pelo código, pelo nome ou pelo cliente, sem adivinhar", () => {
-    expect(matchProject("cer", CTX)?.code).toBe("CER");
-    expect(matchProject("Radar ACM", CTX)?.code).toBe("ACM");
-    expect(matchProject("aguas claras", CTX)?.code).toBe("ACM");
+    expect(matchProject("loj", CTX)?.code).toBe("LOJ");
+    expect(matchProject("Radar de Notícias", CTX)?.code).toBe("JRN");
+    expect(matchProject("agua doce", CTX)?.code).toBe("JRN");
     // "harmony" bate em um só (o cliente do Site); "a" bate em vários: ambíguo.
     expect(matchProject("harmony", CTX)?.code).toBe("SIT");
     expect(matchProject("a", CTX)).toBeNull();
-    expect(matchProject("Leonardo", CTX)).toBeNull();
+    expect(matchProject("Rodrigo", CTX)).toBeNull();
     expect(matchProject(null, CTX)).toBeNull();
   });
 
@@ -54,7 +59,7 @@ describe("conferência do Concierge", () => {
       id: ME,
       name: "Fábio Almeida",
     });
-    expect(matchMember("patricia", CTX)?.id).toBe("u2");
+    expect(matchMember("marcia", CTX)?.id).toBe("u2");
     expect(matchMember("KRATOS", CTX)?.id).toBe("a1");
     expect(matchMember("claude code", CTX)?.id).toBe("a2");
     // "fabio" está em dois nomes (a pessoa e o agente): ambíguo pelo trecho, mas o
@@ -89,12 +94,12 @@ describe("conferência do Concierge", () => {
     });
     expect(screenTarget("sala_de_controle", null)?.href).toBe("/agentes");
     expect(screenTarget("lista", CTX.projects[0])).toEqual({
-      href: "/projetos/CER/lista",
-      label: "Lista de CER · Certato",
+      href: "/projetos/LOJ/lista",
+      label: "Lista de LOJ · Loja Virtual",
     });
     expect(screenTarget("quadro", null)).toBeNull();
     // Sem tela dita, mas com projeto: a Visão geral do projeto.
-    expect(screenTarget(null, CTX.projects[1])?.href).toBe("/projetos/ACM");
+    expect(screenTarget(null, CTX.projects[1])?.href).toBe("/projetos/JRN");
     expect(screenTarget(null, null)).toBeNull();
   });
 
@@ -102,24 +107,24 @@ describe("conferência do Concierge", () => {
     expect(weekdayOf("2026-10-10")).toBe("sábado");
     expect(weekdayOf("2026-10-16")).toBe("sexta-feira");
     const message = conciergeMessage(
-      { ...CTX, screenProject: "CER" },
+      { ...CTX, screenProject: "LOJ" },
       "  cria uma tarefa  ",
     );
     expect(message.split("\n")).toEqual([
       "HOJE: sábado, 2026-10-10",
-      "PROJETO DA TELA: CER (Certato)",
+      "PROJETO DA TELA: LOJ (Loja Virtual)",
       "QUEM PEDE: Fábio Almeida",
       "PROJETOS (código · nome · cliente):",
-      "- CER · Certato · MMA",
-      "- ACM · Radar ACM · Águas Claras Mídia",
+      "- LOJ · Loja Virtual · Comércio Modelo",
+      "- JRN · Radar de Notícias · Editora Água Doce",
       "- SIT · Site Harmony · Harmony",
       "EQUIPE (nome · pessoa ou agente):",
       "- Fábio Almeida · pessoa",
-      "- Patrícia Souza · pessoa",
+      "- Márcia Lima · pessoa",
       "- Kratos · agente",
       "- Claude Code do Fábio · agente",
       "PEDIDOS DE APROVAÇÃO (número · tipo · título · projeto):",
-      "1 · Relatório de status · Status semanal da ACM · ACM",
+      "1 · Relatório de status · Status semanal do Radar · JRN",
       "PEDIDO:",
       "cria uma tarefa",
     ]);

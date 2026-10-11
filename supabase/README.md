@@ -19,5 +19,5 @@
 
 ## Nunca
 
-- Tocar outros schemas `proj_*`, schemas globais ou as instâncias `supabase-relgov` e `supabase-leonardo`.
+- Tocar outros schemas `proj_*`, schemas globais ou qualquer outra instância de Supabase: só o conector `harmony-supabase`.
 - Rodar operação destrutiva sem confirmação específica do Fábio.

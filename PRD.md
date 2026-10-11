@@ -546,7 +546,7 @@ VPS Hostinger **KVM 4** `1821299` (`vps-harmony-digital.harmonydigital.com.br`, 
 
 ### 13.2 Domínio e DNS
 
-Registro **`hub`** (D1) do tipo **CNAME → `srv1821299.hstgr.cloud`** na zona `harmonydigital.com.br` (Hostinger, hPanel). Nunca trocar nameservers (a zona hospeda MX/SPF do Microsoft 365, `posicionamento`, `relgov`, `reservas`, `monclair`, etc.). Traefik emite e renova o certificado Let's Encrypt. Criação do registro: Fábio, ou autorização explícita no `PLAN.md`.
+Registro **`hub`** (D1) do tipo **CNAME → `srv1821299.hstgr.cloud`** na zona `harmonydigital.com.br` (Hostinger, hPanel). Nunca trocar nameservers (a zona hospeda o MX e o SPF do Microsoft 365 e os subdomínios dos outros sistemas da Harmony). Traefik emite e renova o certificado Let's Encrypt. Criação do registro: Fábio, ou autorização explícita no `PLAN.md`.
 
 ### 13.3 Pipeline (padrão RELGOV, nomes `hub-*`)
 
@@ -680,7 +680,7 @@ Respostas do Fábio às decisões D1–D11, espelhadas em `PLAN.md`. Mudanças f
 |---|---|---|
 | D1 | Domínio | `hub.harmonydigital.com.br`. Um endereço mais amigável só para o portal do cliente pode ser somado depois |
 | D2 | Banco | Supabase self-hosted compartilhado, schema `proj_hub_gestao` |
-| D3 | Framework | Next.js 16, o mesmo do Certato, do IA Posicionamento e da Redação ACM, com o pipeline GitHub Actions → VPS já provado |
+| D3 | Framework | Next.js 16, o mesmo do Certato e do IA Posicionamento, com o pipeline GitHub Actions → VPS já provado |
 | D4 | Tema | Claro por padrão; "Sala de Controle" escuro no console dos agentes e como opção |
 | D5 | IA dos agentes internos | Multi-provedor por agente: Anthropic (Claude), OpenAI ou xAI (Grok). O Fábio troca provedor, modelo e chave na tela Agentes, quando quiser. Teto inicial de US$ 30/mês somados, editável |
 | D6 | Agente de gestão no Hermes | Fase 1: os papéis de gestão são skills do Kratos. Agente dedicado só se o Fábio decidir depois; no Hub basta outra chave |
