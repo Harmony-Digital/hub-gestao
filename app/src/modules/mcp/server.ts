@@ -605,7 +605,7 @@ export function buildMcpServer(
       {
         title: "Rascunho de status",
         description:
-          "Cria o rascunho do relatório de status de um período, interno ou para o cliente. Vira pedido de aprovação; só é publicado com o sim do Fábio.",
+          "Cria o rascunho do relatório de status de um período, interno ou para o cliente. Vira pedido de aprovação; só é publicado com o sim do Fábio. Para o cliente, o Hub confere o texto (verificação do Redator do Cliente, RC-12) e devolve os alertas em checks: corrija e mande de novo; a versão nova substitui a sua anterior ainda pendente do mesmo período.",
         inputSchema: DraftReportInput.extend(writeFields),
         outputSchema: DraftReportResult,
         annotations: mutating,

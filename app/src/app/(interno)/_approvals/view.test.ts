@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  approvalChecks,
   approvalDetails,
   approvalEffect,
   decisionMessage,
@@ -66,7 +67,12 @@ describe("pedido na tela", () => {
 
   it("descreve o efeito de cada tipo; os sem efeito automático dizem isso", () => {
     expect(approvalEffect("milestone_acceptance", {})).toMatch(/Aceito/);
-    expect(approvalEffect("status_report", {})).toMatch(/publicado/);
+    expect(approvalEffect("status_report", {})).toBe(
+      "o relatório é publicado no portal do cliente.",
+    );
+    expect(approvalEffect("status_report", { audience: "internal" })).toBe(
+      "o relatório interno é publicado para a equipe.",
+    );
     expect(approvalEffect("import_review", {})).toBe(
       "o projeto sai de Em revisão e fica como Ativo.",
     );
@@ -92,6 +98,28 @@ describe("pedido na tela", () => {
       { label: "Critérios de aceite", value: "Volume; Agendamentos" },
       { label: "prioridade_extra", value: "2" },
     ]);
+  });
+
+  it("verificação do RC-12 e o texto do relatório aparecem à parte, não nos detalhes", () => {
+    const payload = {
+      audience: "client",
+      report_body: "Nesta semana, a **HUB-57** ficou pronta.",
+      checks: [
+        { kind: "task_code", term: "HUB-57" },
+        { kind: "inventado", term: "x" },
+        "texto solto",
+      ],
+    };
+    expect(approvalChecks(payload)).toEqual(["código de tarefa HUB-57"]);
+    expect(approvalDetails(payload)).toEqual([]);
+    const item = decisionView(
+      approval({ type: "status_report", payload }),
+      new Date("2026-10-10T15:00:00Z"),
+    );
+    expect(item).toMatchObject({
+      checks: ["código de tarefa HUB-57"],
+      reportBody: "Nesta semana, a **HUB-57** ficou pronta.",
+    });
   });
 
   it("sem nome de quem pediu e com papel desconhecido, não quebra", () => {

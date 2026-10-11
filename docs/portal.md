@@ -69,6 +69,15 @@ A tela mostra, para cada contato: a situação (Sem acesso; Link enviado, ainda 
 - **Não é o aceite:** o aceite do marco continua do dono (D9) e não muda com a confirmação.
 - A equipe vê "Recebimento confirmado pelo cliente (nome) em dd/mm" no marco, na Visão geral, e pela API (`client_received_at` e `client_received_by` do marco); os donos recebem o aviso na caixa de entrada e os webhooks que assinam `client.receipt_confirmed` recebem o evento.
 
+## Texto para o cliente: verificação do Redator do Cliente (RC-12)
+
+Antes de um texto escrito por agente ir para o portal, o Hub confere o que nunca deve aparecer para o cliente: **código de tarefa** (HUB-n), **nome de agente** do workspace, **ferramenta interna** (Kratos, Hermes, Claude, Codex, GitHub, Supabase, MCP e outras), **código de commit**, **pedido de código** (PR #n), **valor em dinheiro** e **nome de outro cliente**. É regra em código, sem IA (`app/src/modules/client-text/check.ts`): vale sempre, inclusive sem chave de IA.
+
+- **Rascunho de status para o cliente** (`hub_draft_status_report`, do Relator RL-03): o agente recebe os alertas na resposta (`checks`) e pode mandar uma versão corrigida; a versão nova substitui a anterior dele ainda pendente do mesmo período, e todas ficam guardadas. O pedido no Hoje e nas Aprovações mostra os alertas e o texto do relatório ("Ver o texto do relatório"), para o Fábio decidir sabendo o que vai ao portal.
+- **Mostrar uma frente ao cliente** (pedido do tipo "Mostrar ao cliente"): o título e a descrição propostos passam pela mesma verificação; os alertas aparecem no pedido.
+- Os alertas não bloqueiam: quem decide é o Fábio (Aprovar, Ajustar ou Recusar). Campos que só o Hub preenche no pedido (os alertas e o texto do relatório) são descartados se vierem de fora.
+- A reescrita do texto pela IA do RC-12 (tom Harmony, segunda pessoa) é o passo seguinte, com o agente interno e a chave de IA do Fábio.
+
 ## Teste de vazamento (PRD §5.2 e §9)
 
 Roda no `npm test` e no CI, com a sessão de verdade de um contato:

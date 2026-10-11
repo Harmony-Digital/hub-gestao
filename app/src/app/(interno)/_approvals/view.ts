@@ -12,6 +12,10 @@ import {
   PROJECT_STATUS,
   type Tone,
 } from "@/lib/labels";
+import {
+  describeIssue,
+  type ClientTextIssueKind,
+} from "@/modules/client-text/check";
 import { businessDaysBetween } from "@/modules/health/rule";
 
 /** O que a tela precisa de um pedido (o ApprovalDto, sem depender do servidor). */
@@ -52,6 +56,10 @@ export type DecisionItem = {
   /** O que acontece ao aprovar, numa frase que começa em minúscula. */
   effect: string;
   details: { label: string; value: string }[];
+  /** Alertas da verificação do texto para o cliente (RC-12), em PT-BR. */
+  checks: string[];
+  /** Texto do relatório que será publicado (pedido de status). */
+  reportBody: string | null;
 };
 
 /** Mesma regra do aviso automático (job approval-aging): mais de 3 dias úteis. */
@@ -78,7 +86,9 @@ export function approvalEffect(
         : "a frente passa a aparecer para o cliente.";
     }
     case "status_report":
-      return "o relatório é publicado para o cliente.";
+      return payload.audience === "internal"
+        ? "o relatório interno é publicado para a equipe."
+        : "o relatório é publicado no portal do cliente.";
     case "import_review": {
       const next = text(payload.next_status);
       const label =
@@ -129,12 +139,40 @@ function detailValue(key: string, value: unknown): string | null {
   return null;
 }
 
+/** Campos que a tela mostra à parte (verificação e texto do relatório), não nos detalhes. */
+const SHOWN_APART = new Set(["checks", "report_body", "audience"]);
+
+const ISSUE_KINDS = new Set<ClientTextIssueKind>([
+  "task_code",
+  "agent",
+  "tool",
+  "commit",
+  "pull_request",
+  "money",
+  "other_client",
+]);
+
+/** Os alertas da verificação (RC-12) gravados no pedido, em PT-BR. */
+export function approvalChecks(payload: Record<string, unknown>): string[] {
+  if (!Array.isArray(payload.checks)) return [];
+  return payload.checks.flatMap((c) => {
+    if (!c || typeof c !== "object") return [];
+    const { kind, term } = c as { kind?: unknown; term?: unknown };
+    return typeof kind === "string" &&
+      ISSUE_KINDS.has(kind as ClientTextIssueKind) &&
+      typeof term === "string"
+      ? [describeIssue({ kind: kind as ClientTextIssueKind, term })]
+      : [];
+  });
+}
+
 /** Detalhes do pedido: os campos conhecidos com nome em PT-BR, os outros como vieram. */
 export function approvalDetails(
   payload: Record<string, unknown>,
 ): { label: string; value: string }[] {
   const out: { label: string; value: string }[] = [];
   for (const [key, raw] of Object.entries(payload)) {
+    if (SHOWN_APART.has(key)) continue;
     const value = detailValue(key, raw);
     if (!value) continue;
     out.push({
@@ -177,6 +215,8 @@ export function decisionView(a: ApprovalLike, now: Date): DecisionItem {
     stalledDays: stalled(a, now),
     effect: approvalEffect(a.type, a.payload),
     details: approvalDetails(a.payload),
+    checks: approvalChecks(a.payload),
+    reportBody: text(a.payload.report_body),
   };
 }
 

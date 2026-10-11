@@ -5,6 +5,7 @@ import type { AgentActor, UserActor } from "@/lib/db/actor";
 import { encryptionKeyOrNull } from "@/lib/env";
 import { requestApproval } from "@/modules/approvals/service";
 import { createComment } from "@/modules/comments/service";
+import { draftReport } from "@/modules/reports/service";
 import {
   importClient,
   importProject,
@@ -36,6 +37,7 @@ export async function ensureDevSample(db: Db, raw: PGlite): Promise<void> {
   if (exists.rows.length > 0) {
     // Bancos locais criados antes dos pedidos de exemplo ganham só os pedidos.
     await ensureSampleApprovals(db, raw);
+    await ensureSampleClientReport(db, raw);
     await ensureSampleInternalAgents(raw);
     await ensureSampleImports(db, raw);
     return;
@@ -259,8 +261,55 @@ export async function ensureDevSample(db: Db, raw: PGlite): Promise<void> {
     ),
   );
   await ensureSampleApprovals(db, raw);
+  await ensureSampleClientReport(db, raw);
   await ensureSampleInternalAgents(raw);
   await ensureSampleImports(db, raw);
+}
+
+/**
+ * Rascunho de status para o cliente, do "Kratos (exemplo)", com dois pontos que a
+ * verificação do Redator do Cliente (RC-12) acusa: o cartão do Hoje mostra os alertas e
+ * o texto. Só uma vez por banco local.
+ */
+async function ensureSampleClientReport(db: Db, raw: PGlite): Promise<void> {
+  const row = (
+    await raw.query<{ ws: string; agent: string; done: boolean }>(
+      `select w.id as ws, ag.id as agent,
+              exists (select 1 from ${S}.status_reports r join ${S}.projects p on p.id = r.project_id
+                       where p.code = 'EXE' and r.audience = 'client') as done
+         from ${S}.workspaces w
+         join ${S}.agents ag on ag.workspace_id = w.id and ag.name = 'Kratos (exemplo)'
+        where w.slug = 'harmony'`,
+    )
+  ).rows[0];
+  if (!row || row.done) return;
+  const kratos: AgentActor = {
+    type: "agent",
+    id: row.agent,
+    scope: "internal",
+    keyId: "00000000-0000-4000-8000-000000000000",
+    kind: "hermes",
+    scopes: ["workspace:*"],
+    projectIds: null,
+    roles: ["GP-01", "VP-05"],
+    workspaceId: row.ws,
+    name: "Kratos (exemplo)",
+    actingRole: "GP-01",
+  };
+  const day = (offset: number) =>
+    new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+  await inTx(
+    { db, actor: kratos, source: "mcp", requestId: "dados-de-exemplo" },
+    (t) =>
+      draftReport(t, {
+        project: "EXE",
+        period_start: day(-7),
+        period_end: day(-1),
+        audience: "client",
+        body_md:
+          "Nesta semana, você ganhou as primeiras respostas automáticas no WhatsApp: o atendente virtual já responde às dúvidas frequentes.\n\nO próximo passo é o agendamento sem a recepção (HUB-2), como combinado com o Kratos.",
+      }),
+  );
 }
 
 /**
