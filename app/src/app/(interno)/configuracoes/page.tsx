@@ -4,6 +4,7 @@ import { Suspense, type ReactNode } from "react";
 import { PageHeader } from "@/components/shell/page-header";
 import { Pill } from "@/components/shell/pill";
 import { can } from "@/lib/authorize";
+import { emailConfig } from "@/lib/email";
 import { formatAge } from "@/lib/format";
 import { ROLE_LABEL } from "@/lib/labels";
 import { pageContext } from "@/lib/ui-context";
@@ -13,6 +14,7 @@ import {
   type TeamMember,
   type WorkspaceSettings,
 } from "@/modules/workspace/settings";
+import { EmailTestButton } from "./email-test";
 import {
   AddMemberButton,
   DepartmentLeadForm,
@@ -90,6 +92,7 @@ async function Settings() {
       <WorkspaceSection settings={settings} owner={owner} />
       <TeamSection team={settings.team} owner={owner} />
       <DepartmentsSection settings={settings} />
+      <EmailSection owner={owner} on={emailConfig() !== null} />
       <Shortcuts admin />
     </>
   );
@@ -237,6 +240,19 @@ function DepartmentsSection({ settings }: { settings: WorkspaceSettings }) {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+function EmailSection({ owner, on }: { owner: boolean; on: boolean }) {
+  return (
+    <section aria-labelledby="email" className={SECTION}>
+      <SectionTitle id="email" title="E-mail do Hub">
+        {on
+          ? "Ligado: o convite do portal pode sair pelo Hub, por e-mail, com o clique do dono."
+          : "Desligado: falta configurar o Resend no servidor (docs/email.md). Até lá, o dono copia o convite do portal e manda por onde preferir."}
+      </SectionTitle>
+      {owner ? <EmailTestButton on={on} /> : null}
     </section>
   );
 }

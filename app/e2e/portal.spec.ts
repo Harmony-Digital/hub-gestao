@@ -79,6 +79,15 @@ test("o dono libera o acesso e o contato acompanha os projetos pelo portal", asy
   );
   await expect(convite).toHaveValue(/^Olá, Contato! Tudo bem\?/);
   expect(await convite.inputValue()).toContain(link);
+  // Sem o Resend configurado (computador e CI), o envio pelo Hub fica desligado e diz por quê.
+  await expect(
+    row.getByRole("button", {
+      name: `Enviar o convite por e-mail para ${email}`,
+    }),
+  ).toBeDisabled();
+  await expect(
+    row.getByText(/O envio por e-mail liga quando o Resend/),
+  ).toBeVisible();
   await expect(
     page
       .getByRole("region", { name: "Preparação do portal" })

@@ -354,6 +354,53 @@ export async function issuePortalLink(
 }
 
 /** Revoga: sessões encerradas e links anulados na hora; o contato volta a não ter acesso. */
+/**
+ * Para quem vai o convite por e-mail (D9: "convite por e-mail pelo Hub ou link copiado"):
+ * só o dono, só contato com o acesso liberado agora (o link acabou de ser gerado) e com os
+ * dados pessoais ainda no cadastro. O envio fica com quem chama, fora da transação.
+ */
+export async function inviteEmailTarget(
+  t: TxCtx,
+  contactId: string,
+): Promise<{ email: string; name: string; orgName: string }> {
+  const contact = await lockContact(t, contactId);
+  if (contact.anonymized_at) {
+    throw unprocessable("Os dados pessoais deste contato foram excluídos.");
+  }
+  if (contact.client_archived) {
+    throw unprocessable("Cliente arquivado não tem portal.");
+  }
+  if (
+    contact.access_status !== "invited" &&
+    contact.access_status !== "active"
+  ) {
+    throw unprocessable(
+      "Libere o acesso (ou gere um link novo) antes de mandar o convite.",
+    );
+  }
+  const org = await maybeOne<{ name: string }>(
+    t,
+    `select name from ${S}.workspaces where id = $1`,
+    [t.actor.workspaceId],
+  );
+  return { email: contact.email, name: contact.name, orgName: org?.name ?? "" };
+}
+
+/** O convite saiu por e-mail: o histórico guarda o envio, nunca o link nem o texto. */
+export async function noteInviteEmailed(
+  t: TxCtx,
+  contactId: string,
+  emailId: string,
+): Promise<void> {
+  const contact = await lockContact(t, contactId);
+  await audit(t, {
+    action: "portal.invite_emailed",
+    entityType: "client_contact",
+    entityId: contact.id,
+    after: { email_id: emailId || null },
+  });
+}
+
 export async function revokePortalAccess(
   t: TxCtx,
   contactId: string,

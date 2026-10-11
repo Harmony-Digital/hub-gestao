@@ -30,6 +30,7 @@
 | Cadastrar o Kratos e a chave dele (escopos de gestão e `projects:import`, `AGENTES.md` §4). Em 2026-10-11 o único agente cadastrado em produção é o Claude Code do Fábio | Sala de Controle → Cadastrar agente, com os papéis de gestão; depois, Criar chave (aparece uma vez; vai direto para o Kratos, nunca para o chat) | M5, "(D6) Uma chave de agente para o Kratos" |
 | Agentes EX-09 ("Executor de Dados") e N8-17 ("n8n Bridge", chave só `tasks:write` nos projetos dos fluxos) | Sala de Controle → Cadastrar agente e Criar chave para cada um; o fluxo do n8n em `docs/n8n.md` | M7, "EX-09 e N8-17" |
 | Webhook para o Hermes (avisos no Telegram) | Sala de Controle → Webhooks de saída, com o endereço da assinatura do Hermes (`docs/webhooks.md`) | M5, "Webhook do Hub → Hermes → Telegram"; M8, "Observabilidade" |
+| Ligar o e-mail do Hub: domínio no Resend, registros de DNS (com a sua ordem; o agente pode criar pela API da Hostinger), chave de envio e o script de um clique | `docs/email.md` e `deploy/vps/hub-email-setup.sh`; conferir com "Enviar um e-mail de teste para mim" em Configurações | Lacunas do PRD, RF-05 e RF-33 (convite do portal por e-mail pelo Hub) |
 | Cliente piloto: contato, liberar o portal e mandar o convite | Clientes → o cliente → Contatos e portal (`docs/portal.md`) | GATE M6 |
 
 ## 4. No Hermes e no Kratos (contêiner do Hermes na VPS)

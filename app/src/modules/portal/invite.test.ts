@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { inviteMessage, projectsPhrase, welcomeMessage } from "./invite";
+import {
+  inviteHasLink,
+  inviteMessage,
+  projectsPhrase,
+  welcomeMessage,
+} from "./invite";
 
 describe("textos do onboarding (OB-13)", () => {
   it("fala dos projetos do cliente sem listar demais", () => {
@@ -39,5 +44,26 @@ describe("textos do onboarding (OB-13)", () => {
     ).toMatch(
       /^Olá! Este é o canal do projeto Atendimento com a equipe da Harmony Digital\./,
     );
+  });
+});
+
+describe("convite por e-mail", () => {
+  const APP = "https://hub.exemplo.com.br";
+  const LINK = `${APP}/portal/entrar/abc123`;
+  it("só sai com o link de uso único do próprio Hub dentro da mensagem", () => {
+    expect(inviteHasLink(`Olá! Entre: ${LINK}`, LINK, APP)).toBe(true);
+    expect(inviteHasLink(`Olá! Entre: ${LINK}`, LINK, `${APP}/`)).toBe(true);
+    // Apagou o link do texto, link de outro lugar ou sem o token.
+    expect(inviteHasLink("Olá! Entre pelo portal.", LINK, APP)).toBe(false);
+    expect(
+      inviteHasLink(
+        "https://outro.site/portal/entrar/abc",
+        "https://outro.site/portal/entrar/abc",
+        APP,
+      ),
+    ).toBe(false);
+    expect(
+      inviteHasLink(`${APP}/portal/entrar/`, `${APP}/portal/entrar/`, APP),
+    ).toBe(false);
   });
 });

@@ -2,8 +2,9 @@
  * Textos do Onboarding de Cliente (OB-13), prontos para a pessoa revisar e mandar: a
  * mensagem de convite que acompanha o link de acesso e o rascunho de boas-vindas do canal
  * do projeto. Regra em código, sem IA. O Hub nunca manda nada sozinho (D9): o dono copia
- * o convite e manda por onde preferir; a boas-vindas só entra no canal quando alguém da
- * equipe envia. Puro: vale na tela e nos testes.
+ * o convite e manda por onde preferir, ou manda pelo Hub, por e-mail, com o clique dele
+ * (`docs/email.md`); a boas-vindas só entra no canal quando alguém da equipe envia. Puro:
+ * vale na tela e nos testes.
  */
 
 const firstName = (name: string) => name.trim().split(/\s+/)[0] || name.trim();
@@ -49,4 +50,19 @@ export function welcomeMessage(input: {
   orgName: string;
 }): string {
   return `Olá! Este é o canal do projeto ${input.projectName} com a equipe da ${input.orgName}. Por aqui, você acompanha as novidades, tira dúvidas e recebe os nossos retornos. Pode escrever sempre que precisar.`;
+}
+
+/**
+ * O convite por e-mail só sai com o link de uso único do próprio Hub dentro da mensagem
+ * (a pessoa pode ter editado o texto e apagado o link sem querer).
+ */
+export function inviteHasLink(
+  text: string,
+  link: string,
+  appUrl: string,
+): boolean {
+  const base = `${appUrl.replace(/\/+$/, "")}/portal/entrar/`;
+  return (
+    link.startsWith(base) && link.length > base.length && text.includes(link)
+  );
 }

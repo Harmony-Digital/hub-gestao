@@ -5,6 +5,7 @@ import { Suspense, type ReactNode } from "react";
 import { Circle, CircleCheck, TriangleAlert } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
 import { can } from "@/lib/authorize";
+import { emailConfig } from "@/lib/email";
 import { HubError } from "@/lib/errors";
 import { formatAge, formatTimestampDay } from "@/lib/format";
 import { pageContext } from "@/lib/ui-context";
@@ -99,6 +100,7 @@ async function PortalAdmin({
   }
   const { client, contacts, readiness } = data;
   const owner = can(user.actor, "portal.manage");
+  const emailOn = emailConfig() !== null;
   return (
     <>
       <PageHeader
@@ -167,7 +169,12 @@ async function PortalAdmin({
           ) : (
             <ul className="flex flex-col gap-2">
               {contacts.map((c) => (
-                <ContactRow key={c.id} contact={c} owner={owner} />
+                <ContactRow
+                  key={c.id}
+                  contact={c}
+                  owner={owner}
+                  emailOn={emailOn}
+                />
               ))}
             </ul>
           )}
@@ -348,9 +355,12 @@ function Readiness({ readiness: r }: { readiness: PortalReadiness }) {
 function ContactRow({
   contact: c,
   owner,
+  emailOn,
 }: {
   contact: ContactItem;
   owner: boolean;
+  /** O Resend está configurado: o convite pode sair pelo Hub (D9). */
+  emailOn: boolean;
 }) {
   if (c.anonymizedAt) {
     return (
@@ -403,6 +413,8 @@ function ContactRow({
           <ContactAccess
             contactId={c.id}
             name={c.name}
+            email={c.email}
+            emailOn={emailOn}
             status={c.accessStatus}
           />
           <ContactPrivacy contactId={c.id} name={c.name} />
