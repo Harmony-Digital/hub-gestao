@@ -1,9 +1,9 @@
 import { apiRoute, ok } from "@/lib/http/api";
 import { Uuid } from "@/modules/common";
-import { getMilestone } from "@/modules/milestones/service";
+import { getMilestoneDetail } from "@/modules/milestones/dates";
 
-/** Detalhe de um marco, com progresso e critérios de aceite. */
+/** Detalhe de um marco, com progresso, critérios de aceite e o histórico de datas. */
 export const GET = apiRoute<{ id: string }>({
   handler: async ({ t, params }) =>
-    ok(await getMilestone(t, Uuid.parse(params.id))),
+    ok(await getMilestoneDetail(t, Uuid.parse(params.id))),
 });

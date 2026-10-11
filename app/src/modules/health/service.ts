@@ -42,7 +42,8 @@ export async function refreshAllHealth(
     if (!row) continue;
     const broken = (await dependencyAlertsOf(t, project.id)).length;
     const result = computeHealth({ ...row, broken_dependencies: broken }, now);
-    const reasons = { reasons: result.reasons };
+    // Os sinais com o tipo vão junto das frases: o Hoje mostra a ação de cada um (RF-24).
+    const reasons = { reasons: result.reasons, signals: result.signals };
     if (
       result.health === row.health &&
       JSON.stringify(reasons) === JSON.stringify(row.health_reason ?? {})

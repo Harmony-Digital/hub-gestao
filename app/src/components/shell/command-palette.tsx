@@ -26,6 +26,7 @@ import {
   type SearchResult,
 } from "./palette-items";
 import { QuickCreateDialog } from "./quick-create";
+import { openShortcuts } from "./shortcuts";
 import { darkNow, setTheme, subscribeTheme } from "./theme";
 
 export const OPEN_SEARCH_EVENT = "hub:abrir-busca";
@@ -229,6 +230,7 @@ export function CommandPalette() {
     dialog?.close();
     if (item.action === "nova-tarefa") setCreating(true);
     else if (item.action === "tema") setTheme(dark ? "claro" : "escuro");
+    else if (item.action === "atalhos") openShortcuts();
     else if (item.href) router.push(item.href);
   }
 

@@ -124,6 +124,7 @@ describe("migrations", () => {
       "hub_gestao_0021_privacy_retention.sql",
       "hub_gestao_0022_client_logos.sql",
       "hub_gestao_0023_workstream_derived_status.sql",
+      "hub_gestao_0024_webhook_quiet_hours.sql",
     ]);
     const tables = await raw.query<{ n: number }>(
       `select count(*)::int as n from pg_tables where schemaname = '${S}'`,

@@ -8,6 +8,7 @@ import {
   rotateWebhookSecret,
   sendWebhookTest,
   setWebhookActive,
+  setWebhookQuietHours,
 } from "@/modules/webhooks/service";
 import {
   parseNewWebhookForm,
@@ -66,7 +67,7 @@ export async function trocarSegredoWebhook(
   }
 }
 
-/** Pausar, reativar ou mandar um aviso de teste. */
+/** Pausar, reativar, ligar ou desligar o silêncio da noite ou mandar um aviso de teste. */
 export async function mudarWebhook(
   _previous: WebhookFormState,
   form: FormData,
@@ -83,6 +84,17 @@ export async function mudarWebhook(
         status: "ok",
         message:
           "Teste na fila: sai em até cinco minutos (na próxima volta do relógio do Hub). Atualize a tela para ver se chegou.",
+      };
+    }
+    if (intent === "silencio-ligar" || intent === "silencio-desligar") {
+      const quiet = intent === "silencio-ligar";
+      await inTx(ctx, (t) => setWebhookQuietHours(t, id, quiet));
+      refresh();
+      return {
+        status: "ok",
+        message: quiet
+          ? "Silêncio ligado: o que acontecer das 23h às 8h sai às 8h (os alertas de operação saem na hora)."
+          : "Silêncio desligado: os avisos saem a qualquer hora.",
       };
     }
     if (intent !== "pausar" && intent !== "reativar") {

@@ -68,9 +68,9 @@ Quatro tipos, um princípio: **a IA executa, o humano decide**.
 - **Missão**: cuidar da camada estratégica de todos os projetos do escopo: marcos, saúde, riscos, replanejamento e a visão de portfólio. Devolver ao Fábio decisões, não tarefas.
 - **Tipo / runtime**: A, Hermes. Na fase 1, skill `gestor-de-projetos` do Kratos (D6). Modelo definido no Hermes.
 - **Gatilhos**: cron diário (após o rollup das 7h30); evento `project.health_changed`; evento `milestone.status_changed`; pedido do Fábio no Telegram.
-- **Entradas**: `hub_list_projects`, `hub_get_project` (saúde, próximos marcos), `hub_get_plan`, `hub_list_approvals`, histórico de `milestone_date_history`.
+- **Entradas**: `hub_list_projects`, `hub_get_project` (saúde, próximos marcos), `hub_get_plan`, `hub_list_approvals`, `hub_get_milestone` (o histórico de datas do marco, com o motivo de cada mudança).
 - **Saídas**: resumo executivo diário (3–6 linhas por projeto com atenção); pedidos `replan`, `scope_change` e `milestone_proposal` com justificativa, cada um no formato dele (o Hub confere no pedido e, ao aprovar, aplica sozinho em nome de quem aprovou: RF-25); revisão mensal de portfólio; sugestões de pausar/acelerar.
-- **Ferramentas MCP**: `hub_whoami`, `hub_list_projects`, `hub_get_project`, `hub_get_plan`, `hub_get_today`, `hub_list_approvals`, `hub_request_approval`, `hub_comment`, `hub_draft_status_report`.
+- **Ferramentas MCP**: `hub_whoami`, `hub_list_projects`, `hub_get_project`, `hub_get_plan`, `hub_get_milestone`, `hub_get_today`, `hub_list_approvals`, `hub_request_approval`, `hub_comment`, `hub_draft_status_report`.
 - **Escopos**: `projects:read`, `milestones:read`, `tasks:read`, `comments:write`, `approvals:request`, `reports:draft`. Projetos: todos os ativos do workspace.
 - **Red lines**: não cria/edita marcos diretamente; não altera frentes nem tarefas; não fala com cliente; não muda fase do projeto sem aprovação.
 - **Métricas**: riscos detectados antes do marco atrasar; aprovações respondidas pelo Fábio em < 2 dias úteis; precisão do resumo (sem fatos inventados, auditado pelo QA-04 por amostragem).

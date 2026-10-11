@@ -89,6 +89,15 @@
     }
   },
   {
+    "name": "hub_get_milestone",
+    "title": "Detalhe do marco",
+    "description": "Um marco pelo código do projeto e o do marco (ex.: VIT e M2): progresso, critérios de aceite, GATE e o histórico de datas com o motivo de cada mudança (interno).",
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "hub_get_plan",
     "title": "Plano do projeto",
     "description": "Árvore completa do projeto: marcos, frentes e tarefas com subtarefas. Com format \"md\", devolve o texto no formato plan.md.",

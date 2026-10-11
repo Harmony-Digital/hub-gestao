@@ -86,6 +86,7 @@ describe("servidor MCP", () => {
         "hub_create_task",
         "hub_create_workstream",
         "hub_draft_status_report",
+        "hub_get_milestone",
         "hub_get_plan",
         "hub_get_project",
         "hub_get_project_time",

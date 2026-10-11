@@ -8,6 +8,16 @@ function form(entries: [string, string][]): FormData {
 }
 
 describe("formulários dos webhooks", () => {
+  it("cadastro sem a caixa do silêncio marcada: os avisos saem a qualquer hora", () => {
+    const parsed = parseNewWebhookForm(
+      form([
+        ["url", "https://hermes.exemplo.com.br/hub"],
+        ["event", "approval.requested"],
+      ]),
+    );
+    expect(parsed.ok && parsed.value.quiet_hours).toBe(false);
+  });
+
   it("cadastro: endereço https e os eventos marcados, na ordem do Hub", () => {
     expect(
       parseNewWebhookForm(
@@ -16,6 +26,7 @@ describe("formulários dos webhooks", () => {
           ["event", "agent.budget_exceeded"],
           ["event", "approval.requested"],
           ["event", "evento.inventado"],
+          ["quiet_hours", "on"],
         ]),
       ),
     ).toEqual({
@@ -23,6 +34,7 @@ describe("formulários dos webhooks", () => {
       value: {
         url: "https://hermes.exemplo.com.br/hub",
         events: ["approval.requested", "agent.budget_exceeded"],
+        quiet_hours: true,
       },
     });
     expect(

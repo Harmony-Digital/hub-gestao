@@ -14,6 +14,11 @@ import {
   type TimelineEntity,
 } from "@/modules/activity/timeline";
 import { inTx } from "@/modules/context";
+import {
+  milestoneDateHistory,
+  type DateChange,
+} from "@/modules/milestones/dates";
+import { formatDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Histórico" };
 
@@ -61,8 +66,17 @@ async function TimelineView({
   if (!kind) notFound();
   const { ctx } = await pageContext();
   let data: EntityTimeline;
+  let dates: DateChange[] = [];
   try {
-    data = await inTx(ctx, (t) => entityTimeline(t, kind.type, id));
+    ({ data, dates } = await inTx(ctx, async (t) => {
+      const timeline = await entityTimeline(t, kind.type, id);
+      // No marco, o histórico de datas com o motivo (RF-11); entityTimeline já conferiu o acesso.
+      return {
+        data: timeline,
+        dates:
+          kind.type === "milestone" ? await milestoneDateHistory(t, id) : [],
+      };
+    }));
   } catch (err) {
     if (err instanceof HubError && (err.status === 404 || err.status === 403)) {
       notFound();
@@ -85,6 +99,49 @@ async function TimelineView({
         description={`${data.label}. Quem fez o quê e quando, do mais recente para o mais antigo, com os pedidos de aprovação ligados.`}
       />
       <main className="flex w-full max-w-3xl flex-col gap-4 px-4 py-6 sm:px-8">
+        {dates.length > 0 ? (
+          <section
+            aria-labelledby="mudancas-de-data"
+            className="flex flex-col gap-2"
+          >
+            <h2
+              id="mudancas-de-data"
+              className="font-heading text-base font-semibold text-navy"
+            >
+              Mudanças de data
+            </h2>
+            <ol className="flex flex-col divide-y divide-line rounded-xl border border-line bg-card">
+              {dates.map((d, i) => (
+                <li
+                  key={`${d.at}-${i}`}
+                  className="flex flex-col gap-1 px-4 py-3 text-sm sm:flex-row sm:gap-4"
+                >
+                  <span className="shrink-0 font-mono text-xs text-caption sm:w-28">
+                    {formatDayTime(d.at)}
+                  </span>
+                  <span className="min-w-0 text-ink-2">
+                    <span className="font-semibold text-navy">
+                      {d.from ? formatDate(d.from) : "sem data"} →{" "}
+                      {d.to ? formatDate(d.to) : "sem data"}
+                    </span>
+                    {d.by?.name ? ` · ${d.by.name}` : ""}
+                    <span className="block break-words text-caption">
+                      {d.reason ? (
+                        <Linkified text={`Motivo: ${d.reason}`} />
+                      ) : (
+                        "Sem motivo registrado."
+                      )}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <p className="text-xs text-caption">
+              O motivo é só da equipe: o portal mostra a data vigente e quantas
+              vezes ela mudou.
+            </p>
+          </section>
+        ) : null}
         {data.items.length === 0 ? (
           <p className="rounded-xl border border-dashed border-line p-6 text-center text-ink-2">
             Nada registrado ainda.

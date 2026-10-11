@@ -19,7 +19,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function parseNewWebhookForm(
   form: FormData,
-): Parsed<{ url: string; events: WebhookEvent[] }> {
+): Parsed<{ url: string; events: WebhookEvent[]; quiet_hours: boolean }> {
   const url = String(form.get("url") ?? "").trim();
   if (!/^https:\/\/\S+$/.test(url)) {
     return { ok: false, message: "Use um endereço que comece com https://." };
@@ -29,7 +29,10 @@ export function parseNewWebhookForm(
   if (events.length === 0) {
     return { ok: false, message: "Marque pelo menos um evento." };
   }
-  return { ok: true, value: { url, events } };
+  return {
+    ok: true,
+    value: { url, events, quiet_hours: form.get("quiet_hours") === "on" },
+  };
 }
 
 export function parseWebhookIdForm(
