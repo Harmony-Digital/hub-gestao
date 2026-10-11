@@ -17,6 +17,8 @@ export type ImportState =
         conflicts: SyncConflict[];
         /** Textos para o cliente do modelo que entraram (RF-36). */
         clientTexts: number;
+        /** Marcos que ganharam data entre o início e a entrega do projeto. */
+        datedMilestones: number;
       };
     };
 

@@ -246,6 +246,15 @@ function Outcome({
           continua sendo pedido de aprovação.
         </p>
       ) : null}
+      {!result.dryRun && result.datedMilestones > 0 ? (
+        <p className="text-sm text-ink">
+          {result.datedMilestones === 1
+            ? "1 marco ganhou data"
+            : `${result.datedMilestones} marcos ganharam data`}
+          , espalhados entre o início e a entrega do projeto. Ajuste na Visão
+          geral, em Editar de cada marco.
+        </p>
+      ) : null}
       {!result.dryRun && !fromTemplate ? (
         <PlanFile markdown={result.markdown} planPath={planPath} />
       ) : null}
