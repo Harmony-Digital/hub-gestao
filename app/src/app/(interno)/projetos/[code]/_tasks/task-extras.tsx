@@ -366,7 +366,7 @@ function AddDependency({ code }: { code: string }) {
 
 // Anexos ------------------------------------------------------------------------------
 
-const MAX_BYTES = 10 * 1024 * 1024;
+const MAX_BYTES = 25 * 1024 * 1024;
 
 function AttachmentIcon({ mime }: { mime: string }) {
   const Icon = mime.startsWith("image/")
@@ -377,7 +377,7 @@ function AttachmentIcon({ mime }: { mime: string }) {
   return <Icon aria-hidden="true" className="size-4 shrink-0 text-caption" />;
 }
 
-/** Anexos da tarefa: abrir (imagem e PDF no navegador), tirar e anexar até 10 MB. */
+/** Anexos da tarefa: abrir (imagem e PDF no navegador), tirar e anexar até 25 MB. */
 export function AttachmentsEditor({
   code,
   items,
@@ -468,7 +468,7 @@ function UploadAttachment({ code, accept }: { code: string; accept: string }) {
         if (file instanceof File && file.size > MAX_BYTES) {
           event.preventDefault();
           setTooBig(
-            `${file.name} passou de 10 MB. Compacte ou divida o arquivo.`,
+            `${file.name} passou de 25 MB. Compacte ou divida o arquivo.`,
           );
           return;
         }
@@ -501,7 +501,7 @@ function UploadAttachment({ code, accept }: { code: string; accept: string }) {
         </Button>
       </div>
       <p className="text-xs text-caption">
-        Até 10 MB: imagens, PDF, texto, CSV, planilhas, documentos e zip.
+        Até 25 MB: imagens, PDF, texto, CSV, planilhas, documentos e zip.
       </p>
       {tooBig ? <ErrorNote message={tooBig} /> : null}
       {state.status === "error" ? <ErrorNote message={state.message} /> : null}
