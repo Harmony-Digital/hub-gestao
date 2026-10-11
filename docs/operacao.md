@@ -197,13 +197,13 @@ sudo env HUB_IMAGE_TAG=$(sudo cat /opt/hub-gestao/shared/current-sha) docker com
 | `HUB_ENCRYPTION_KEY` | trocar e recriar o contêiner | as chaves de IA e os segredos de webhook guardados ficam ilegíveis: recadastrar as chaves de IA e trocar o segredo de cada webhook |
 | Senha do banco (`DATABASE_URL`) | tirar a linha `DATABASE_URL` do `.env.production`, rodar `hub-db-provision.sh` (gera a senha nova, troca no banco e grava a linha nova) e recriar o contêiner na hora | entre a troca e a recriação, o Hub fica sem banco |
 | Chave SSH de publicação | `hub-provision-local.sh` gera outra, troca na VPS e no GitHub (`deploy/vps/README.md`) | publicações param até terminar |
-| Sessão de alguém da equipe | Supabase Studio → Authentication → o usuário → Ban user (o Hub confere a sessão a cada tela, então ela cai na hora); para voltar, desbloquear, e a pessoa troca a própria senha em `/conta` | só aquela pessoa |
+| Sessão de alguém da equipe | Supabase Studio → Authentication → o usuário → Ban user (o Hub confere a sessão a cada tela, então ela cai na hora); para voltar, desbloquear, e a pessoa troca a própria senha em `/conta`. Só o acesso ao Hub, sem mexer no login dos outros sistemas: Suspender em Configurações → Equipe (só o dono) | só aquela pessoa |
 
 ## Incidente de vazamento de dados
 
 1. **Conter (primeira hora):**
    - revogar ou pausar o que pode ter vazado e trocar os segredos envolvidos (seções acima);
-   - acesso indevido de pessoa: bloquear o usuário no Supabase Studio (Authentication → o usuário → Ban user). O Hub confere a sessão no Supabase a cada tela, então ela cai na hora. Se for o caso, desativar o vínculo dela com o workspace, pelo conector e com o Fábio (ainda não há tela de equipe);
+   - acesso indevido de pessoa: bloquear o usuário no Supabase Studio (Authentication → o usuário → Ban user). O Hub confere a sessão no Supabase a cada tela, então ela cai na hora. Para tirar só o acesso ao Hub (o login do Supabase vale para outros sistemas da Harmony): Suspender em Configurações → Equipe, só o dono; a pessoa sai na próxima tela que abrir e o histórico dela continua;
    - contato de cliente: Revogar em Clientes → Contatos e portal.
 2. **Entender:**
    - o que foi feito e por quem: o histórico (exportar a atividade do período no Painel ou em Projetos), a Sala de Controle (feed e recusas de acesso) e os logs do contêiner, que dão o `request_id` de cada pedido;

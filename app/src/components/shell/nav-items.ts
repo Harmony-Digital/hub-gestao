@@ -6,6 +6,7 @@ import {
   FolderKanban,
   Inbox,
   ListTodo,
+  Settings,
   Sun,
   type LucideIcon,
 } from "lucide-react";
@@ -22,6 +23,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/relatorios", label: "Relatórios", icon: FileText },
   { href: "/caixa-de-entrada", label: "Caixa de entrada", icon: Inbox },
   { href: "/agentes", label: "Sala de Controle", icon: Bot },
+  { href: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
 export function isActive(href: string, pathname: string): boolean {

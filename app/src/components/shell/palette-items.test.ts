@@ -58,6 +58,7 @@ describe("janela ⌘K", () => {
       );
     expect(items("aprovacoes")).toEqual(["Aprovações"]);
     expect(items("CHAVES")).toEqual(["Sala de Controle"]);
+    expect(items("suspender")).toEqual(["Configurações"]);
     expect(items("criar")).toEqual(["Nova tarefa"]);
   });
 

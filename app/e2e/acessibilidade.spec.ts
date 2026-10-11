@@ -101,6 +101,16 @@ const OPEN: {
         "Editar frente",
       ),
   },
+  {
+    name: "Pôr na equipe",
+    path: "/configuracoes",
+    open: (page) =>
+      openDialog(
+        page,
+        page.getByRole("button", { name: "Pôr na equipe" }),
+        "Pôr uma pessoa na equipe",
+      ),
+  },
 ];
 
 async function violations(page: Page) {
