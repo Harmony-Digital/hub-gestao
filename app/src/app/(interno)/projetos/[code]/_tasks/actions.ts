@@ -330,6 +330,25 @@ export async function editarNaLista(
   }
 }
 
+/**
+ * A mesma edição na linha, chamada direto pela célula da Lista (sem formulário e sem
+ * campos escondidos em cada linha: com milhares de tarefas, a página ficava pesada). O
+ * que chega do navegador passa pela mesma conferência do formulário.
+ */
+export async function editarCampoNaLista(input: {
+  code: string;
+  version: number;
+  field: string;
+  value: string;
+}): Promise<ActionState> {
+  const form = new FormData();
+  form.set("code", String(input?.code ?? ""));
+  form.set("version", String(input?.version ?? ""));
+  form.set("field", String(input?.field ?? ""));
+  form.set("value", String(input?.value ?? ""));
+  return editarNaLista({ status: "idle" }, form);
+}
+
 /** Salva os filtros atuais com um nome (só os parâmetros válidos, normalizados). */
 export async function salvarVisao(
   _previous: ActionState,

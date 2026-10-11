@@ -119,9 +119,12 @@ async function today(t: TxCtx): Promise<string> {
 
 // Lista do projeto -------------------------------------------------------------------
 
-/** Concluídas aparecem só as mais recentes; as abertas aparecem todas. */
+/**
+ * Concluídas aparecem só as mais recentes. Abertas: até OPEN_LIMIT (o Quadro); a Lista
+ * pede menos de cada vez (`openLimit`) e mostra mais quando a pessoa pede.
+ */
 export const DONE_LIMIT = 50;
-const OPEN_LIMIT = 500;
+export const OPEN_LIMIT = 500;
 
 /**
  * Filtros combináveis da Lista e do Quadro. Frente: "none" (sem frente) ou um id.
@@ -143,6 +146,8 @@ export type ProjectTaskList = TaskFormOptions & {
   workstream: string | null;
   tasks: TaskDto[];
   doneTotal: number;
+  /** Abertas com os filtros (todas, não só as que vieram em `tasks`). */
+  openTotal: number;
   /**
    * Tarefas abertas que esperam outras ainda abertas: código → códigos de que depende
    * (o aviso "Espera HUB-n" do Quadro).
@@ -158,7 +163,12 @@ export async function projectTaskList(
   t: TxCtx,
   code: string,
   filter: TaskListFilter = {},
+  limits: { openLimit?: number } = {},
 ): Promise<ProjectTaskList> {
+  const openLimit = Math.max(
+    1,
+    Math.min(OPEN_LIMIT * 2, Math.floor(limits.openLimit ?? OPEN_LIMIT)),
+  );
   // getProject confere a leitura do projeto; a lista exige também a leitura de tarefas.
   const project = await getProject(t, code);
   await authorizeProjectId(t, project.id, "task.read");
@@ -212,7 +222,7 @@ export async function projectTaskList(
   const open = await many<TaskRow>(
     t,
     `${TASK_SELECT} where ${where} and t.status_category <> 'done'
-      order by ${LIST_ORDER} limit ${OPEN_LIMIT}`,
+      order by ${LIST_ORDER} limit ${openLimit}`,
     params,
   );
   const done = await many<TaskRow>(
@@ -221,10 +231,12 @@ export async function projectTaskList(
       order by t.completed_at desc, t.id limit ${DONE_LIMIT}`,
     params,
   );
-  const doneTotal = await maybeOne<{ n: number }>(
+  const totals = await maybeOne<{ done: number; open: number }>(
     t,
-    `select count(*)::int as n from ${S}.tasks t
-      where ${where} and t.status_category = 'done'`,
+    `select count(*) filter (where t.status_category = 'done')::int as done,
+            count(*) filter (where t.status_category <> 'done')::int as open
+       from ${S}.tasks t
+      where ${where}`,
     params,
   );
   // Na tabela, a linha (task_id = A, blocks_task_id = B) quer dizer "A segura B".
@@ -245,7 +257,8 @@ export async function projectTaskList(
     today: await today(t),
     workstream,
     tasks: [...open, ...done].map(toTaskDto),
-    doneTotal: doneTotal?.n ?? 0,
+    doneTotal: totals?.done ?? 0,
+    openTotal: totals?.open ?? 0,
     waitingOn: Object.fromEntries(waiting.map((w) => [w.code, w.waiting])),
   };
 }

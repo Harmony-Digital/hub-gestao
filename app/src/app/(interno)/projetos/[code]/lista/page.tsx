@@ -22,6 +22,7 @@ import { LiveRefresh } from "../../../_live/live-refresh";
 import {
   AssigneeCell,
   DueCell,
+  ListOptionsProvider,
   PriorityCell,
   StatusCell,
 } from "../_tasks/inline-edit";
@@ -59,6 +60,13 @@ export default function ListaPage({
   );
 }
 
+/**
+ * Tarefas abertas por vez na Lista: com milhares de tarefas, a página inteira ficava
+ * pesada (cada linha tem os campos de edição). "Mostrar mais" soma de 200 em 200.
+ */
+const PAGE = 200;
+const PAGE_MAX = 1000;
+
 /** Larguras das colunas extras (a do título ocupa o resto). */
 const WIDTH: Record<Column | "status", string> = {
   status: "9rem",
@@ -84,13 +92,19 @@ async function ListView({
   if (!PROJECT_CODE.test(code)) notFound();
   const query = await searchParams;
   const state = readListState(query);
+  const shown = Math.min(
+    PAGE_MAX,
+    Math.max(PAGE, Math.floor(Number(query.mostrar) / PAGE) * PAGE || PAGE),
+  );
   const { user, ctx } = await pageContext();
   let data: ProjectTaskList;
   let views: SavedViewDto[];
   let marker: string;
   try {
     ({ data, views, marker } = await inTx(ctx, async (t) => {
-      const list = await projectTaskList(t, code, toTaskFilter(state));
+      const list = await projectTaskList(t, code, toTaskFilter(state), {
+        openLimit: shown,
+      });
       return {
         data: list,
         views: await listSavedViews(t, list.project.id, "list"),
@@ -107,7 +121,13 @@ async function ListView({
 
   const basePath = `/projetos/${code}/lista`;
   const current = listQuery(state);
-  const keep = Object.fromEntries(current);
+  // "Mostrar mais" fica fora das visões salvas, mas vale nos links da própria Lista.
+  const keep = {
+    ...Object.fromEntries(current),
+    ...(shown > PAGE ? { mostrar: String(shown) } : {}),
+  };
+  const more = data.openTotal > shown && shown < PAGE_MAX;
+  const moreHref = `${basePath}?${new URLSearchParams({ ...Object.fromEntries(current), mostrar: String(shown + PAGE) })}`;
   const open = openTaskParam(query.tarefa);
   const archived = data.project.status === "archived";
   const editable = !archived && can(user.actor, "task.write");
@@ -125,8 +145,6 @@ async function ListView({
     today: data.today,
     open,
     editable,
-    statuses: data.statuses,
-    assignees: data.assignees,
     hrefFor: (c: string) => taskHref(basePath, keep, c),
   };
 
@@ -176,45 +194,70 @@ async function ListView({
             </p>
           ) : null}
 
-          <div className="@container flex flex-col gap-3">
-            {state.agrupar === "status"
-              ? data.statuses.map((status) => {
-                  const list = tasks.filter((t) => t.status.id === status.id);
-                  const doneStatuses = data.statuses.filter(
-                    (s) => s.category === "done",
-                  ).length;
-                  return (
-                    <Group
-                      key={status.id}
-                      label={<StatusLabel status={status} />}
-                      tasks={list}
-                      total={
-                        status.category === "done" &&
-                        doneStatuses === 1 &&
-                        !hasFilters(state)
-                          ? data.doneTotal
-                          : list.length
-                      }
-                      closed={status.category === "done" || list.length === 0}
-                      {...rowProps}
-                    />
-                  );
-                })
-              : groupTasks(tasks, state.agrupar, data.workstreams).map((g) => (
-                  <Group
-                    key={g.key}
-                    label={
-                      <span className="text-sm font-semibold text-navy">
-                        {g.label}
-                      </span>
-                    }
-                    tasks={g.tasks}
-                    total={g.tasks.length}
-                    closed={g.done}
-                    {...rowProps}
-                  />
-                ))}
-          </div>
+          <ListOptionsProvider
+            statuses={data.statuses}
+            assignees={data.assignees}
+          >
+            <div className="@container flex flex-col gap-3">
+              {state.agrupar === "status"
+                ? data.statuses.map((status) => {
+                    const list = tasks.filter((t) => t.status.id === status.id);
+                    const doneStatuses = data.statuses.filter(
+                      (s) => s.category === "done",
+                    ).length;
+                    return (
+                      <Group
+                        key={status.id}
+                        label={<StatusLabel status={status} />}
+                        tasks={list}
+                        total={
+                          status.category === "done" &&
+                          doneStatuses === 1 &&
+                          !hasFilters(state)
+                            ? data.doneTotal
+                            : list.length
+                        }
+                        closed={status.category === "done" || list.length === 0}
+                        {...rowProps}
+                      />
+                    );
+                  })
+                : groupTasks(tasks, state.agrupar, data.workstreams).map(
+                    (g) => (
+                      <Group
+                        key={g.key}
+                        label={
+                          <span className="text-sm font-semibold text-navy">
+                            {g.label}
+                          </span>
+                        }
+                        tasks={g.tasks}
+                        total={g.tasks.length}
+                        closed={g.done}
+                        {...rowProps}
+                      />
+                    ),
+                  )}
+            </div>
+          </ListOptionsProvider>
+          {data.openTotal > shown ? (
+            <p className="flex flex-wrap items-center gap-3 text-sm text-ink-2">
+              Mostrando {shown} de {data.openTotal} tarefas abertas (as
+              primeiras na ordem de trabalho).
+              {more ? (
+                <Link
+                  href={moreHref}
+                  scroll={false}
+                  prefetch={false}
+                  className="font-medium text-navy underline underline-offset-2"
+                >
+                  Mostrar mais {Math.min(PAGE, data.openTotal - shown)}
+                </Link>
+              ) : (
+                <span>Use os filtros para achar as outras.</span>
+              )}
+            </p>
+          ) : null}
         </main>
       </div>
       {open ? (
@@ -249,8 +292,6 @@ type RowProps = {
   today: string;
   open: string | null;
   editable: boolean;
-  statuses: ProjectTaskList["statuses"];
-  assignees: ProjectTaskList["assignees"];
   hrefFor: (code: string) => string;
 };
 
@@ -320,8 +361,6 @@ function TaskRow({
   today,
   open,
   editable,
-  statuses,
-  assignees,
   hrefFor,
 }: RowProps & { task: TaskDto }) {
   const late =
@@ -340,7 +379,6 @@ function TaskRow({
           <StatusCell
             {...base}
             statusId={task.status.id}
-            statuses={statuses}
             panelHref={hrefFor(task.code)}
           />
         ) : (
@@ -365,7 +403,7 @@ function TaskRow({
                 agent={task.assignee.type === "agent"}
               />
             ) : null}
-            <AssigneeCell {...base} assignee={assignee} options={assignees} />
+            <AssigneeCell {...base} assignee={assignee} />
           </span>
         ) : (
           <span className="flex min-w-0 items-center gap-1.5 text-xs text-ink-2">

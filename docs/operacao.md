@@ -214,6 +214,29 @@ sudo env HUB_IMAGE_TAG=$(sudo cat /opt/hub-gestao/shared/current-sha) docker com
    - **Cliente afetado:** avisar também, com o texto aprovado pelo Fábio.
 5. **Registrar:** no `PLAN.md` (Registro de Execução) e numa tarefa no projeto HUB, com o que aconteceu, o que foi feito e o que muda para não repetir. Depois, rodar de novo a varredura de segredos do repositório.
 
+## Teste de carga
+
+Meta do M8: Lista e Quadro com 5 mil tarefas num projeto, p95 abaixo de 400 ms. Medido em 2026-10-11, num Postgres 16 descartável no computador (as 20 migrations e os seeds), com 5 mil tarefas no projeto de exemplo CRG (4 mil abertas, mil concluídas, 12 frentes, 300 dependências):
+
+| Medida | Lista | Quadro |
+|---|---|---|
+| Dados da tela (`src/test/carga.test.ts`, a transação da tela com o papel do app e a RLS) | p95 de 11 a 17 ms, com e sem filtros | p95 19 ms |
+| Página inteira, versão de produção (`next build`), resposta do servidor | p95 50 ms, 1,2 MB (antes: 129 ms e 3,5 MB) | p95 46 ms, 1 MB |
+| Página inteira, modo de desenvolvimento | p95 0,9 s (antes: 1,9 s) | p95 0,25 s |
+
+A Lista pesava por causa das linhas: cada célula editável era um formulário com campos escondidos, e cada linha levava as listas de opções inteiras. Agora a célula chama a ação direto (`editarCampoNaLista`), as opções vão uma vez para a tela (`ListOptionsProvider`) e a Lista mostra as primeiras 200 tarefas abertas, com "Mostrar mais" (até mil). O Quadro mostra até 500 abertas.
+
+Para repetir (no computador, nunca na produção: o teste cria o projeto CRG):
+
+1. Um Postgres descartável com as migrations e os seeds. Com o Postgres do Homebrew: `initdb -D <pasta> -U postgres --auth=trust`; `LC_ALL=C pg_ctl -D <pasta> -o "-p 55432 -c unix_socket_directories='' -c listen_addresses=127.0.0.1" start`; `create schema proj_hub_gestao`; depois cada arquivo de `supabase/migrations` e os seeds `harmony_workspace.sql` e `harmony_templates.sql`, nessa ordem.
+2. Na pasta `app`:
+
+   ```bash
+   HUB_CARGA_DATABASE_URL=postgres://postgres@127.0.0.1:55432/postgres npx vitest run src/test/carga.test.ts --reporter=verbose
+   ```
+
+   A tabela com p50, p95 e máximo de cada cenário sai no fim. Sem a variável, o teste fica de fora, como no CI.
+
 ## Logs
 
 O Hub escreve uma linha JSON por evento (`pino`), com `request_id`, sem dado pessoal e sem segredo: o erro do banco vai sem o `detail` (onde o Postgres põe os valores) e e-mail, chave e token viram marcadores. O `request_id` aparece também nas respostas de erro da API, para achar a linha certa.
