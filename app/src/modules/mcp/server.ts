@@ -3,6 +3,11 @@ import {
   ResourceTemplate,
 } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import {
+  AgentNoticeInput,
+  AgentNoticeResult,
+  postAgentNotice,
+} from "@/modules/agent-notices";
 import { badRequest, toHubError } from "@/lib/errors";
 import {
   assertIdempotencyKey,
@@ -565,6 +570,26 @@ export function buildMcpServer(
             mentions: args.mentions,
           });
         }),
+    );
+  }
+
+  if (has("comments:write")) {
+    server.registerTool(
+      "hub_notify",
+      {
+        title: "Avisar na caixa de entrada",
+        description:
+          'Aviso na caixa de entrada do Hub (o digest matinal, um lembrete, um alerta que também foi ao Telegram): para os donos (to: "owners") ou uma pessoa da equipe (id do hub_search) que enxergue o projeto citado. Use dedupe_key para não repetir o mesmo aviso em 24 horas. Até 30 por dia.',
+        inputSchema: AgentNoticeInput.extend(writeFields),
+        outputSchema: AgentNoticeResult,
+        annotations: mutating,
+      },
+      async (args) => {
+        const { papel: _p, idempotency_key: _k, ...input } = args;
+        void _p;
+        void _k;
+        return write("hub_notify", args, (t) => postAgentNotice(t, input));
+      },
     );
   }
 

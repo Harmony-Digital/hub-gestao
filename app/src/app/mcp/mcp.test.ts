@@ -97,6 +97,7 @@ describe("servidor MCP", () => {
         "hub_list_projects",
         "hub_list_tasks",
         "hub_log_time",
+        "hub_notify",
         "hub_reopen_task",
         "hub_request_approval",
         "hub_search",

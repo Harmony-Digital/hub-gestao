@@ -22,7 +22,7 @@ Horário de silêncio para avisos proativos: 23h às 8h (o aviso espera as 8h). 
 3. Uma frase de explicação e uma de ação, com os números do Hub:
    - "LOJ foi para Atenção: 3 tarefas do M2 estão atrasadas, a mais antiga há 4 dias úteis (HUB-41). Sugestão: o Coordenador redistribui a frente de integração hoje."
    - "SIT voltou a Saudável: os bloqueios da frente de pauta foram resolvidos."
-4. Mande ao Telegram do Fábio (pelo Hermes) e registre como comentário interno no projeto (`hub_comment`).
+4. Mande ao Telegram do Fábio (pelo Hermes), à caixa de entrada do Hub (`hub_notify` para os donos, com o `project` e uma `dedupe_key` por projeto e dia) e registre como comentário interno no projeto (`hub_comment`).
 
 ## Nunca
 

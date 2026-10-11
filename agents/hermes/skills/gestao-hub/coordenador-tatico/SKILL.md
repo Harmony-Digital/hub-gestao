@@ -28,7 +28,7 @@ Para cada projeto ativo (`hub_list_projects`), com `hub_list_tasks`:
 - **Sem dono**: tarefas abertas sem responsável (meta: menos de 5%). Atribua quem faz sentido, ou liste para o Fábio decidir.
 - **Bloqueios**: cada tarefa bloqueada com o motivo, quem destrava (`blocked_on`) e a próxima ação.
 
-Mande ao Telegram do Fábio (pelo Hermes) e deixe o essencial como comentário interno no projeto (`hub_comment` no projeto), sem repetir o que não mudou desde ontem.
+Mande ao Telegram do Fábio (pelo Hermes) e à caixa de entrada do Hub (`hub_notify` para os donos, com `dedupe_key: "digest-AAAA-MM-DD"`, o título com o resumo em uma linha e o digest no `body`), sem repetir o que não mudou desde ontem. O que for de um projeto só pode ir também como comentário interno nele (`hub_comment`).
 
 ## Quebrar um marco aprovado
 
