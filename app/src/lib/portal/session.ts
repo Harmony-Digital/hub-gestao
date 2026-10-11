@@ -228,6 +228,56 @@ export async function confirmPortalReceipt(
   };
 }
 
+/** Por quanto tempo vale o link que o contato pede pelo e-mail (RF-05). */
+export const REQUESTED_LINK_MINUTES = 30;
+
+/** Um link pedido pelo contato, pronto para ir ao e-mail cadastrado dele. */
+export type RequestedPortalLink = {
+  email: string;
+  contactName: string;
+  clientName: string;
+  orgName: string;
+  url: string;
+};
+
+/**
+ * O contato pede um link novo pelo e-mail (RF-05). Quem pode receber, os limites e o
+ * registro ficam no banco (função request_client_login_link, migração 0025): só contato
+ * que o dono já liberou, de cliente com o portal ligado. Um link por cliente, quando a
+ * mesma pessoa é contato de mais de um. Lista vazia não diz por quê (e-mail que não
+ * existe, sem acesso ou limite): quem pede sempre vê a mesma resposta.
+ */
+export async function requestPortalLinks(
+  db: Db,
+  email: string,
+  options: { pepper: string; appUrl: string },
+): Promise<RequestedPortalLink[]> {
+  const tokens = Array.from({ length: 5 }, () => generatePortalToken());
+  const rows = await bare<{
+    link_index: number;
+    contact_email: string;
+    contact_name: string;
+    client_name: string;
+    workspace_name: string;
+  }>(
+    db,
+    `select * from proj_hub_gestao.request_client_login_link($1, $2::text[], $3)`,
+    [
+      email,
+      tokens.map((t) => hashPortalToken(t, options.pepper)),
+      REQUESTED_LINK_MINUTES,
+    ],
+  );
+  const base = options.appUrl.replace(/\/+$/, "");
+  return rows.map((r) => ({
+    email: r.contact_email,
+    contactName: r.contact_name,
+    clientName: r.client_name,
+    orgName: r.workspace_name,
+    url: `${base}/portal/entrar/${tokens[r.link_index - 1]}`,
+  }));
+}
+
 /** Opções do cookie da sessão: só o portal, sem JavaScript, por poucas horas. */
 export function portalCookieOptions(maxAgeSeconds: number) {
   return {

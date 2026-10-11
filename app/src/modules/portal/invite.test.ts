@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  requestedLinkEmail,
   inviteHasLink,
   inviteMessage,
   projectsPhrase,
@@ -65,5 +66,23 @@ describe("convite por e-mail", () => {
     expect(
       inviteHasLink(`${APP}/portal/entrar/`, `${APP}/portal/entrar/`, APP),
     ).toBe(false);
+  });
+});
+
+describe("link pedido pelo contato (RF-05)", () => {
+  it("diz para que serve, quanto tempo vale e o que fazer se não pediu", () => {
+    const { subject, text } = requestedLinkEmail({
+      contactName: "Ana Souza",
+      clientName: "Clínica Exemplo",
+      orgName: "Harmony Digital",
+      url: "https://hub.exemplo.com.br/portal/entrar/abc",
+      minutes: 30,
+    });
+    expect(subject).toBe("Seu link de acesso ao portal da Harmony Digital");
+    expect(text).toContain("Olá, Ana!");
+    expect(text).toContain("(Clínica Exemplo)");
+    expect(text).toContain("pelos próximos 30 minutos");
+    expect(text).toContain("https://hub.exemplo.com.br/portal/entrar/abc");
+    expect(text).toContain("Se não foi você quem pediu");
   });
 });

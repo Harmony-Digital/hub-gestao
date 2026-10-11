@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { MESSAGE_MAX, parseMessageForm } from "./message-form";
+import {
+  MESSAGE_MAX,
+  parseLinkRequestForm,
+  parseMessageForm,
+} from "./message-form";
 
 const form = (fields: Record<string, string>) => {
   const f = new FormData();
@@ -27,5 +31,28 @@ describe("mensagem do portal para a equipe", () => {
         form({ project: "EXE", body: "a".repeat(MESSAGE_MAX + 1) }),
       ),
     ).toMatchObject({ ok: false });
+  });
+});
+
+describe("pedido de link pelo e-mail (RF-05)", () => {
+  const form = (email: string) => {
+    const data = new FormData();
+    data.set("email", email);
+    return data;
+  };
+  it("aceita o e-mail (sem espaços, em minúsculas) e recusa o resto", () => {
+    expect(parseLinkRequestForm(form(" Ana@Clinica.com.br "))).toEqual({
+      ok: true,
+      value: { email: "ana@clinica.com.br" },
+    });
+    for (const bad of [
+      "",
+      "ana",
+      "ana@clinica",
+      "a b@c.com",
+      `${"a".repeat(250)}@c.com`,
+    ]) {
+      expect(parseLinkRequestForm(form(bad)).ok).toBe(false);
+    }
   });
 });
