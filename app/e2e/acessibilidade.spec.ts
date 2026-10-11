@@ -84,6 +84,20 @@ const OPEN: {
     },
   },
   {
+    name: "Cliente aberto (com o logo)",
+    path: "/clientes",
+    open: async (page) => {
+      await page
+        .locator("summary")
+        .filter({ hasText: "Clínica" })
+        .first()
+        .click();
+      await expect(
+        page.getByRole("region", { name: "Logo" }).first(),
+      ).toBeVisible();
+    },
+  },
+  {
     name: "Modelo de IA",
     path: "/agentes",
     open: (page) =>
