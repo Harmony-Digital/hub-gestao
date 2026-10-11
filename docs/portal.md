@@ -69,6 +69,11 @@ A tela mostra, para cada contato: a situação (Sem acesso; Link enviado, ainda 
 - **Não é o aceite:** o aceite do marco continua do dono (D9) e não muda com a confirmação.
 - A equipe vê "Recebimento confirmado pelo cliente (nome) em dd/mm" no marco, na Visão geral, e pela API (`client_received_at` e `client_received_by` do marco); os donos recebem o aviso na caixa de entrada e os webhooks que assinam `client.receipt_confirmed` recebem o evento.
 
+## Identidade
+
+- Logo e cores da Harmony, mais espaço que as telas da equipe e o texto em segunda pessoa.
+- **Cor de destaque do cliente** (opcional), no cadastro do cliente (Clientes → abrir o cliente → "Cor de destaque no portal", com o código da cor, como #2E7D6B). No portal, aparece só em detalhes: um ponto ao lado do nome do cliente e a borda esquerda dos cartões de projeto e de entrega. Nunca na cor de um texto, para não mexer no contraste. O código é conferido no formulário e no banco (`#RRGGBB`); o portal lê só a cor, nada mais do cadastro.
+
 ## Texto para o cliente: verificação do Redator do Cliente (RC-12)
 
 Antes de um texto escrito por agente ir para o portal, o Hub confere o que nunca deve aparecer para o cliente: **código de tarefa** (HUB-n), **nome de agente** do workspace, **ferramenta interna** (Kratos, Hermes, Claude, Codex, GitHub, Supabase, MCP e outras), **código de commit**, **pedido de código** (PR #n), **valor em dinheiro** e **nome de outro cliente**. É regra em código, sem IA (`app/src/modules/client-text/check.ts`): vale sempre, inclusive sem chave de IA.
@@ -89,7 +94,6 @@ Roda no `npm test` e no CI, com a sessão de verdade de um contato:
 ## Ainda não (próximos passos)
 
 - O convite por e-mail pelo próprio Hub, e o contato pedir um link novo sozinho pelo e-mail: dependem do envio de e-mail (Resend), que o Fábio configura.
-- A identidade do portal com a cor de destaque do cliente.
 
 ## Onde está no código
 

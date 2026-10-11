@@ -35,6 +35,22 @@ test("o dono libera o acesso e o contato acompanha os projetos pelo portal", asy
   const email = `contato-${stamp}@exemplo.com.br`;
 
   await login(page);
+  // Identidade: a cor de destaque do cliente, que o portal usa só em detalhes.
+  await page.goto("/clientes");
+  await settle(page);
+  const clinica = page
+    .getByRole("listitem")
+    .filter({ has: page.getByText("Clínica Exemplo", { exact: true }) })
+    .first();
+  await clinica.locator("summary").click();
+  await clinica
+    .getByLabel("Cor de destaque no portal (opcional)")
+    .fill("#2E7D6B");
+  await clinica.getByRole("button", { name: "Salvar o cliente" }).click();
+  await expect(
+    clinica.getByText("Cliente “Clínica Exemplo” atualizado."),
+  ).toBeVisible();
+
   await page.goto("/clientes/clinica-exemplo/portal");
   await settle(page);
   const novo = page.getByRole("region", { name: "Novo contato" });
@@ -85,6 +101,14 @@ test("o dono libera o acesso e o contato acompanha os projetos pelo portal", asy
   await expect(
     client.getByRole("heading", { name: "Atendimento com IA (exemplo)" }),
   ).toBeVisible();
+  // A cor do cliente aparece na borda do cartão, nunca no texto.
+  await expect(
+    client.getByRole("listitem").filter({
+      has: client.getByRole("heading", {
+        name: "Atendimento com IA (exemplo)",
+      }),
+    }),
+  ).toHaveCSS("border-left-color", "rgb(46, 125, 107)");
   await expect(
     client.getByText(
       "Atendimento mais rápido no WhatsApp, com agendamento automático.",

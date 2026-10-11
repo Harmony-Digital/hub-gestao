@@ -364,3 +364,19 @@ export async function readPortalFile(
     content: Buffer.from(row.content),
   };
 }
+
+// Identidade -----------------------------------------------------------------------------
+
+/**
+ * A cor de destaque do cliente (cadastro do cliente), para os detalhes do portal. Só o
+ * código da cor, conferido no banco (#RRGGBB); o resto do cadastro não sai daqui.
+ */
+export async function portalAccent(t: TxCtx): Promise<string | null> {
+  assertClient(t.actor);
+  const row = await maybeOne<{ accent_color: string | null }>(
+    t,
+    `select accent_color from ${S}.clients limit 1`,
+  );
+  const color = row?.accent_color ?? null;
+  return color && /^#[0-9A-Fa-f]{6}$/.test(color) ? color : null;
+}

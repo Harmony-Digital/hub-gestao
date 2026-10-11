@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format";
 import { PHASES } from "@/lib/labels";
 import { inTx } from "@/modules/context";
-import { portalProjects } from "@/modules/portal/views";
+import { portalAccent, portalProjects } from "@/modules/portal/views";
 import { aceitarTermos } from "../actions";
-import { NoAccess, PortalTop } from "../_ui/parts";
+import { accentBorder, NoAccess, PortalTop } from "../_ui/parts";
 import { portalContext, portalSessionFor } from "../_ui/session";
 
 export const metadata: Metadata = { title: "Seus projetos" };
@@ -72,8 +72,12 @@ async function Portal({
     );
   }
 
-  const projects = await inTx(await portalContext(session), (t) =>
-    portalProjects(t),
+  const { projects, accent } = await inTx(
+    await portalContext(session),
+    async (t) => ({
+      projects: await portalProjects(t),
+      accent: await portalAccent(t),
+    }),
   );
 
   return (
@@ -81,7 +85,7 @@ async function Portal({
       id="conteudo"
       className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6"
     >
-      <PortalTop clientName={session.clientName} />
+      <PortalTop clientName={session.clientName} accent={accent} />
       <h1 className="-mt-3 font-heading text-3xl font-semibold text-navy">
         Seus projetos
       </h1>
@@ -96,6 +100,7 @@ async function Portal({
             <li
               key={p.code}
               className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-5"
+              style={accentBorder(accent)}
             >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h2 className="font-heading text-xl font-semibold text-navy">

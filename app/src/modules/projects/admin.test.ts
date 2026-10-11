@@ -126,6 +126,29 @@ describe("clientes", () => {
     ]);
   });
 
+  it("guarda a cor de destaque do portal (código da cor ou nada), com registro", async () => {
+    const colored = await inTx(asOwner(), (t) =>
+      updateClient(t, clientId, {
+        name: "Clínica São José",
+        segment: "Saúde e bem-estar",
+        notes_internal: "Contato pelo WhatsApp da recepção.",
+        accent_color: "#2E7D6B",
+      }),
+    );
+    expect(colored.accent_color).toBe("#2E7D6B");
+    const log = await h.raw.query<{ after: Record<string, unknown> }>(
+      `select after from ${S}.activity_log where action = 'client.updated' order by id desc limit 1`,
+    );
+    expect(log.rows[0].after).toEqual({ accent_color: "#2E7D6B" });
+    // Fora do formato: o banco também recusa (check da migração 0001).
+    await expect(
+      h.raw.query(
+        `update ${S}.clients set accent_color = 'red; background:url(x)' where id = $1`,
+        [clientId],
+      ),
+    ).rejects.toThrow(/check/);
+  });
+
   it("endereço curto de qualquer nome", () => {
     expect(slugify("  Ótica & Cia. Ltda.  ")).toBe("otica-cia-ltda");
     expect(slugify("!!!")).toBe("cliente");

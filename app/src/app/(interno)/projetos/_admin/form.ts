@@ -202,6 +202,7 @@ export function parseClientForm(form: FormData): Parsed<{
   name: string;
   segment: string | null;
   notes_internal: string | null;
+  accent_color: string | null;
 }> {
   const rawId = text(form, "id");
   if (rawId && !UUID.test(rawId)) return { ok: false, message: RELOAD };
@@ -216,6 +217,14 @@ export function parseClientForm(form: FormData): Parsed<{
   }
   const notes = optionalText(text(form, "notes_internal"), 4000);
   if (!notes.ok) return notes;
+  const accent = text(form, "accent_color").trim();
+  if (accent && !/^#[0-9A-Fa-f]{6}$/.test(accent)) {
+    return {
+      ok: false,
+      message:
+        "A cor de destaque: use o código da cor com # e seis caracteres, como #2E7D6B.",
+    };
+  }
   return {
     ok: true,
     value: {
@@ -223,6 +232,7 @@ export function parseClientForm(form: FormData): Parsed<{
       name: name.value,
       segment: segment || null,
       notes_internal: notes.value,
+      accent_color: accent ? accent.toUpperCase() : null,
     },
   };
 }

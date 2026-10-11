@@ -35,6 +35,12 @@ export const ClientInput = z.strictObject({
   name: Line(160),
   segment: Line(120).nullable().optional(),
   notes_internal: z.string().trim().max(4000).nullable().optional(),
+  /** Cor de destaque do cliente no portal, só em detalhes (PRD §14). */
+  accent_color: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .nullable()
+    .optional(),
 });
 export type ClientInput = z.infer<typeof ClientInput>;
 
@@ -44,6 +50,7 @@ export type ClientDto = {
   name: string;
   segment: string | null;
   notes_internal: string | null;
+  accent_color: string | null;
   project_count: number;
   updated_at: string;
 };
@@ -51,7 +58,7 @@ export type ClientDto = {
 type ClientRow = Omit<ClientDto, "updated_at"> & { updated_at: Date | string };
 
 const CLIENT_SELECT = `
-  select c.id, c.slug, c.name, c.segment, c.notes_internal, c.updated_at,
+  select c.id, c.slug, c.name, c.segment, c.notes_internal, c.accent_color, c.updated_at,
          (select count(*)::int from ${S}.projects p
            where p.client_id = c.id and p.archived_at is null) as project_count
     from ${S}.clients c`;
@@ -116,14 +123,15 @@ export async function createClient(
   const slug = await freeSlug(t, slugify(input.name));
   const row = await maybeOne<{ id: string }>(
     t,
-    `insert into ${S}.clients (workspace_id, slug, name, segment, notes_internal)
-     values ($1, $2, $3, $4, $5) returning id`,
+    `insert into ${S}.clients (workspace_id, slug, name, segment, notes_internal, accent_color)
+     values ($1, $2, $3, $4, $5, $6) returning id`,
     [
       t.actor.workspaceId,
       slug,
       input.name,
       input.segment ?? null,
       input.notes_internal || null,
+      input.accent_color ?? null,
     ],
   );
   const dto = await clientById(t, row!.id);
@@ -146,15 +154,28 @@ export async function updateClient(
   assertNoSecrets({ name: input.name, notes_internal: input.notes_internal });
   const before = await clientById(t, id);
   await t.tx.query(
-    `update ${S}.clients set name = $2, segment = $3, notes_internal = $4 where id = $1`,
-    [id, input.name, input.segment ?? null, input.notes_internal || null],
+    `update ${S}.clients
+        set name = $2, segment = $3, notes_internal = $4, accent_color = $5
+      where id = $1`,
+    [
+      id,
+      input.name,
+      input.segment ?? null,
+      input.notes_internal || null,
+      input.accent_color ?? null,
+    ],
   );
   const after = await clientById(t, id);
   await audit(t, {
     action: "client.updated",
     entityType: "client",
     entityId: id,
-    ...changedFields(before, after, ["name", "segment", "notes_internal"]),
+    ...changedFields(before, after, [
+      "name",
+      "segment",
+      "notes_internal",
+      "accent_color",
+    ]),
   });
   return after;
 }

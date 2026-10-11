@@ -21,18 +21,35 @@ export function NoAccess() {
   );
 }
 
+/** Borda de destaque com a cor do cliente: só detalhe, nunca a cor de um texto. */
+export function accentBorder(
+  accent: string | null,
+): { borderLeftColor: string; borderLeftWidth: number } | undefined {
+  return accent ? { borderLeftColor: accent, borderLeftWidth: 4 } : undefined;
+}
+
 /** O topo das páginas do portal: o nome do cliente, a trilha e o Sair. */
 export function PortalTop({
   clientName,
+  accent = null,
   back,
 }: {
   clientName: string;
+  /** Cor de destaque do cliente (#RRGGBB), num ponto ao lado do nome. */
+  accent?: string | null;
   back?: { href: string; label: string };
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex min-w-0 flex-col gap-1">
-        <p className="font-mono text-[11px] tracking-[0.12em] text-caption uppercase">
+        <p className="flex items-center gap-2 font-mono text-[11px] tracking-[0.12em] text-caption uppercase">
+          {accent ? (
+            <span
+              aria-hidden="true"
+              className="size-2.5 shrink-0 rounded-full"
+              style={{ background: accent }}
+            />
+          ) : null}
           {clientName}
         </p>
         {back ? (

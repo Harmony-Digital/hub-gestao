@@ -18,7 +18,7 @@ import {
   type TestHub,
 } from "@/test/hub";
 import { createContact, issuePortalLink, portalClient } from "./access";
-import { portalProject, portalProjects } from "./views";
+import { portalAccent, portalProject, portalProjects } from "./views";
 
 /**
  * Teste de vazamento do portal (PRD §5.2 e §9). O contato do cliente, com a sessão de
@@ -340,6 +340,17 @@ describe("vazamento no portal", () => {
         },
       ],
     });
+  });
+
+  it("a cor de destaque do cliente é a única coisa do cadastro que o portal lê", async () => {
+    await h.raw.query(
+      `update ${S}.clients set accent_color = '#2E7D6B', notes_internal = 'Nota ${MARK}' where id = $1`,
+      [clientId],
+    );
+    expect(await inTx(asClient(), (t) => portalAccent(t))).toBe("#2E7D6B");
+    await expect(inTx(asOwner(), (t) => portalAccent(t))).rejects.toThrow(
+      /portal do cliente/,
+    );
   });
 
   it("projeto de outro cliente ou em revisão é 404; a contagem de revisões é só do cliente", async () => {
