@@ -1,14 +1,19 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setDbForTests } from "@/lib/db";
 import { POST as deployAlert } from "@/app/api/internal/alerts/deploy/route";
+import { POST as backupReport } from "@/app/api/internal/backups/report/route";
 import { inTx } from "@/modules/context";
 import { systemActor, tick } from "@/modules/jobs/service";
 import { createWebhook } from "@/modules/webhooks/service";
 import { count, ctxFor, openTestHub, type TestHub } from "@/test/hub";
 import {
+  BACKUP_STALE_HOURS,
+  BackupReportInput,
   DENIALS_ALERT,
   DeployAlertInput,
+  noteBackupDone,
   noteDeployFailed,
+  watchBackups,
   watchDenials,
 } from "./alerts";
 
@@ -28,6 +33,7 @@ beforeAll(async () => {
         "agent.denials_recurring",
         "system.job_failed",
         "system.deploy_failed",
+        "system.backup_stale",
       ],
     }),
   );
@@ -36,6 +42,7 @@ beforeAll(async () => {
 afterAll(async () => {
   setDbForTests(null);
   delete process.env.HUB_ALERT_SECRET;
+  delete process.env.CRON_SECRET;
   await h.db.close();
 });
 
@@ -151,5 +158,113 @@ describe("alertas de operação", () => {
     expect(await ok.json()).toMatchObject({ ok: true, new: true });
     const again = await call(SECRET, body);
     expect(await again.json()).toMatchObject({ ok: true, new: false });
+  });
+});
+
+describe("backups que param de dar sinal", () => {
+  /** Aviso de backup antigo: o histórico só aceita inserção, e a data vem do teste. */
+  const backupAt = (kind: string, hoursAgo: number) =>
+    h.raw.query(
+      `insert into ${S}.activity_log
+         (workspace_id, actor_type, source, action, entity_type, entity_id, after, created_at)
+       values ($1, 'system', 'system', 'backup.done', 'workspace', $1, $2::jsonb,
+               now() - make_interval(hours => $3))`,
+      [
+        h.ws,
+        JSON.stringify({ kind, file: "hub-20261011T060000Z.dump", bytes: 1 }),
+        hoursAgo,
+      ],
+    );
+
+  it("sem nenhum aviso ainda (cópia não ligada), não alerta", async () => {
+    expect((await inTx(asHub(), watchBackups)).stale).toEqual([]);
+  });
+
+  it("parado há mais de 30 horas, alerta uma vez por dia por tipo", async () => {
+    await backupAt("local", BACKUP_STALE_HOURS + 3);
+    await backupAt("offsite", 2);
+    const first = await inTx(asHub(), watchBackups);
+    expect(first.stale).toEqual(["local"]);
+    expect(await deliveries("system.backup_stale")).toBe(1);
+    expect(await notices("system.backup_stale")).toBe(1);
+    const payload = await h.raw.query<{ payload: { data: unknown } }>(
+      `select payload from ${S}.webhook_deliveries where event = 'system.backup_stale'`,
+    );
+    expect(payload.rows[0].payload.data).toMatchObject({
+      kind: "local",
+      label: "O backup diário do banco",
+      hours: BACKUP_STALE_HOURS + 3,
+    });
+    // De novo no mesmo dia: o alerta não se repete.
+    expect((await inTx(asHub(), watchBackups)).stale).toEqual([]);
+    // O backup voltou: o aviso mais recente vale, e nada alerta.
+    await inTx(asHub(), (t) =>
+      noteBackupDone(t, {
+        kind: "local",
+        file: "hub-20261012T060000Z.dump",
+        bytes: 252925,
+      }),
+    );
+    expect((await inTx(asHub(), watchBackups)).stale).toEqual([]);
+    expect(await deliveries("system.backup_stale")).toBe(1);
+  });
+
+  it("o job ops-watch confere os backups junto com as recusas", async () => {
+    await backupAt("offsite", BACKUP_STALE_HOURS + 10);
+    await h.raw.query(`delete from ${S}.jobs where type = 'ops-watch'`);
+    const result = await tick(h.db, h.ws, {}, { maxJobs: 50 });
+    const run = result.ran.find((r) => r.type === "ops-watch");
+    expect(run?.status).toBe("done");
+    expect(run?.result).toMatchObject({ stale: [], alerted: [] });
+    // O offsite mais recente é o de 2 horas atrás (teste anterior): não está parado.
+  });
+
+  it("a rota do aviso de backup exige o CRON_SECRET e confere o pedido", async () => {
+    const SECRET_CRON = "segredo-do-relogio-de-teste-0123456789-abcdef";
+    const call = (secret: string | null, body: unknown) =>
+      backupReport(
+        new Request("http://hub.test/api/internal/backups/report", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            ...(secret ? { authorization: `Bearer ${secret}` } : {}),
+          },
+          body: JSON.stringify(body),
+        }),
+      );
+    const body = {
+      kind: "offsite",
+      file: "hub-20261013T060000Z.dump.gpg",
+      bytes: 253000,
+    };
+    delete process.env.CRON_SECRET;
+    expect((await call(SECRET_CRON, body)).status).toBe(500);
+    process.env.CRON_SECRET = SECRET_CRON;
+    expect((await call(null, body)).status).toBe(401);
+    expect((await call(`${SECRET_CRON}x`, body)).status).toBe(401);
+    expect((await call(SECRET_CRON, { ...body, kind: "outro" })).status).toBe(
+      400,
+    );
+    expect((await call(SECRET_CRON, body)).status).toBe(202);
+    const row = await h.raw.query<{ after: unknown; actor_type: string }>(
+      `select after, actor_type from ${S}.activity_log
+        where action = 'backup.done' order by id desc limit 1`,
+    );
+    expect(row.rows[0]).toEqual({
+      after: { kind: "offsite", file: body.file, bytes: body.bytes },
+      actor_type: "system",
+    });
+    for (const bad of [
+      { ...body, file: "../../etc/passwd" },
+      { ...body, file: "hub-2026.dump" },
+      { ...body, bytes: 0 },
+      { ...body, bytes: 1.5 },
+      { ...body, extra: 1 },
+    ]) {
+      expect(
+        BackupReportInput.safeParse(bad).success,
+        JSON.stringify(bad),
+      ).toBe(false);
+    }
   });
 });

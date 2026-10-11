@@ -92,6 +92,7 @@ O Hub avisa o dono na caixa de entrada (grupos "Agentes" e "Operação do Hub") 
 | Recusas de acesso repetidas | 5 ou mais recusas da mesma chave numa hora (o relógio confere a cada 15 minutos); um por dia por agente. Veja "Recusas de acesso" na Sala de Controle: chave revogada (401), escopo que falta (403) ou agente pausado (423) | `agent.denials_recurring` |
 | Job falhou de vez | um job do relógio esgotou as tentativas; um por job | `system.job_failed` |
 | Publicação falhou | o workflow "Publicação na VPS" falhou em algum passo; a versão anterior continua no ar; um por commit | `system.deploy_failed` |
+| Backup parado | o dump diário (`local`) ou a cópia no Google Drive (`offsite`) ficou mais de 30 horas sem dar sinal, depois de ter dado alguma vez: cada backup que dá certo avisa o Hub pelo contêiner (`app/scripts/backup-report.mjs`), e o relógio confere a cada 15 minutos; um por dia por tipo. Conferir com os comandos da seção "Backup e restauração" | `system.backup_stale` |
 
 O relógio parado não vira alerta pelo Hub (com ele parado, nem os webhooks saem): ele aparece na saúde e na Sala de Controle (seção "Relógio dos jobs parado").
 
@@ -158,7 +159,7 @@ A última linha diz "OK" com o número de tabelas e linhas, e o resultado fica e
   security find-generic-password -s hub-gestao-backup -a senha-da-copia -w | gpg --batch --pinentry-mode loopback --passphrase-fd 0 --decrypt --output hub.dump hub-AAAAMMDDTHHMMSSZ.dump.gpg
   ```
 
-- A autorização do Drive pode ser revogada a qualquer momento na conta Google (Segurança → Acesso de terceiros → rclone). Depois disso, as cópias param, e o `--conferir` acusa em até dois dias. Para voltar, rodar o instalador de novo.
+- A autorização do Drive pode ser revogada a qualquer momento na conta Google (Segurança → Acesso de terceiros → rclone). Depois disso, as cópias param, e o Hub avisa o dono em até 30 horas (alerta "Backup parado", seção Alertas). Para voltar, rodar o instalador de novo.
 
 **Restaurar de verdade** (perda ou estrago de dados; só com o Fábio, em hora combinada). Tudo o que foi gravado depois do dump escolhido se perde.
 

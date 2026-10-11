@@ -2,6 +2,7 @@ import { z } from "zod";
 import { audit } from "@/lib/audit";
 import { scrub } from "@/lib/log-safe";
 import { JOB_TYPE } from "@/lib/labels";
+import { iso } from "@/modules/common";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
 import { emitEvent } from "@/modules/events";
 import { notifyOwners } from "@/modules/notifications";
@@ -160,4 +161,102 @@ export async function noteDeployFailed(
     { sha: input.sha, detail: `Commit ${input.sha.slice(0, 7)}` },
   );
   return true;
+}
+
+/** Backups que avisam o Hub quando dão certo: o dump diário na VPS e a cópia no Drive. */
+export const BACKUP_KINDS = ["local", "offsite"] as const;
+export type BackupKind = (typeof BACKUP_KINDS)[number];
+
+/** Horas sem registro de backup que dão alerta (o diário roda a cada 24 horas). */
+export const BACKUP_STALE_HOURS = 30;
+
+export const BACKUP_LABEL: Record<BackupKind, string> = {
+  local: "O backup diário do banco",
+  offsite: "A cópia do backup no Google Drive",
+};
+
+export const BackupReportInput = z.strictObject({
+  kind: z.enum(BACKUP_KINDS),
+  file: z
+    .string()
+    .regex(/^hub-\d{8}T\d{6}Z\.dump(\.gpg)?$/, "Nome do arquivo do backup."),
+  bytes: z.number().int().min(1).max(100_000_000_000),
+});
+export type BackupReportInput = z.infer<typeof BackupReportInput>;
+
+/**
+ * Backup que deu certo: o script da VPS avisa pelo próprio contêiner, com o CRON_SECRET
+ * (`app/scripts/backup-report.mjs`). Fica no histórico do workspace.
+ */
+export async function noteBackupDone(
+  t: TxCtx,
+  input: BackupReportInput,
+): Promise<void> {
+  await audit(t, {
+    action: "backup.done",
+    entityType: "workspace",
+    entityId: t.actor.workspaceId,
+    after: { kind: input.kind, file: input.file, bytes: input.bytes },
+  });
+}
+
+/**
+ * Backup parado: um tipo que já avisou sucesso alguma vez e está sem aviso há mais de
+ * BACKUP_STALE_HOURS. Um alerta por tipo por dia. Antes do primeiro aviso (a cópia no
+ * Drive ainda não ligada, por exemplo), não alerta.
+ */
+export async function watchBackups(t: TxCtx): Promise<{ stale: BackupKind[] }> {
+  const rows = await many<{
+    kind: string;
+    last: Date | string;
+    hours: number;
+  }>(
+    t,
+    `select after->>'kind' as kind, max(created_at) as last,
+            floor(extract(epoch from now() - max(created_at)) / 3600)::int as hours
+       from ${S}.activity_log
+      where entity_type = 'workspace' and entity_id = $1 and action = 'backup.done'
+      group by after->>'kind'`,
+    [t.actor.workspaceId],
+  );
+  const stale: BackupKind[] = [];
+  for (const r of rows) {
+    const kind = BACKUP_KINDS.find((k) => k === r.kind);
+    if (!kind || r.hours < BACKUP_STALE_HOURS) continue;
+    const already = await maybeOne(
+      t,
+      `select 1 from ${S}.activity_log
+        where entity_type = 'workspace' and entity_id = $1
+          and action = 'system.backup_stale' and after->>'kind' = $2
+          and created_at > now() - interval '24 hours'
+        limit 1`,
+      [t.actor.workspaceId, kind],
+    );
+    if (already) continue;
+    const data = {
+      kind,
+      label: BACKUP_LABEL[kind],
+      last_at: iso(r.last),
+      hours: r.hours,
+    };
+    await audit(t, {
+      action: "system.backup_stale",
+      entityType: "workspace",
+      entityId: t.actor.workspaceId,
+      after: data,
+    });
+    await emitEvent(t, "system.backup_stale", data);
+    await notifyOwners(
+      t,
+      "system.backup_stale",
+      { type: "workspace", id: t.actor.workspaceId },
+      {
+        label: data.label,
+        hours: r.hours,
+        detail: "Ver docs/operacao.md, Backup e restauração.",
+      },
+    );
+    stale.push(kind);
+  }
+  return { stale };
 }

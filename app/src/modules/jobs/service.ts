@@ -16,7 +16,11 @@ import { refreshAgentSpend, type LlmDeps } from "@/lib/llm";
 import { attempt } from "@/modules/attempt";
 import { REWRITE_JOB, rewriteForClient } from "@/modules/client-text/writer";
 import { notifyOwners, notifyProfile } from "@/modules/notifications";
-import { noteJobFailed, watchDenials } from "@/modules/ops/alerts";
+import {
+  noteJobFailed,
+  watchBackups,
+  watchDenials,
+} from "@/modules/ops/alerts";
 import { applyRetention } from "@/modules/privacy/service";
 import { weeklyAuditNotice } from "@/modules/audit/access";
 import { reopenTask } from "@/modules/tasks/service";
@@ -130,7 +134,11 @@ async function runJob(
     case "webhook-dispatch":
       return dispatchWebhooks(ctx, deps);
     case "ops-watch":
-      return inTx(ctx, (t) => watchDenials(t));
+      // Recusas repetidas dos agentes e backups que pararam de dar sinal.
+      return inTx(ctx, async (t) => ({
+        ...(await watchDenials(t)),
+        ...(await watchBackups(t)),
+      }));
     case "retention":
       // LGPD: apaga os registros operacionais antigos (prazos em docs/privacidade.md).
       return inTx(ctx, (t) => applyRetention(t));

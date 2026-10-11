@@ -19,6 +19,7 @@ export type HubEvent =
   | "agent.denials_recurring"
   | "system.job_failed"
   | "system.deploy_failed"
+  | "system.backup_stale"
   | "client.commented"
   | "client.receipt_confirmed";
 

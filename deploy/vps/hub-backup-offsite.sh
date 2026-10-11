@@ -49,6 +49,16 @@ rc() {
   rclone --config "$RCLONE_CONFIG" "$@"
 }
 
+# Avisa o Hub que o backup deu certo; sem aviso por 30 horas, o Hub alerta o dono. Com o
+# contêiner fora do ar (ou numa versão sem o script), segue sem o aviso.
+report() {
+  if docker exec hub-app node /app/scripts/backup-report.mjs "$1" "$2" "$3" >/dev/null 2>&1; then
+    log "Aviso entregue ao Hub."
+  else
+    log "Aviso: o Hub não recebeu o registro deste backup (contêiner fora do ar ou versão antiga)."
+  fi
+}
+
 require_setup() {
   [[ -s "$RCLONE_CONFIG" ]] || fail "falta ${RCLONE_CONFIG}: rodar o hub-backup-offsite-setup.sh no Mac."
   [[ -s "$PASSPHRASE_FILE" ]] || fail "falta ${PASSPHRASE_FILE}: rodar o hub-backup-offsite-setup.sh no Mac."
@@ -89,6 +99,7 @@ send() {
   cleanup
   TMP_PATH=""
   log "Cópia enviada: ${name} (${local_size} bytes, cifrada)."
+  report offsite "$name" "$local_size"
 
   rc delete --min-age "${KEEP_DAYS}d" --include 'hub-*.dump.gpg' "$REMOTE"
   log "Cópias no Drive: $(rc lsf --files-only --include 'hub-*.dump.gpg' "$REMOTE" | wc -l | tr -d ' ') (até ${KEEP_DAYS} dias)."
@@ -116,7 +127,9 @@ roundtrip() {
     fail "o dump decifrado não abre"
   tables="$(grep -c "TABLE DATA" <<<"$listing" || true)"
   ((tables > 0)) || fail "o dump decifrado está vazio"
-  log "OK: ${newest} baixado do Drive, decifrado e o dump abre (${tables} tabelas com dados)."
+  local plural="tabelas"
+  ((tables == 1)) && plural="tabela"
+  log "OK: ${newest} baixado do Drive, decifrado e o dump abre (${tables} ${plural} com dados)."
 }
 
 main() {

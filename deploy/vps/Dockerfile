@@ -51,6 +51,7 @@ COPY --from=construcao --chown=nextjs:nodejs /app/public ./public
 COPY --from=construcao --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=construcao --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=construcao --chown=nextjs:nodejs /app/scripts/cron-tick.mjs ./scripts/cron-tick.mjs
+COPY --from=construcao --chown=nextjs:nodejs /app/scripts/backup-report.mjs ./scripts/backup-report.mjs
 
 USER nextjs
 EXPOSE 3000

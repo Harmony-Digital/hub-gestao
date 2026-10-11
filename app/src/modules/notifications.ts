@@ -26,7 +26,7 @@ export const GROUP_LABEL: Record<NotificationGroup, string> = {
   blocked: "Bloqueios nos seus projetos",
   agents: "Agentes: orçamento de IA e recusas de acesso",
   client: "Mensagens dos clientes no portal",
-  system: "Operação do Hub: jobs e publicação",
+  system: "Operação do Hub: jobs, publicação e backups",
 };
 
 export function groupOf(type: string): NotificationGroup | null {
@@ -215,6 +215,12 @@ export function describeNotification(
     case "system.deploy_failed":
       return {
         text: "A publicação de uma versão nova falhou: o Hub continua na versão anterior",
+        detail: str(payload.detail),
+        href: null,
+      };
+    case "system.backup_stale":
+      return {
+        text: `${str(payload.label) ?? "Um backup"} não dá sinal há ${String(payload.hours ?? "mais de 30")} horas`,
         detail: str(payload.detail),
         href: null,
       };
