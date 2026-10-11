@@ -4,7 +4,7 @@
  */
 import { ROLE_LABEL } from "@/lib/labels";
 
-export type PaletteAction = "nova-tarefa" | "tema" | "concierge";
+export type PaletteAction = "nova-tarefa" | "tema" | "concierge" | "atalhos";
 
 export type PaletteItem = {
   id: string;
@@ -180,6 +180,16 @@ export function paletteItems({
   };
   if (matches(q, theme.label, "tema aparencia escuro claro modo noturno")) {
     items.push(theme);
+  }
+  const shortcuts: PaletteItem = {
+    id: "acao-atalhos",
+    group: "Ações",
+    label: "Atalhos de teclado",
+    hint: "?",
+    action: "atalhos",
+  };
+  if (matches(q, shortcuts.label, "teclas teclado atalho desligar")) {
+    items.push(shortcuts);
   }
 
   items.push(

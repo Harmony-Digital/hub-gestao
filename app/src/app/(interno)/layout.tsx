@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { CommandPalette } from "@/components/shell/command-palette";
+import { KeyboardShortcuts } from "@/components/shell/keyboard-shortcuts";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { Sidebar } from "@/components/shell/sidebar";
 import { ThemeWatcher } from "@/components/shell/theme-watcher";
@@ -36,6 +37,8 @@ export default function InternoLayout({ children }: { children: ReactNode }) {
       </div>
       {/* Janela ⌘K e Nova tarefa de qualquer tela (uma só para todas as telas). */}
       <CommandPalette />
+      {/* Atalhos de teclado (RF-21) e a lista deles ("?"). */}
+      <KeyboardShortcuts />
       <ThemeWatcher />
     </div>
   );

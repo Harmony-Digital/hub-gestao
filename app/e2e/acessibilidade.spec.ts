@@ -113,6 +113,18 @@ const OPEN: {
     },
   },
   {
+    // "?" abre a lista de atalhos (RF-21).
+    name: "Atalhos de teclado",
+    path: "/",
+    open: async (page) => {
+      const heading = page.getByRole("heading", { name: "Atalhos de teclado" });
+      await expect(async () => {
+        await page.keyboard.press("?");
+        await expect(heading).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 60_000 });
+    },
+  },
+  {
     name: "Modelo de IA",
     path: "/agentes",
     open: (page) =>
