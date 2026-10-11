@@ -50,6 +50,13 @@ export const AuditFinding = z.object({
   detail: z.string(),
   action: z.string().describe("O que o dono pode fazer, em PT-BR."),
   href: z.string().nullable(),
+  key_id: z
+    .string()
+    .uuid()
+    .optional()
+    .describe(
+      "Só nos pontos de chave: o id para pedir a revogação ao Fábio (hub_request_approval, tipo agent_key, payload.key_id).",
+    ),
 });
 export type AuditFinding = z.infer<typeof AuditFinding>;
 
@@ -96,6 +103,7 @@ export async function accessAudit(
 
   // Chaves de agente ativas (as vencidas o Hub já recusa por regra).
   const keys = await many<{
+    id: string;
     key_prefix: string;
     scopes: string[];
     all_projects: boolean;
@@ -106,7 +114,7 @@ export async function accessAudit(
     agent_status: string;
   }>(
     t,
-    `select k.key_prefix, k.scopes, k.project_ids is null as all_projects,
+    `select k.id, k.key_prefix, k.scopes, k.project_ids is null as all_projects,
             k.expires_at, k.last_used_at, k.created_at,
             a.name as agent_name, a.status::text as agent_status
        from ${S}.agent_api_keys k
@@ -116,6 +124,7 @@ export async function accessAudit(
   );
   for (const k of keys) {
     const subject = `${k.agent_name} (${k.key_prefix})`;
+    const first = findings.length;
     const age = daysSince(k.created_at, now);
     if (k.agent_status === "paused") {
       findings.push({
@@ -187,6 +196,8 @@ export async function accessAudit(
         href: "/agentes",
       });
     }
+    // Os pontos desta chave levam o id dela: o auditor pode pedir a revogação (agent_key).
+    for (const finding of findings.slice(first)) finding.key_id = k.id;
   }
 
   // Pessoas da equipe: quem não grava nada há muito tempo.

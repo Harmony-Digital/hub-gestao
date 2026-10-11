@@ -127,6 +127,12 @@ export function ProjectHeader({
           </span>
         ) : null}
         <Progress value={p.progress_pct} label="Progresso do projeto" />
+        <Link
+          href={`/historico/projeto/${p.id}`}
+          className="text-caption underline underline-offset-2 hover:text-navy"
+        >
+          Histórico do projeto
+        </Link>
       </div>
 
       <nav

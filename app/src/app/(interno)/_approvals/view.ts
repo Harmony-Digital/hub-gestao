@@ -157,6 +157,13 @@ export function approvalEffect(
       return text(payload.body)
         ? "a mensagem abaixo é publicada no canal do cliente, em seu nome."
         : NOTHING_AUTOMATIC;
+    case "agent_key": {
+      const prefix = text(payload.key_prefix);
+      const agent = text(payload.agent_name);
+      return prefix
+        ? `a chave ${prefix}${agent ? ` de ${agent}` : ""} é revogada: o agente perde o acesso na hora.`
+        : NOTHING_AUTOMATIC;
+    }
     case "import_review": {
       const next = text(payload.next_status);
       const label =
@@ -183,6 +190,8 @@ const DETAIL_LABELS: Record<string, string> = {
   title_client: "Título para o cliente",
   description_client: "Descrição para o cliente",
   next_status: "Status depois da revisão",
+  agent_name: "Agente",
+  key_prefix: "Chave",
 };
 const DETAIL_ORDER = Object.keys(DETAIL_LABELS);
 
@@ -234,6 +243,9 @@ function detailValue(key: string, value: unknown): string | null {
 
 /** Campos que a tela mostra à parte (verificação e texto do relatório), não nos detalhes. */
 const SHOWN_APART = new Set([
+  // O id da chave e a ação ficam no pedido para o Hub; o cartão mostra o agente e a chave.
+  "key_id",
+  "action",
   "checks",
   "report_body",
   "body",
@@ -413,6 +425,7 @@ export function approvalResult(effect: Record<string, unknown>): string {
   if (typeof effect.client_message === "string") {
     return "A mensagem foi publicada no canal do cliente.";
   }
+  if (effect.key_revoked) return "A chave foi revogada.";
   if (
     typeof effect.project_status === "string" &&
     Object.hasOwn(PROJECT_STATUS, effect.project_status)
