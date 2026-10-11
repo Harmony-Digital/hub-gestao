@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, type CSSProperties, type ReactNode } from "react";
 import { ChevronRight, CornerDownRight } from "lucide-react";
+import { LabelChips } from "@/components/label-chips";
 import { Avatar, Pill } from "@/components/shell/pill";
 import { can } from "@/lib/authorize";
 import { HubError } from "@/lib/errors";
@@ -197,6 +198,7 @@ async function ListView({
             basePath={basePath}
             state={state}
             departments={data.departments}
+            labels={data.labels}
             workstreams={data.workstreams}
             assignees={data.assignees}
             mode="list"
@@ -487,6 +489,11 @@ function TaskRow({
         >
           {task.title}
         </span>
+        <LabelChips
+          labels={task.labels}
+          max={2}
+          className="shrink-0 flex-nowrap"
+        />
       </Link>
       {columns.length ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-18 @3xl:contents">

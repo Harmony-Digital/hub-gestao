@@ -854,6 +854,15 @@
             }
           },
           {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "description": "Nome de uma etiqueta (sem diferenciar maiúsculas).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "parent",
             "in": "query",
             "required": false,
@@ -2655,6 +2664,14 @@
           "external_ref": {
             "type": "string",
             "maxLength": 500
+          },
+          "labels": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Lista completa das etiquetas da tarefa, pelo nome (substitui a anterior; [] tira todas). Nome que não existe vira etiqueta nova."
           }
         },
         "required": [
@@ -2797,6 +2814,14 @@
                 "type": "null"
               }
             ]
+          },
+          "labels": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Lista completa das etiquetas da tarefa, pelo nome (substitui a anterior; [] tira todas). Nome que não existe vira etiqueta nova."
           },
           "custom_fields": {
             "description": "Campos personalizados do projeto, pelo nome: { \"Canal\": \"WhatsApp\" }. Número como 1250 ou \"12,5\", data AAAA-MM-DD, URL com http(s), seleção com uma das opções; vazio ou null tira o valor. Só os campos enviados mudam.",
@@ -7068,6 +7093,26 @@
             },
             "description": "Campos personalizados do projeto com valor, pelo nome (número com ponto, data AAAA-MM-DD)."
           },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "color": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "color"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Etiquetas da tarefa, em ordem alfabética."
+          },
           "done_evidence": {
             "type": [
               "string",
@@ -7248,6 +7293,7 @@
           "source",
           "external_ref",
           "custom_fields",
+          "labels",
           "done_evidence",
           "blocked_reason",
           "blocked_on",

@@ -15,6 +15,7 @@ import {
   parseTimeForm,
   parseViewForm,
   parseDepartmentViewForm,
+  parseLabelsForm,
 } from "./form";
 
 const ID = "4dc6721e-2ac8-463d-84cb-3b25ab170bbd";
@@ -594,5 +595,29 @@ describe("ordem no quadro", () => {
     expect(parseReorderForm(fd({ project: "EXE", codes: "HUB-9,x" })).ok).toBe(
       false,
     );
+  });
+});
+
+describe("etiquetas no painel (RF-18)", () => {
+  const fd = (labels: string[]) => {
+    const data = new FormData();
+    data.set("code", "HUB-3");
+    data.set("version", "4");
+    for (const l of labels) data.append("label", l);
+    return data;
+  };
+  it("lê a lista inteira, sem repetir nem vazios", () => {
+    expect(
+      parseLabelsForm(fd([" Urgente ", "urgente", "", "Cliente"])),
+    ).toEqual({
+      ok: true,
+      value: { code: "HUB-3", version: 4, labels: ["Urgente", "Cliente"] },
+    });
+    expect(parseLabelsForm(fd([])).ok).toBe(true);
+    expect(parseLabelsForm(fd(["a,b"])).ok).toBe(false);
+    expect(parseLabelsForm(fd(["x".repeat(41)])).ok).toBe(false);
+    expect(
+      parseLabelsForm(fd(Array.from({ length: 11 }, (_, i) => `e${i}`))).ok,
+    ).toBe(false);
   });
 });

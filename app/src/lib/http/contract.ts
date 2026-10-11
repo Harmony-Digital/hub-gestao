@@ -321,6 +321,10 @@ export const API_SPECS: Spec[] = [
           "Slug do departamento (ex.: sistemas): só as tarefas das frentes ativas dele.",
       },
       {
+        name: "label",
+        description: "Nome de uma etiqueta (sem diferenciar maiúsculas).",
+      },
+      {
         name: "parent",
         description: "Código da tarefa-pai, para listar subtarefas.",
       },

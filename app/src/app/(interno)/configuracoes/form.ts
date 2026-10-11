@@ -107,3 +107,31 @@ export function parseDepartmentRemoveForm(form: FormData): Parsed<string> {
     ? { ok: true, value: id }
     : { ok: false, message: RELOAD };
 }
+
+/** Etiqueta (RF-18): o nome (até 40, sem vírgula) e a cor. */
+export function parseLabelForm(
+  form: FormData,
+): Parsed<{ id: string; name: string; color: string }> {
+  const id = text(form, "label_id");
+  if (!UUID.test(id)) return { ok: false, message: RELOAD };
+  const name = line(text(form, "name"), 40, "Dê um nome à etiqueta.");
+  if (!name.ok) return name;
+  if (name.value.includes(",")) {
+    return { ok: false, message: "O nome da etiqueta não pode ter vírgula." };
+  }
+  const color = text(form, "color");
+  if (!HEX.test(color)) {
+    return { ok: false, message: "Escolha a cor da etiqueta." };
+  }
+  return {
+    ok: true,
+    value: { id, name: name.value, color: color.toUpperCase() },
+  };
+}
+
+export function parseLabelRemoveForm(form: FormData): Parsed<string> {
+  const id = text(form, "label_id");
+  return UUID.test(id)
+    ? { ok: true, value: id }
+    : { ok: false, message: RELOAD };
+}

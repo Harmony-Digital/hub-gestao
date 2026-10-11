@@ -6,7 +6,7 @@ import { createTask, listTasks } from "@/modules/tasks/service";
 /**
  * Tarefas no escopo da chave. Filtros: project, assignee (me | none | agent:<id> |
  * user:<id>), status_category (lista separada por vírgula), due_before (inclusive),
- * blocked, workstream_id, department (slug), parent; paginação por cursor e limit.
+ * blocked, workstream_id, department (slug), label, parent; paginação por cursor e limit.
  */
 export const GET = apiRoute({
   handler: async ({ t, url }) =>

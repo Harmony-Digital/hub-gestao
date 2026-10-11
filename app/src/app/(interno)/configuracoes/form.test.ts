@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   parseDepartmentForm,
+  parseLabelForm,
   parseDepartmentLeadForm,
   parseDepartmentRemoveForm,
   parseMemberForm,
@@ -178,5 +179,36 @@ describe("departamento (RF-27)", () => {
       value: ID,
     });
     expect(parseDepartmentRemoveForm(data({})).ok).toBe(false);
+  });
+});
+
+describe("etiqueta (RF-18)", () => {
+  const ID = "4dc6721e-2ac8-463d-84cb-3b25ab170bbd";
+  const fd = (values: Record<string, string>) => {
+    const f = new FormData();
+    for (const [k, v] of Object.entries(values)) f.set(k, v);
+    return f;
+  };
+  it("lê nome e cor; recusa vírgula, nome longo e cor fora do formato", () => {
+    expect(
+      parseLabelForm(fd({ label_id: ID, name: " Urgente ", color: "#aa5500" })),
+    ).toEqual({
+      ok: true,
+      value: { id: ID, name: "Urgente", color: "#AA5500" },
+    });
+    expect(
+      parseLabelForm(fd({ label_id: ID, name: "a,b", color: "#aa5500" })).ok,
+    ).toBe(false);
+    expect(
+      parseLabelForm(
+        fd({ label_id: ID, name: "x".repeat(41), color: "#aa5500" }),
+      ).ok,
+    ).toBe(false);
+    expect(
+      parseLabelForm(fd({ label_id: ID, name: "Ok", color: "laranja" })).ok,
+    ).toBe(false);
+    expect(
+      parseLabelForm(fd({ label_id: "x", name: "Ok", color: "#aa5500" })).ok,
+    ).toBe(false);
   });
 });

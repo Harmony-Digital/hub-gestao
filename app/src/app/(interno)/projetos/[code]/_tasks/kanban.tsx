@@ -29,6 +29,7 @@ import {
   type KeyboardCoordinateGetter,
 } from "@dnd-kit/core";
 import { CornerDownRight, Hourglass, LoaderCircle, X } from "lucide-react";
+import { LabelChips } from "@/components/label-chips";
 import { Avatar, Pill } from "@/components/shell/pill";
 import { Button } from "@/components/ui/button";
 import { formatDayMonth, initials } from "@/lib/format";
@@ -526,6 +527,9 @@ function DraggableCard({
       ? `prioridade ${PRIORITY[card.priority].label.toLowerCase()}`
       : null,
     card.waitingOn.length > 0 ? `espera ${card.waitingOn.join(" e ")}` : null,
+    card.labels.length > 0
+      ? `etiquetas ${card.labels.map((l) => l.name).join(", ")}`
+      : null,
   ]
     .filter(Boolean)
     .join(", ");
@@ -601,6 +605,7 @@ function CardFace({
       {card.workstream ? (
         <p className="truncate text-xs text-ink-2">{card.workstream}</p>
       ) : null}
+      <LabelChips labels={card.labels} />
       {card.waitingOn.length > 0 ? (
         <p className="flex items-center gap-1 text-xs font-medium text-warn-fg">
           <Hourglass aria-hidden="true" className="size-3.5 shrink-0" />

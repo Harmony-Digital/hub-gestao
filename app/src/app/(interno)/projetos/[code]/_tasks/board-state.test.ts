@@ -40,6 +40,7 @@ function task(over: Partial<TaskDto> = {}): TaskDto {
     source: "hub",
     external_ref: null,
     custom_fields: {},
+    labels: [],
     done_evidence: null,
     blocked_reason: null,
     blocked_on: null,
@@ -71,6 +72,7 @@ function card(code: string, statusId: string): BoardCard {
     parent: null,
     done: false,
     waitingOn: [],
+    labels: [],
     href: `/x?tarefa=${code}`,
   };
 }

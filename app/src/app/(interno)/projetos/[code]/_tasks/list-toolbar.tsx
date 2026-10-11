@@ -37,7 +37,7 @@ const COLUMN_LABEL = {
 } as const;
 
 /**
- * Filtros combináveis (departamento, frente, responsável, prioridade, prazo e busca; na
+ * Filtros combináveis (departamento, frente, etiqueta, responsável, prioridade, prazo e busca; na
  * Lista, também agrupar, ordenar e colunas) num formulário GET: cada escolha atualiza o
  * endereço, que é a fonte da verdade da tela (dá para salvar e compartilhar). Funciona
  * também sem JavaScript, com o botão Aplicar.
@@ -46,6 +46,7 @@ export function ListToolbar({
   basePath,
   state,
   departments,
+  labels,
   workstreams,
   assignees,
   mode,
@@ -54,6 +55,8 @@ export function ListToolbar({
   state: ListState;
   /** Departamentos com frente no projeto (o filtro aparece quando há algum). */
   departments: Pick<DepartmentOption, "slug" | "name">[];
+  /** Etiquetas do workspace (o filtro aparece quando há alguma). */
+  labels: { name: string }[];
   workstreams: WorkstreamOption[];
   assignees: AssigneeOption[];
   mode: "list" | "board";
@@ -72,6 +75,7 @@ export function ListToolbar({
     );
     const values: Record<string, string> = {
       depto: now.depto ?? "",
+      etiqueta: canonicalLabel(now.etiqueta, labels),
       frente: now.frente ?? "",
       resp: now.resp ?? "",
       prazo: now.prazo ?? "",
@@ -93,7 +97,7 @@ export function ListToolbar({
         field.value = values[field.name];
       }
     }
-  }, [signature]);
+  }, [signature, labels]);
   // O endereço leva só o que difere do padrão (fica curto, salvável e compartilhável).
   const apply = () => {
     if (!form.current) return;
@@ -105,12 +109,15 @@ export function ListToolbar({
     router.push(query ? `${basePath}?${query}` : basePath, { scroll: false });
   };
   const submit = () => form.current?.requestSubmit();
+  // O filtro não diferencia maiúsculas: o campo mostra o nome cadastrado.
+  const label = canonicalLabel(state.etiqueta, labels);
   const people = assignees.filter((a) => a.type === "user");
   const agents = assignees.filter((a) => a.type === "agent");
   const clear = listQuery({
     ...state,
     frente: null,
     depto: null,
+    etiqueta: null,
     resp: null,
     prio: [],
     prazo: null,
@@ -169,6 +176,31 @@ export function ListToolbar({
           </option>
         ))}
       </select>
+
+      {labels.length || state.etiqueta ? (
+        <>
+          <label className="sr-only" htmlFor="filtro-etiqueta">
+            Etiqueta
+          </label>
+          <select
+            id="filtro-etiqueta"
+            name="etiqueta"
+            defaultValue={label}
+            onChange={submit}
+            className={SELECT}
+          >
+            <option value="">Qualquer etiqueta</option>
+            {labels.map((l) => (
+              <option key={l.name} value={l.name}>
+                {l.name}
+              </option>
+            ))}
+            {label && !labels.some((l) => l.name === label) ? (
+              <option value={label}>{label}</option>
+            ) : null}
+          </select>
+        </>
+      ) : null}
 
       <label className="sr-only" htmlFor="filtro-responsavel">
         Responsável
@@ -360,5 +392,16 @@ export function ListToolbar({
         </Link>
       ) : null}
     </form>
+  );
+}
+
+function canonicalLabel(
+  name: string | null,
+  labels: { name: string }[],
+): string {
+  if (!name) return "";
+  return (
+    labels.find((l) => l.name.toLowerCase() === name.toLowerCase())?.name ??
+    name
   );
 }

@@ -15,6 +15,8 @@ import {
   type WorkspaceSettings,
 } from "@/modules/workspace/settings";
 import { DepartmentButton, RemoveDepartmentButton } from "./departments";
+import { LabelButton, RemoveLabelButton } from "./labels";
+import { listLabels, type LabelDto } from "@/modules/tasks/labels";
 import { EmailTestButton } from "./email-test";
 import {
   AddMemberButton,
@@ -86,13 +88,17 @@ async function Settings() {
       </>
     );
   }
-  const settings = await inTx(ctx, (t) => workspaceSettings(t));
+  const { settings, labels } = await inTx(ctx, async (t) => ({
+    settings: await workspaceSettings(t),
+    labels: await listLabels(t),
+  }));
   const owner = user.actor.role === "owner";
   return (
     <>
       <WorkspaceSection settings={settings} owner={owner} />
       <TeamSection team={settings.team} owner={owner} />
       <DepartmentsSection settings={settings} />
+      <LabelsSection labels={labels} />
       <EmailSection owner={owner} on={emailConfig() !== null} />
       <Shortcuts admin />
     </>
@@ -281,6 +287,56 @@ function DepartmentsSection({ settings }: { settings: WorkspaceSettings }) {
           );
         })}
       </ul>
+    </section>
+  );
+}
+
+function LabelsSection({ labels }: { labels: LabelDto[] }) {
+  return (
+    <section aria-labelledby="etiquetas" className={SECTION}>
+      <SectionTitle id="etiquetas" title="Etiquetas">
+        As etiquetas das tarefas, de todos os projetos. Quem edita a tarefa põe
+        e cria etiquetas no painel dela; aqui você renomeia, muda a cor ou
+        remove.
+      </SectionTitle>
+      {labels.length === 0 ? (
+        <p className="text-sm text-caption">
+          Nenhuma etiqueta ainda. Ponha a primeira no painel de uma tarefa.
+        </p>
+      ) : (
+        <ul className="flex flex-col divide-y divide-line">
+          {labels.map((l) => (
+            <li
+              key={l.id}
+              className="flex flex-wrap items-center justify-between gap-2 py-2.5"
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="size-3 shrink-0 rounded-full"
+                  style={{ background: l.color }}
+                />
+                <span className="text-sm font-semibold break-words text-navy">
+                  {l.name}
+                </span>
+                <span className="text-xs text-caption">
+                  {l.task_count === 1 ? "1 tarefa" : `${l.task_count} tarefas`}
+                </span>
+              </span>
+              <span className="flex items-start gap-1">
+                <LabelButton
+                  label={{ id: l.id, name: l.name, color: l.color }}
+                />
+                <RemoveLabelButton
+                  id={l.id}
+                  name={l.name}
+                  uses={l.task_count}
+                />
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
