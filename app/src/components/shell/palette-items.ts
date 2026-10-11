@@ -47,6 +47,11 @@ export const SCREENS: { href: string; label: string; keywords?: string }[] = [
     keywords: "comigo atribuidas prazo",
   },
   { href: "/projetos", label: "Projetos" },
+  {
+    href: "/departamentos",
+    label: "Departamentos",
+    keywords: "carga equipe quadro areas",
+  },
   { href: "/aprovacoes", label: "Aprovações", keywords: "pedidos decidir" },
   {
     href: "/relatorios",
