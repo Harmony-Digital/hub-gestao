@@ -35,7 +35,11 @@ import {
   TaskPage,
   UpdateTaskInput,
 } from "@/modules/tasks/schemas";
-import { LogTimeInput, TimeEntryDto } from "@/modules/time/service";
+import {
+  LogTimeInput,
+  ProjectTimeDto,
+  TimeEntryDto,
+} from "@/modules/time/service";
 import { SyncPlanInput, SyncPlanResult } from "@/modules/sync/service";
 import { TodayDto } from "@/modules/today/service";
 import {
@@ -98,6 +102,7 @@ const RESPONSES = {
   CommentList,
   Comment: CommentDto,
   TimeEntry: TimeEntryDto,
+  ProjectTime: ProjectTimeDto,
   ApprovalList,
   Approval: ApprovalDto,
   ReportList: z.object({ items: z.array(ReportDto) }),
@@ -182,6 +187,17 @@ export const API_SPECS: Spec[] = [
     scope: "projects:read",
     pathParams: [CODE],
     response: "Health",
+  },
+  {
+    method: "get",
+    path: "/projects/{code}/time",
+    tag: "Projetos",
+    summary: "Tempo do projeto",
+    description:
+      "Tempo registrado por pessoa ou agente e por frente, o estimado contra o registrado e as tarefas acima da estimativa (TO-15). Informativo.",
+    scope: "tasks:read",
+    pathParams: [CODE],
+    response: "ProjectTime",
   },
   {
     method: "get",

@@ -196,7 +196,7 @@ Mesmo contrato do EX-06, com departamento e tipo de evidência próprios:
 ### TO-15 · Controlador de Tempo e Orçamento
 
 - **Missão**: consolidar tempo registrado por agente/pessoa e custo de IA por projeto; comparar com estimativas; sinalizar desvios para o Gestor.
-- **Tipo / runtime**: A, Hermes, com dados de `time_entries`, `agent_runs` e estimativas.
+- **Tipo / runtime**: A, Hermes, com dados de `time_entries`, `agent_runs` e estimativas. O Hub entrega o consolidado pronto, calculado em código: `hub_get_project_time` (MCP) ou `GET /api/v1/projects/{code}/time` (escopo `tasks:read`), com o tempo por pessoa ou agente e por frente, o estimado contra o registrado e as tarefas acima da estimativa (mais de 20%).
 - **Red lines**: informativo; não altera orçamento, não fatura.
 - **Fase**: M7.
 

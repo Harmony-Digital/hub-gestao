@@ -98,6 +98,15 @@
     }
   },
   {
+    "name": "hub_get_project_time",
+    "title": "Tempo do projeto",
+    "description": "Tempo registrado no projeto por pessoa ou agente e por frente, o estimado contra o registrado e as tarefas acima da estimativa. Informativo (TO-15): não muda orçamento nem fatura.",
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "hub_get_task",
     "title": "Detalhe da tarefa",
     "description": "Uma tarefa pelo código (ex.: HUB-12), com evidência, bloqueio, versão e comentários internos.",

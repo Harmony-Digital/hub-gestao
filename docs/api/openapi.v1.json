@@ -290,6 +290,57 @@
         }
       }
     },
+    "/projects/{code}/time": {
+      "get": {
+        "tags": [
+          "Projetos"
+        ],
+        "summary": "Tempo do projeto",
+        "description": "Tempo registrado por pessoa ou agente e por frente, o estimado contra o registrado e as tarefas acima da estimativa (TO-15). Informativo. Escopo da chave: `tasks:read`.",
+        "operationId": "getProjectsCodeTime",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "description": "Código do projeto (ex.: HUB) ou da tarefa (ex.: HUB-12).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectTime"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "423": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/projects/{code}/milestones": {
       "get": {
         "tags": [
@@ -6814,6 +6865,186 @@
           "note",
           "actor",
           "created_at"
+        ],
+        "additionalProperties": false
+      },
+      "ProjectTime": {
+        "$id": "#/components/schemas/ProjectTime",
+        "type": "object",
+        "properties": {
+          "project_code": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{2,8}$"
+          },
+          "total_minutes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Tudo o que foi registrado no projeto."
+          },
+          "month_minutes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Registrado no mês corrente (pelo dia do trabalho)."
+          },
+          "by_actor": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "actor": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "agent",
+                        "system"
+                      ]
+                    },
+                    "id": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "minutes": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "month_minutes": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "actor",
+                "minutes",
+                "month_minutes"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Por pessoa ou agente, do que mais registrou para o que menos."
+          },
+          "by_workstream": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "workstream": {
+                  "description": "Título da frente; null: sem frente.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "minutes": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "workstream",
+                "minutes"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "estimate": {
+            "type": "object",
+            "properties": {
+              "tasks": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Tarefas com estimativa e tempo registrado."
+              },
+              "estimated_minutes": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "actual_minutes": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "tasks",
+              "estimated_minutes",
+              "actual_minutes"
+            ],
+            "additionalProperties": false,
+            "description": "Estimado contra registrado, só nas tarefas que têm os dois."
+          },
+          "overruns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "pattern": "^[A-Z]{2,6}-[0-9]{1,9}$"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "estimate_minutes": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "actual_minutes": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "code",
+                "title",
+                "estimate_minutes",
+                "actual_minutes"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Tarefas com tempo acima de 20% da estimativa, as maiores primeiro (até 10)."
+          }
+        },
+        "required": [
+          "project_code",
+          "total_minutes",
+          "month_minutes",
+          "by_actor",
+          "by_workstream",
+          "estimate",
+          "overruns"
         ],
         "additionalProperties": false
       },

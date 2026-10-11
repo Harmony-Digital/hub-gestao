@@ -7,6 +7,7 @@ import {
 } from "@/modules/common";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
 import { milestonesOfProject } from "@/modules/milestones/service";
+import { projectTime, type ProjectTimeDto } from "@/modules/time/service";
 import { dependencyAlertsOf } from "@/modules/workstreams/dependencies";
 import type { DependencyAlert } from "@/modules/workstreams/dependency-rule";
 import { describeActivity } from "./overview";
@@ -82,6 +83,8 @@ export type ProjectDashboard = {
     recent: AgentAction[];
   };
   dependencyAlerts: DependencyAlert[];
+  /** Tempo registrado (TO-15): por pessoa ou agente, estimado e desvios. */
+  time: ProjectTimeDto;
 };
 
 const RECENT_LIMIT = 8;
@@ -269,5 +272,6 @@ export async function projectDashboard(
       })),
     },
     dependencyAlerts: await dependencyAlertsOf(t, project.id),
+    time: await projectTime(t, code),
   };
 }

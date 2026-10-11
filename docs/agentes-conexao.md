@@ -66,6 +66,7 @@ O servidor mostra só as ferramentas que a chave pode usar. A primeira chamada �
 | `hub_request_approval`, `hub_list_approvals` | Pedir decisão e acompanhar |
 | `hub_draft_status_report` | Rascunho de status, que vira pedido de aprovação |
 | `hub_log_time`, `hub_search`, `hub_sync_plan` | Tempo, busca e exportação do `plan.md` |
+| `hub_get_project_time` | Tempo do projeto: por pessoa ou agente e por frente, estimado contra registrado e as tarefas acima da estimativa (o TO-15 lê daqui; também em `GET /api/v1/projects/{code}/time`) |
 
 Recursos: `hub://projects/{code}/plan.md`, `hub://projects/{code}/health` e `hub://today`. Prompts: `status-semanal`, `digest-matinal` e `revisar-conclusoes`.
 
