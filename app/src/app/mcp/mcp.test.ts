@@ -88,6 +88,7 @@ describe("servidor MCP", () => {
         "hub_draft_status_report",
         "hub_get_plan",
         "hub_get_project",
+        "hub_get_project_time",
         "hub_get_task",
         "hub_get_today",
         "hub_list_approvals",
@@ -106,7 +107,13 @@ describe("servidor MCP", () => {
     );
     const leitor = await connect(h.keys.leitor);
     expect((await leitor.listTools()).tools.map((t) => t.name).sort()).toEqual(
-      ["hub_get_task", "hub_get_today", "hub_list_tasks", "hub_whoami"].sort(),
+      [
+        "hub_get_project_time",
+        "hub_get_task",
+        "hub_get_today",
+        "hub_list_tasks",
+        "hub_whoami",
+      ].sort(),
     );
   });
 

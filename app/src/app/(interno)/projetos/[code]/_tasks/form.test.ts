@@ -11,6 +11,7 @@ import {
   parseNewTaskForm,
   parseReorderForm,
   parseTaskFieldsForm,
+  parseTimeForm,
   parseViewForm,
 } from "./form";
 
@@ -168,6 +169,7 @@ describe("campos da tarefa", () => {
       assignee: { type: "agent", id: ID },
       due_date: "2026-10-20",
       workstream: { id: WS },
+      estimate_minutes: 90,
     };
     expect(
       changedTaskFields(current, {
@@ -177,8 +179,12 @@ describe("campos da tarefa", () => {
         assignee: { type: "agent", id: ID },
         due_date: "2026-10-20",
         workstream_id: WS,
+        estimate_minutes: 90,
       }),
     ).toEqual({});
+    expect(changedTaskFields(current, { estimate_minutes: null })).toEqual({
+      estimate_minutes: null,
+    });
     expect(
       changedTaskFields(current, {
         title: "Mapear o caso",
@@ -194,6 +200,47 @@ describe("campos da tarefa", () => {
       due_date: null,
       workstream_id: null,
     });
+  });
+});
+
+describe("estimativa e tempo", () => {
+  it("a estimativa vem escrita como duração; vazio tira", () => {
+    const read = (value: string) =>
+      parseTaskFieldsForm(form({ code: "HUB-3", estimate_minutes: value }));
+    const ok = read("1h30");
+    expect(ok.ok && ok.value.fields.estimate_minutes).toBe(90);
+    const none = read(" ");
+    expect(none.ok && none.value.fields.estimate_minutes).toBeNull();
+    expect(read("uma hora").ok).toBe(false);
+  });
+
+  it("lançar tempo: duração, dia e nota", () => {
+    expect(
+      parseTimeForm(
+        form({
+          code: "HUB-3",
+          minutes: "1h15",
+          entry_date: "2026-10-09",
+          note: " Revisão do fluxo ",
+        }),
+      ),
+    ).toEqual({
+      ok: true,
+      value: {
+        code: "HUB-3",
+        minutes: 75,
+        entry_date: "2026-10-09",
+        note: "Revisão do fluxo",
+      },
+    });
+    const bad = (over: Record<string, string>) =>
+      parseTimeForm(form({ code: "HUB-3", minutes: "30", ...over })).ok;
+    expect(bad({})).toBe(true);
+    expect(bad({ minutes: "" })).toBe(false);
+    expect(bad({ minutes: "25h" })).toBe(false);
+    expect(bad({ minutes: "abc" })).toBe(false);
+    expect(bad({ entry_date: "09/10/2026" })).toBe(false);
+    expect(bad({ code: "hub-3" })).toBe(false);
   });
 });
 

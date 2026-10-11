@@ -6,6 +6,7 @@
  */
 
 import type { ActionState } from "@/lib/action-state";
+import { parseDuration } from "@/lib/duration";
 
 export { IDLE, type ActionState } from "@/lib/action-state";
 
@@ -77,6 +78,21 @@ function dueDate(value: string): Parsed<string | null> {
   return DATE.test(value)
     ? { ok: true, value }
     : { ok: false, message: "Data inválida. Use o calendário do campo." };
+}
+
+/** Estimativa em minutos, escrita como "1h30", "90" ou "45 min"; vazio tira. */
+function estimate(value: string): Parsed<number | null> {
+  const minutes = parseDuration(value);
+  if (minutes === "invalida" || (minutes !== null && minutes < 1)) {
+    return {
+      ok: false,
+      message: "Estimativa: escreva como 1h30, 90 (minutos) ou 45 min.",
+    };
+  }
+  if (minutes !== null && minutes > 100_000) {
+    return { ok: false, message: "Estimativa: até 100 mil minutos." };
+  }
+  return { ok: true, value: minutes };
 }
 
 function priority(value: string): Parsed<Priority> {
@@ -158,6 +174,7 @@ export type TaskFields = {
   assignee?: Assignee;
   due_date?: string | null;
   workstream_id?: string | null;
+  estimate_minutes?: number | null;
 };
 
 export function parseTaskFieldsForm(
@@ -173,6 +190,7 @@ export function parseTaskFieldsForm(
     ["assignee", parseAssignee],
     ["due_date", dueDate],
     ["workstream_id", workstream],
+    ["estimate_minutes", estimate],
   ];
   for (const [name, parse] of steps) {
     if (!form.has(name)) continue;
@@ -190,6 +208,7 @@ type CurrentTask = {
   assignee: { type: string; id: string | null } | null;
   due_date: string | null;
   workstream: { id: string } | null;
+  estimate_minutes: number | null;
 };
 
 /** Só o que mudou em relação à tarefa como está no banco: o resto não é regravado. */
@@ -225,7 +244,54 @@ export function changedTaskFields(
   ) {
     changes.workstream_id = fields.workstream_id;
   }
+  if (
+    fields.estimate_minutes !== undefined &&
+    fields.estimate_minutes !== current.estimate_minutes
+  ) {
+    changes.estimate_minutes = fields.estimate_minutes;
+  }
   return changes;
+}
+
+// Tempo ------------------------------------------------------------------------------
+
+/** Lançar tempo numa tarefa: a duração escrita, o dia (padrão: hoje) e uma nota. */
+export function parseTimeForm(form: FormData): Parsed<{
+  code: string;
+  minutes: number;
+  entry_date: string | null;
+  note: string | null;
+}> {
+  const code = text(form, "code");
+  if (!TASK_CODE.test(code)) return { ok: false, message: RELOAD };
+  const minutes = parseDuration(text(form, "minutes"));
+  if (minutes === null) {
+    return { ok: false, message: "Escreva o tempo, como 1h30, 90 ou 45 min." };
+  }
+  if (minutes === "invalida" || minutes < 1) {
+    return {
+      ok: false,
+      message: "Tempo: escreva como 1h30, 90 (minutos) ou 45 min.",
+    };
+  }
+  if (minutes > 24 * 60) {
+    return { ok: false, message: "Até 24 horas por lançamento." };
+  }
+  const date = text(form, "entry_date");
+  if (date && !DATE.test(date)) {
+    return { ok: false, message: "Data inválida. Use o calendário do campo." };
+  }
+  const note = text(form, "note").trim();
+  if (note.length > 500 || CONTROL.test(note)) {
+    return {
+      ok: false,
+      message: "Nota: até 500 caracteres, numa linha só.",
+    };
+  }
+  return {
+    ok: true,
+    value: { code, minutes, entry_date: date || null, note: note || null },
+  };
 }
 
 // Comentário -------------------------------------------------------------------------

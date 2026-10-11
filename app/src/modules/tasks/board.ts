@@ -15,6 +15,7 @@ import {
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
 import type { ProjectDetail } from "@/modules/projects/schemas";
 import { getProject } from "@/modules/projects/service";
+import { taskTime, type TimeEntryDto } from "@/modules/time/service";
 import {
   checklistOf,
   dependenciesOf,
@@ -267,6 +268,8 @@ export type TaskDetail = TaskFormOptions & {
   attachments: AttachmentDto[];
   comments: CommentDto[];
   history: TaskEvent[];
+  /** Tempo registrado: as entradas mais recentes e o total. */
+  time: { totalMinutes: number; entries: TimeEntryDto[] };
 };
 
 type HistoryRow = {
@@ -315,6 +318,7 @@ export async function taskDetail(t: TxCtx, code: string): Promise<TaskDetail> {
     dependencies: await dependenciesOf(t, task.id),
     attachments: await attachmentsOf(t, task.id),
     comments,
+    time: await taskTime(t, task.id),
     history: history.map((h) => ({
       at: iso(h.created_at),
       actor: actorRef(h.actor_type, h.actor_id, h.actor_name),

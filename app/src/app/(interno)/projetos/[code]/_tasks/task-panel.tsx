@@ -7,11 +7,13 @@ import { Avatar, Pill } from "@/components/shell/pill";
 import { HubError } from "@/lib/errors";
 import { formatMoment, formatTimestampDay, initials } from "@/lib/format";
 import { STATUS_CATEGORY_TONE, TASK_SOURCE } from "@/lib/labels";
+import { formatDuration } from "@/lib/duration";
 import { pageContext } from "@/lib/ui-context";
 import { ACCEPTED_EXTENSIONS } from "@/modules/attachments/service";
 import { inTx } from "@/modules/context";
 import { taskDetail, type TaskDetail } from "@/modules/tasks/board";
 import { assigneeValue } from "./form";
+import { TimeEditor } from "./time-editor";
 import { TaskPanelFrame } from "./panel-frame";
 import {
   AttachmentsEditor,
@@ -154,6 +156,7 @@ async function PanelContent({
         late={late}
         priority={task.priority}
         workstreamId={task.workstream?.id ?? null}
+        estimateMinutes={task.estimate_minutes}
         assignees={data.assignees}
         workstreams={data.workstreams}
       />
@@ -235,6 +238,23 @@ async function PanelContent({
             ...d,
             href: hrefFor(d.code),
           }))}
+        />
+      </Section>
+
+      <Section
+        title={
+          data.time.totalMinutes > 0
+            ? `Tempo (${formatDuration(data.time.totalMinutes)})`
+            : "Tempo"
+        }
+      >
+        <TimeEditor
+          code={task.code}
+          totalMinutes={data.time.totalMinutes}
+          estimateMinutes={task.estimate_minutes}
+          entries={data.time.entries}
+          today={data.today}
+          canLog
         />
       </Section>
 

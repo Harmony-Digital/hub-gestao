@@ -16,6 +16,7 @@ import type {
   WorkstreamOption,
 } from "@/modules/tasks/board";
 import { mudarStatus, salvarTarefa } from "./actions";
+import { formatDuration } from "@/lib/duration";
 import { IDLE, PRIORITIES, type ActionState } from "./form";
 import { WaitingOnSelect } from "./waiting-on-select";
 
@@ -249,6 +250,7 @@ export function TaskFieldsForm({
   late,
   priority,
   workstreamId,
+  estimateMinutes,
   assignees,
   workstreams,
 }: {
@@ -259,6 +261,7 @@ export function TaskFieldsForm({
   late: boolean;
   priority: string;
   workstreamId: string | null;
+  estimateMinutes: number | null;
   assignees: AssigneeOption[];
   workstreams: WorkstreamOption[];
 }) {
@@ -372,6 +375,30 @@ export function TaskFieldsForm({
               </option>
             ))}
           </select>
+        </Field>
+        <Field id={`${ids}-estimativa`} label="Estimativa">
+          <input
+            id={`${ids}-estimativa`}
+            name="estimate_minutes"
+            defaultValue={
+              estimateMinutes !== null ? formatDuration(estimateMinutes) : ""
+            }
+            placeholder="Ex.: 1h30"
+            title="Como 1h30, 90 (minutos) ou 45 min. Vazio tira a estimativa."
+            disabled={pending}
+            onBlur={(e) => {
+              const initial =
+                estimateMinutes !== null ? formatDuration(estimateMinutes) : "";
+              if (e.currentTarget.value.trim() !== initial) save();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                save();
+              }
+            }}
+            className={inputClass}
+          />
         </Field>
       </div>
       <div aria-live="polite">

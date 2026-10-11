@@ -6,6 +6,7 @@ import { TriangleAlert } from "lucide-react";
 import { Avatar, Pill } from "@/components/shell/pill";
 import { can } from "@/lib/authorize";
 import { HubError } from "@/lib/errors";
+import { formatDuration } from "@/lib/duration";
 import { formatDayMonth, formatMoment, initials } from "@/lib/format";
 import { HEALTH, MILESTONE_STATUS } from "@/lib/labels";
 import { pageContext } from "@/lib/ui-context";
@@ -135,9 +136,14 @@ async function DashboardView({
             <AssigneeLoad data={data} />
           </Card>
         </div>
-        <Card id="painel-agentes" title="Agentes nos últimos 7 dias">
-          <Agents data={data} />
-        </Card>
+        <div className="grid items-start gap-6 lg:grid-cols-2">
+          <Card id="painel-tempo" title="Tempo registrado">
+            <Time data={data} />
+          </Card>
+          <Card id="painel-agentes" title="Agentes nos últimos 7 dias">
+            <Agents data={data} />
+          </Card>
+        </div>
       </main>
     </>
   );
@@ -440,6 +446,91 @@ function AssigneeLoad({ data }: { data: ProjectDashboard }) {
   );
 }
 
+function Time({ data }: { data: ProjectDashboard }) {
+  const { time, project } = data;
+  if (time.total_minutes === 0) {
+    return (
+      <Empty>
+        Nenhum tempo registrado ainda. Pessoas lançam no painel da tarefa; os
+        agentes, pela API ou pelo MCP.
+      </Empty>
+    );
+  }
+  const { estimate } = time;
+  return (
+    <div className="flex flex-col gap-3 text-sm">
+      <p className="text-ink">
+        {formatDuration(time.month_minutes)} no mês ·{" "}
+        {formatDuration(time.total_minutes)} no total
+      </p>
+      <ul className="divide-y divide-line">
+        {time.by_actor.slice(0, 5).map((a) => (
+          <li
+            key={`${a.actor.type}:${a.actor.id}`}
+            className="flex items-center gap-2 py-2"
+          >
+            <Avatar
+              text={initials(a.actor.name)}
+              agent={a.actor.type === "agent"}
+            />
+            <span className="min-w-0 flex-1 truncate text-ink">
+              {a.actor.name ?? "Sem nome"}
+            </span>
+            <span className="text-xs text-ink-2">
+              {formatDuration(a.month_minutes)} no mês ·{" "}
+              {formatDuration(a.minutes)} no total
+            </span>
+          </li>
+        ))}
+      </ul>
+      {estimate.tasks > 0 ? (
+        <p className="text-xs text-ink-2">
+          Nas{" "}
+          {estimate.tasks === 1
+            ? "1 tarefa com estimativa"
+            : `${estimate.tasks} tarefas com estimativa`}
+          : {formatDuration(estimate.estimated_minutes)} estimadas,{" "}
+          {formatDuration(estimate.actual_minutes)} registradas.
+        </p>
+      ) : (
+        <p className="text-xs text-ink-2">
+          Nenhuma tarefa com estimativa e tempo registrado: a estimativa fica no
+          painel da tarefa.
+        </p>
+      )}
+      {time.overruns.length > 0 ? (
+        <div className="flex flex-col gap-1.5">
+          <h3 className="text-xs font-medium text-ink-2">
+            Acima da estimativa
+          </h3>
+          <ul className="flex flex-col gap-1">
+            {time.overruns.slice(0, 5).map((o) => (
+              <li
+                key={o.code}
+                className="flex flex-wrap items-baseline gap-x-2"
+              >
+                <Link
+                  href={`/projetos/${project.code}/lista?tarefa=${o.code}`}
+                  className="font-mono text-xs font-semibold text-brand-strong hover:text-navy"
+                >
+                  {o.code}
+                </Link>
+                <span className="min-w-0 flex-1 truncate text-ink">
+                  {o.title}
+                </span>
+                <span className="text-xs font-semibold text-danger-fg">
+                  {formatDuration(o.actual_minutes)} de{" "}
+                  {formatDuration(o.estimate_minutes)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function Agents({ data }: { data: ProjectDashboard }) {
   const { agents } = data;
   if (agents.byAgent.length === 0 && agents.recent.length === 0) {
@@ -451,7 +542,7 @@ function Agents({ data }: { data: ProjectDashboard }) {
     );
   }
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+    <div className="grid gap-5">
       <div className="flex flex-col gap-2 text-sm">
         <p className="text-ink">
           {agents.actionsWeek === 1

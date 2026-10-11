@@ -34,9 +34,12 @@ import {
   parseMoveForm,
   parseNewTaskForm,
   parseTaskFieldsForm,
+  parseTimeForm,
   type ActionState,
   type CreateTaskState,
 } from "./form";
+import { logTime, LogTimeInput } from "@/modules/time/service";
+import { formatDuration } from "@/lib/duration";
 
 const STALE =
   "Esta tarefa mudou enquanto você olhava (uma pessoa ou um agente atualizou). A tela já mostra a versão nova: confira e faça a alteração de novo.";
@@ -90,6 +93,37 @@ export async function salvarTarefa(
     });
     if (saved) refresh();
     return { status: "ok", message: saved ? "Alteração salva." : undefined };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+/** Lança tempo na tarefa, em nome de quem está na tela. */
+export async function lancarTempo(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseTimeForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  const { code, minutes, entry_date, note } = parsed.value;
+  try {
+    await inTx(ctx, (t) =>
+      logTime(
+        t,
+        code,
+        LogTimeInput.parse({
+          minutes,
+          ...(entry_date ? { entry_date } : {}),
+          ...(note ? { note } : {}),
+        }),
+      ),
+    );
+    refresh();
+    return {
+      status: "ok",
+      message: `${formatDuration(minutes)} lançados em ${code}.`,
+    };
   } catch (err) {
     return failure(err, ctx.requestId);
   }

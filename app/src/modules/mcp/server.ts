@@ -77,7 +77,13 @@ import {
   startTask,
   updateTask,
 } from "@/modules/tasks/service";
-import { logTime, LogTimeInput, TimeEntryDto } from "@/modules/time/service";
+import {
+  logTime,
+  LogTimeInput,
+  projectTime,
+  ProjectTimeDto,
+  TimeEntryDto,
+} from "@/modules/time/service";
 import { today, TodayDto } from "@/modules/today/service";
 import {
   createWorkstream,
@@ -528,6 +534,23 @@ export function buildMcpServer(
         void _k;
         return write("hub_log_time", args, (t) => logTime(t, code, input));
       },
+    );
+  }
+
+  // Tempo (TO-15) ------------------------------------------------------------------------
+
+  if (has("tasks:read")) {
+    server.registerTool(
+      "hub_get_project_time",
+      {
+        title: "Tempo do projeto",
+        description:
+          "Tempo registrado no projeto por pessoa ou agente e por frente, o estimado contra o registrado e as tarefas acima da estimativa. Informativo (TO-15): não muda orçamento nem fatura.",
+        inputSchema: z.strictObject({ project: ProjectCode }),
+        outputSchema: ProjectTimeDto,
+        annotations: readOnly,
+      },
+      async ({ project }) => read((t) => projectTime(t, project)),
     );
   }
 
