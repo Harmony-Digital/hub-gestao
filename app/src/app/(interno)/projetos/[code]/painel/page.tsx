@@ -448,7 +448,7 @@ function AssigneeLoad({ data }: { data: ProjectDashboard }) {
 
 function Time({ data }: { data: ProjectDashboard }) {
   const { time, project } = data;
-  if (time.total_minutes === 0) {
+  if (time.total_minutes === 0 && time.ai_cost_usd.total === 0) {
     return (
       <Empty>
         Nenhum tempo registrado ainda. Pessoas lançam no painel da tarefa; os
@@ -457,12 +457,20 @@ function Time({ data }: { data: ProjectDashboard }) {
     );
   }
   const { estimate } = time;
+  const usd = (value: number) =>
+    `US$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   return (
     <div className="flex flex-col gap-3 text-sm">
       <p className="text-ink">
         {formatDuration(time.month_minutes)} no mês ·{" "}
         {formatDuration(time.total_minutes)} no total
       </p>
+      {time.ai_cost_usd.total > 0 ? (
+        <p className="text-xs text-ink-2">
+          IA dos agentes do Hub neste projeto: {usd(time.ai_cost_usd.month)} no
+          mês, {usd(time.ai_cost_usd.total)} no total.
+        </p>
+      ) : null}
       <ul className="divide-y divide-line">
         {time.by_actor.slice(0, 5).map((a) => (
           <li

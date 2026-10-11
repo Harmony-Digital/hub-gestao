@@ -42,7 +42,7 @@ Quatro tipos, um princípio: **a IA executa, o humano decide**.
 | TO-15 | Controlador de Tempo e Orçamento | A | Administrativo e Financeiro | 2–3 | Cron semanal | M7 |
 | GH-16 | GitHub Sync | D | Sistemas | 3 | Webhook push/PR | M4 |
 | N8-17 | n8n Bridge | D | Agentes e Automações | 3 | Fluxos existentes | M7 |
-| KR-00 | Kratos (existente), executa GP-01 a VP-05 e a importação | A | Gestão (pessoal do Fábio) | 1–3 | Conversa no Telegram + crons dos papéis | M5 |
+| KR-00 | Kratos (existente), executa GP-01 a VP-05, o TO-15 e a importação | A | Gestão (pessoal do Fábio) | 1–3 | Conversa no Telegram + crons dos papéis | M5 |
 
 ---
 
@@ -198,7 +198,7 @@ Mesmo contrato do EX-06, com departamento e tipo de evidência próprios:
 - **Missão**: consolidar tempo registrado por agente/pessoa e custo de IA por projeto; comparar com estimativas; sinalizar desvios para o Gestor.
 - **Tipo / runtime**: A, Hermes, com dados de `time_entries`, `agent_runs` e estimativas. O Hub entrega o consolidado pronto, calculado em código: `hub_get_project_time` (MCP) ou `GET /api/v1/projects/{code}/time` (escopo `tasks:read`), com o tempo por pessoa ou agente e por frente, o estimado contra o registrado e as tarefas acima da estimativa (mais de 20%).
 - **Red lines**: informativo; não altera orçamento, não fatura.
-- **Fase**: M7.
+- **Fase**: M7. Na fase 1, roda como skill do Kratos (`agents/hermes/skills/gestao-hub/controlador-de-tempo`), toda segunda às 9h30.
 
 ### GH-16 · GitHub Sync
 

@@ -20,8 +20,8 @@ Horário de silêncio para avisos proativos: 23h às 8h (o aviso espera as 8h). 
 1. `hub_get_project` do projeto: a saúde, os motivos (`health_reason`) e os próximos marcos.
 2. Se o motivo cita tarefas (atrasadas, bloqueadas, dependência), `hub_list_tasks` com o filtro certo (`blocked: true`, `due_before`) para dar o exemplo concreto.
 3. Uma frase de explicação e uma de ação, com os números do Hub:
-   - "CER foi para Atenção: 3 tarefas do M2 estão atrasadas, a mais antiga há 4 dias úteis (HUB-41). Sugestão: o Coordenador redistribui a frente de integração hoje."
-   - "ACM voltou a Saudável: os bloqueios da frente de pauta foram resolvidos."
+   - "LOJ foi para Atenção: 3 tarefas do M2 estão atrasadas, a mais antiga há 4 dias úteis (HUB-41). Sugestão: o Coordenador redistribui a frente de integração hoje."
+   - "SIT voltou a Saudável: os bloqueios da frente de pauta foram resolvidos."
 4. Mande ao Telegram do Fábio (pelo Hermes) e registre como comentário interno no projeto (`hub_comment`).
 
 ## Nunca
