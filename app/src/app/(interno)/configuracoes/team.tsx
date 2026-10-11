@@ -1,13 +1,14 @@
 "use client";
 
 import { useActionState, useId } from "react";
-import { LoaderCircle, Pause, Play, Plus, UserCog } from "lucide-react";
+import { LoaderCircle, Mail, Pause, Play, Plus, UserCog } from "lucide-react";
 import { FormDialog } from "@/components/form-dialog";
 import { ErrorNote, Field, inputClass, useSubmit } from "@/components/forms";
 import { Button } from "@/components/ui/button";
 import { IDLE, type ActionState } from "@/lib/action-state";
 import {
   adicionarPessoa,
+  enviarConviteEquipe,
   definirResponsavel,
   mudarAcesso,
   mudarPapel,
@@ -388,6 +389,52 @@ export function DepartmentLeadForm({
           <span className="text-ok-fg">{state.message}</span>
         ) : null}
       </span>
+    </form>
+  );
+}
+
+/** Convite por e-mail (RF-03): só o dono, com o e-mail do Hub ligado. */
+export function MemberInviteButton({
+  profileId,
+  name,
+  emailOn,
+}: {
+  profileId: string;
+  name: string;
+  emailOn: boolean;
+}) {
+  const [state, action, pending] = useActionState(enviarConviteEquipe, IDLE);
+  return (
+    <form action={action} className="flex flex-col items-end gap-1">
+      <input type="hidden" name="profile_id" value={profileId} />
+      <Button
+        type="submit"
+        variant="ghost"
+        size="sm"
+        disabled={pending || !emailOn}
+        aria-label={`Mandar o convite por e-mail para ${name}`}
+        title={
+          emailOn
+            ? undefined
+            : "O e-mail do Hub está desligado (docs/email.md)."
+        }
+      >
+        {pending ? (
+          <LoaderCircle aria-hidden="true" className="animate-spin" />
+        ) : (
+          <Mail aria-hidden="true" />
+        )}
+        Convite por e-mail
+      </Button>
+      {state.status === "error" ? (
+        <span role="alert" className="text-xs text-danger-fg">
+          {state.message}
+        </span>
+      ) : state.status === "ok" && state.message ? (
+        <span role="status" className="text-xs text-ok-fg">
+          {state.message}
+        </span>
+      ) : null}
     </form>
   );
 }

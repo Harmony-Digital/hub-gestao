@@ -118,6 +118,18 @@ const OWNER_ONLY: ReadonlySet<Action> = new Set<Action>([
   "portal.manage",
 ]);
 
+/** O que o convidado de um projeto pode fazer nele: só ler (PRD §4.1). */
+const GUEST_ACTIONS: ReadonlySet<Action> = new Set<Action>([
+  "project.read",
+  "milestone.read",
+  "workstream.read",
+  "task.read",
+  "comment.read",
+  "approval.read",
+  "report.read",
+  "search",
+]);
+
 /** O que um member pode fazer, sempre dentro dos projetos de que participa. */
 const MEMBER_ACTIONS: ReadonlySet<Action> = new Set<Action>([
   "project.read",
@@ -206,6 +218,15 @@ function check(
     return {
       detail: "Seu papel no workspace não permite esta ação. Fale com o Fábio.",
     };
+  }
+  if (resource.projectId && resource.projectRole === "guest") {
+    // Convidado pontual (PRD §4.1): só lê o projeto em que foi posto.
+    return GUEST_ACTIONS.has(action)
+      ? null
+      : {
+          detail:
+            "Você é convidado deste projeto: pode acompanhar, não mudar. Fale com quem cuida dele.",
+        };
   }
   if (
     resource.projectId &&

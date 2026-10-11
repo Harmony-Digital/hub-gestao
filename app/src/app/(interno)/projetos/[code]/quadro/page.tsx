@@ -13,6 +13,7 @@ import {
   type SavedViewDto,
 } from "@/modules/views/service";
 import { projectChangeMarker } from "@/modules/live";
+import { myProjectRole } from "@/modules/projects/members";
 import { LiveRefresh } from "../../../_live/live-refresh";
 import {
   boardColumns,
@@ -68,14 +69,16 @@ async function BoardView({
   let views: SavedViewDto[];
   let deptViews: DepartmentViewDto[];
   let marker: string;
+  let guest: boolean;
   try {
-    ({ data, views, deptViews, marker } = await inTx(ctx, async (t) => {
+    ({ data, views, deptViews, marker, guest } = await inTx(ctx, async (t) => {
       const list = await projectTaskList(t, code, toTaskFilter(state));
       return {
         data: list,
         views: await listSavedViews(t, list.project.id, "board"),
         deptViews: await departmentViews(t, list.departments, "board"),
         marker: await projectChangeMarker(t, code),
+        guest: (await myProjectRole(t, list.project.id)) === "guest",
       };
     }));
   } catch (err) {
@@ -121,7 +124,7 @@ async function BoardView({
           canRestore={can(user.actor, "workspace.admin")}
           actions={
             // Projeto arquivado é só consulta: sem Nova tarefa.
-            data.project.status === "archived" ? undefined : (
+            data.project.status === "archived" || guest ? undefined : (
               <NewTaskButton
                 projectCode={code}
                 basePath={basePath}

@@ -17,6 +17,11 @@ import { ProjectForm } from "../../_admin/project-form";
 import { PROJECT_CODE } from "../_tasks/params";
 import { listProjectFields } from "@/modules/tasks/custom-fields";
 import { FieldsEditor } from "./fields-editor";
+import { MembersEditor } from "./members-editor";
+import {
+  listProjectMembers,
+  teamForProjects,
+} from "@/modules/projects/members";
 import { StatusEditor } from "./status-editor";
 
 export async function generateMetadata({
@@ -91,11 +96,16 @@ async function EditProject({
       </>
     );
   }
-  const { options, statuses, fields } = await inTx(ctx, async (t) => ({
-    options: await projectFormOptions(t),
-    statuses: await projectStatusesAdmin(t, project.code),
-    fields: await listProjectFields(t, project.code),
-  }));
+  const { options, statuses, fields, members, team } = await inTx(
+    ctx,
+    async (t) => ({
+      options: await projectFormOptions(t),
+      statuses: await projectStatusesAdmin(t, project.code),
+      fields: await listProjectFields(t, project.code),
+      members: await listProjectMembers(t, project.code),
+      team: await teamForProjects(t),
+    }),
+  );
   return (
     <>
       {header}
@@ -126,6 +136,17 @@ async function EditProject({
         />
         <StatusEditor projectCode={project.code} statuses={statuses} />
         <FieldsEditor projectCode={project.code} fields={fields} />
+        <MembersEditor
+          projectCode={project.code}
+          members={members.map((m) => ({
+            profileId: m.profileId,
+            name: m.name,
+            role: m.role,
+          }))}
+          people={team.filter(
+            (p) => !members.some((m) => m.profileId === p.id),
+          )}
+        />
         <section
           aria-labelledby="importar-plano"
           className="flex max-w-4xl flex-col items-start gap-3 rounded-2xl border border-line bg-card p-4 sm:p-5"

@@ -23,6 +23,7 @@ import {
   type SavedViewDto,
 } from "@/modules/views/service";
 import { projectChangeMarker } from "@/modules/live";
+import { myProjectRole } from "@/modules/projects/members";
 import { LiveRefresh } from "../../../_live/live-refresh";
 import {
   AssigneeCell,
@@ -108,8 +109,9 @@ async function ListView({
   let views: SavedViewDto[];
   let deptViews: DepartmentViewDto[];
   let marker: string;
+  let guest: boolean;
   try {
-    ({ data, views, deptViews, marker } = await inTx(ctx, async (t) => {
+    ({ data, views, deptViews, marker, guest } = await inTx(ctx, async (t) => {
       const list = await projectTaskList(t, code, toTaskFilter(state), {
         openLimit: shown,
       });
@@ -118,6 +120,7 @@ async function ListView({
         views: await listSavedViews(t, list.project.id, "list"),
         deptViews: await departmentViews(t, list.departments, "list"),
         marker: await projectChangeMarker(t, code),
+        guest: (await myProjectRole(t, list.project.id)) === "guest",
       };
     }));
   } catch (err) {
@@ -139,7 +142,8 @@ async function ListView({
   const moreHref = `${basePath}?${new URLSearchParams({ ...Object.fromEntries(current), mostrar: String(shown + PAGE) })}`;
   const open = openTaskParam(query.tarefa);
   const archived = data.project.status === "archived";
-  const editable = !archived && can(user.actor, "task.write");
+  // Convidado do projeto (RF-03) só acompanha.
+  const editable = !archived && !guest && can(user.actor, "task.write");
   const columns: (Column | "status")[] = [
     ...(state.agrupar === "status" ? [] : (["status"] as const)),
     ...state.colunas,
@@ -166,8 +170,8 @@ async function ListView({
           active="list"
           canRestore={can(user.actor, "workspace.admin")}
           actions={
-            // Projeto arquivado é só consulta: sem Nova tarefa.
-            archived ? undefined : (
+            // Projeto arquivado (e o convidado) é só consulta: sem Nova tarefa.
+            archived || guest ? undefined : (
               <NewTaskButton
                 projectCode={code}
                 basePath={basePath}

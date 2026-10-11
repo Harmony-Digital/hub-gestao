@@ -3,6 +3,7 @@
 O Hub manda e-mail pelo Resend (PRD RF-33; D9), sempre com o clique de alguém:
 
 - **convite do portal:** Clientes → o cliente → Contatos e portal → "Liberar acesso" ou "Gerar novo link" → **Enviar por e-mail**, só o dono. Vai a mensagem que ele revisou na tela, com o link de uso único;
+- **convite da equipe** (RF-03): Configurações → Equipe → **Convite por e-mail**, só o dono, para outra pessoa ativa da equipe: diz por onde entrar (o endereço de entrada do Hub e, com o link de acesso ligado, como pedir o link). O Hub não cria conta de acesso;
 - **e-mail de teste:** Configurações → E-mail do Hub → **Enviar um e-mail de teste para mim**, só o dono e só para o próprio endereço;
 - **link pedido pelo contato** (RF-05): o contato que o dono já liberou pede um link novo na entrada do portal ("Receber um link novo") e recebe, no e-mail cadastrado, um link de uso único válido por 30 minutos. O clique é do próprio contato, e o e-mail só vai para ele (`docs/portal.md`, Acesso).
 

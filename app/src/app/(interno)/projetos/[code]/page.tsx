@@ -77,6 +77,7 @@ import { welcomeMessage } from "@/modules/portal/invite";
 import { ReplyBox } from "./_channel/reply-box";
 import { ClientFilesEditor } from "./_files/files-editor";
 import { NewTaskButton } from "./_tasks/new-task";
+import { myProjectRole } from "@/modules/projects/members";
 import { openTaskParam, PROJECT_CODE } from "./_tasks/params";
 import { ProjectHeader } from "./_tasks/project-header";
 import { TaskPanel, taskHref } from "./_tasks/task-panel";
@@ -120,6 +121,7 @@ async function ProjectView({
   let files: ClientFile[];
   let marker: string;
   let clientText: WorkstreamFormOptions["clientText"] = null;
+  let projectRole: Awaited<ReturnType<typeof myProjectRole>> = null;
   try {
     ({
       data,
@@ -131,6 +133,7 @@ async function ProjectView({
       files,
       marker,
       clientText,
+      projectRole,
     } = await inTx(ctx, async (t) => {
       const overview = await projectOverview(t, code);
       // Verificação do texto para o cliente e o Redator, para quem decide a visibilidade.
@@ -144,6 +147,7 @@ async function ProjectView({
         channel: await clientChannel(t, code),
         files: await clientFiles(t, code),
         marker: await projectChangeMarker(t, code),
+        projectRole: await myProjectRole(t, overview.project.id),
         clientText: canShow
           ? {
               context: await clientTextContext(t, overview.project.id),
@@ -164,10 +168,12 @@ async function ProjectView({
   const hrefFor = (task: string) => taskHref(basePath, {}, task);
   // Projeto arquivado é só consulta: nada de criar, editar ou restaurar o que há dentro.
   const archivedProject = data.project.status === "archived";
+  // Convidado do projeto (RF-03) só acompanha: a tela não oferece criar nem editar.
+  const guest = projectRole === "guest";
   const canWriteMilestones =
-    !archivedProject && can(user.actor, "milestone.write");
+    !archivedProject && !guest && can(user.actor, "milestone.write");
   const canWriteWorkstreams =
-    !archivedProject && can(user.actor, "workstream.write");
+    !archivedProject && !guest && can(user.actor, "workstream.write");
   const workstreamOptions: WorkstreamFormOptions = {
     milestones: data.milestones.map((m) => ({ code: m.code, title: m.title })),
     departments,
@@ -191,7 +197,7 @@ async function ProjectView({
           showObjective
           canRestore={can(user.actor, "workspace.admin")}
           actions={
-            archivedProject ? undefined : (
+            archivedProject || guest ? undefined : (
               <>
                 {can(user.actor, "workspace.admin") ? (
                   <Button asChild variant="outline" size="lg">
