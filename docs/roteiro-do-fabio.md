@@ -1,6 +1,21 @@
 # Roteiro do Fábio: o que falta para fechar o PLAN.md
 
-> Atualizado em 2026-10-11. Tudo o que cabe ao agente está feito e no ar. O passo 1 registra as decisões já tomadas; os outros dependem de um acesso ou de uma aprovação do Fábio, e cada um diz qual item do `PLAN.md` fecha. A ordem vai do que destrava mais para o que destrava menos. O detalhe de cada passo está no documento indicado; aqui fica só o caminho.
+> Atualizado em 2026-10-11, à noite. **A construção terminou:** tudo o que cabe ao agente no `PLAN.md`, inclusive as lacunas do PRD (PRs até #114), está feito e no ar. **A fase agora é de testes de uso** (seção 0) e dos passos abaixo, que só o Fábio faz. O que aparecer nos testes vira correção do agente, um PR por correção. O passo 1 registra as decisões já tomadas; os outros dependem de um acesso ou de uma aprovação do Fábio, e cada um diz qual item do `PLAN.md` fecha. A ordem vai do que destrava mais para o que destrava menos. O detalhe de cada passo está no documento indicado; aqui fica só o caminho.
+
+## 0. Testes de uso: por onde começar
+
+Dá para testar tudo sem importar os projetos oficiais, num projeto de teste criado na própria tela. O que for estranho, lento ou confuso: anotar e mandar no chat (de preferência com a tela e o que você esperava), e o agente corrige.
+
+1. **Um projeto de teste:** Projetos → Novo projeto, a partir de um modelo (Modelos de projeto). Conferir a importação do esqueleto, a Visão geral nas três camadas, a ordem dos marcos e o GATE de cada marco.
+2. **O dia a dia das tarefas:** Lista e Quadro (arrastar, raias, filtros, visões salvas, a visão de cada departamento), o painel da tarefa (checklist, anexos até 25 MB, etiquetas, dependências, comentários com @menção, tempo), os atalhos de teclado (`?` mostra a lista) e a busca `⌘K`.
+3. **Decisões:** Hoje (riscos com a ação sugerida, o que espera você) e Aprovações (pedir aceite de um marco e decidir). O histórico de marco, frente, projeto e cliente mostra quem fez o quê.
+4. **Equipe:** Configurações (Equipe, departamentos, etiquetas, retenção) e, no Editar projeto, as Pessoas no projeto (o convidado só acompanha).
+5. **Portal, com um contato de teste seu** (um e-mail seu, nunca de cliente): Clientes → Contatos e portal → liberar o acesso, entrar pelo link num navegador anônimo, aceitar o uso dos dados e ver o projeto como o cliente vê.
+6. **Agentes:** o Claude Code já opera pelo MCP (`hub_list_tasks`, `hub_notify`, `hub_get_milestone`…); a Sala de Controle mostra o que ele fez e o custo.
+
+Com o e-mail do Hub ligado (passo 3, `docs/email.md`) passam a funcionar: o convite do portal e o da equipe por e-mail, o link novo que o contato pede sozinho e o relatório aprovado por e-mail aos contatos. Com a chave de IA (passo 3, `docs/ia.md`): o Concierge, o Planejador e o Redator do Cliente.
+
+A semana de uso real de um projeto fecha o GATE M3 (seção 7).
 
 ## 1. Decisões (tomadas no chat em 2026-10-11)
 
@@ -30,7 +45,7 @@
 | Cadastrar o Kratos e a chave dele (escopos de gestão e `projects:import`, `AGENTES.md` §4). Em 2026-10-11 o único agente cadastrado em produção é o Claude Code do Fábio | Sala de Controle → Cadastrar agente, com os papéis de gestão; depois, Criar chave (aparece uma vez; vai direto para o Kratos, nunca para o chat) | M5, "(D6) Uma chave de agente para o Kratos" |
 | Agentes EX-09 ("Executor de Dados") e N8-17 ("n8n Bridge", chave só `tasks:write` nos projetos dos fluxos) | Sala de Controle → Cadastrar agente e Criar chave para cada um; o fluxo do n8n em `docs/n8n.md` | M7, "EX-09 e N8-17" |
 | Webhook para o Hermes (avisos no Telegram) | Sala de Controle → Webhooks de saída, com o endereço da assinatura do Hermes (`docs/webhooks.md`) | M5, "Webhook do Hub → Hermes → Telegram"; M8, "Observabilidade" |
-| Ligar o e-mail do Hub: domínio no Resend, registros de DNS (com a sua ordem; o agente pode criar pela API da Hostinger), chave de envio e o script de um clique | `docs/email.md` e `deploy/vps/hub-email-setup.sh`; conferir com "Enviar um e-mail de teste para mim" em Configurações | Lacunas do PRD, RF-05 e RF-33 (convite do portal por e-mail pelo Hub) |
+| Ligar o e-mail do Hub: domínio no Resend, registros de DNS (com a sua ordem; o agente pode criar pela API da Hostinger), chave de envio e o script de um clique | `docs/email.md` e `deploy/vps/hub-email-setup.sh`; conferir com "Enviar um e-mail de teste para mim" em Configurações | Lacunas do PRD, RF-05, RF-33, RF-34 e RF-03: convite do portal e da equipe por e-mail, link novo pedido pelo contato e relatório aprovado por e-mail |
 | Cliente piloto: contato, liberar o portal e mandar o convite | Clientes → o cliente → Contatos e portal (`docs/portal.md`) | GATE M6 |
 
 ## 4. No Hermes e no Kratos (contêiner do Hermes na VPS)
