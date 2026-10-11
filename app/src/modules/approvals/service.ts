@@ -68,7 +68,7 @@ export const RequestApprovalInput = z.strictObject({
   title: Line(300),
   summary: z.string().trim().max(4000).optional(),
   milestone: MilestoneCode.optional().describe(
-    "Obrigatório para milestone_acceptance: o marco cujo aceite é pedido.",
+    "Obrigatório para milestone_acceptance: o marco cujo aceite é pedido. Só marco com GATE (gate_required); o marco sem GATE fecha quando é Entregue.",
   ),
   workstream_id: Uuid.optional().describe(
     "Obrigatório para client_visibility: a frente que passaria a aparecer ao cliente.",
@@ -282,9 +282,14 @@ export async function requestApproval(
         "Para pedir aceite de marco, informe milestone (por exemplo, M2).",
       );
     }
-    const m = await maybeOne<{ id: string; status: string }>(
+    const m = await maybeOne<{
+      id: string;
+      status: string;
+      gate_required: boolean;
+    }>(
       t,
-      `select id, status from ${S}.milestones where project_id = $1 and code = $2 and archived_at is null`,
+      `select id, status, gate_required from ${S}.milestones
+        where project_id = $1 and code = $2 and archived_at is null`,
       [project.id, input.milestone],
     );
     if (!m)
@@ -293,6 +298,11 @@ export async function requestApproval(
       );
     if (m.status === "accepted")
       throw conflict(`O marco ${input.milestone} já foi aceito.`);
+    // Marco sem GATE (RF-09) não tem aceite: fecha quando é Entregue.
+    if (!m.gate_required)
+      throw unprocessable(
+        `O marco ${input.milestone} não tem GATE: ao terminar, basta marcar como Entregue.`,
+      );
     entity = { type: "milestone", id: m.id };
   } else if (input.type === "client_visibility") {
     if (!input.workstream_id) {

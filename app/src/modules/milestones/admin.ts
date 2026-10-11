@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { audit, changedFields } from "@/lib/audit";
-import { badRequest, notFound, unprocessable } from "@/lib/errors";
+import { can } from "@/lib/authorize";
+import { badRequest, forbidden, notFound, unprocessable } from "@/lib/errors";
 import { assertNoSecrets } from "@/lib/text-guards";
 import {
   authorizeProjectId,
@@ -39,6 +40,11 @@ const MilestoneFields = {
   status: EditableMilestoneStatus,
   visibility: Visibility,
   acceptance_criteria: z.array(Criterion).max(30),
+  /**
+   * O marco fecha com o aceite do dono (GATE, o padrão) ou basta ser Entregue (RF-09).
+   * Tirar o GATE é decisão do dono (D9); pôr de volta, de quem edita marcos.
+   */
+  gate_required: z.boolean().optional(),
 };
 
 export const CreateMilestoneInput = z.strictObject(MilestoneFields);
@@ -50,6 +56,14 @@ export const UpdateMilestoneInput = z.strictObject({
   date_reason: z.string().trim().max(500).nullable().optional(),
 });
 export type UpdateMilestoneInput = z.infer<typeof UpdateMilestoneInput>;
+
+const GATE_OWNER =
+  "Tirar o GATE de um marco é decisão do dono: o aceite é dele (D9).";
+
+/** Só quem aceita marcos (o dono) tira o GATE. */
+function assertCanDropGate(t: TxCtx) {
+  if (!can(t.actor, "milestone.accept")) throw forbidden(GATE_OWNER);
+}
 
 function guardText(input: CreateMilestoneInput) {
   // O portal mostra só o texto escrito para o cliente; nunca cai no título interno.
@@ -89,6 +103,7 @@ export async function createMilestone(
     );
   }
   guardText(input);
+  if (input.gate_required === false) assertCanDropGate(t);
   // Próximo código (M1, M2…) e posição no fim da lista, com trava contra pedidos simultâneos.
   await t.tx.query(`select 1 from ${S}.projects where id = $1 for update`, [
     project.id,
@@ -114,9 +129,9 @@ export async function createMilestone(
     t,
     `insert into ${S}.milestones
        (workspace_id, project_id, code, title, title_client, description_client, due_date,
-        sort_order, status, visibility, acceptance_criteria, delivered_at)
+        sort_order, status, visibility, acceptance_criteria, delivered_at, gate_required)
      values ($1, $2, $3, $4, $5, $6, $7, $8, $9::${S}.milestone_status, $10, $11::jsonb,
-             case when $9::${S}.milestone_status = 'delivered' then now() end)
+             case when $9::${S}.milestone_status = 'delivered' then now() end, $12)
      returning id`,
     [
       t.actor.workspaceId,
@@ -130,6 +145,7 @@ export async function createMilestone(
       input.status,
       input.visibility,
       json(input.acceptance_criteria),
+      input.gate_required ?? true,
     ],
   );
   const dto = await getMilestone(t, row!.id);
@@ -144,6 +160,7 @@ export async function createMilestone(
       due_date: dto.due_date,
       status: dto.status,
       visibility: dto.visibility,
+      gate_required: dto.gate_required,
     },
   });
   return dto;
@@ -157,6 +174,7 @@ const AUDIT_KEYS = [
   "status",
   "visibility",
   "acceptance_criteria",
+  "gate_required",
 ] as const;
 
 export async function updateMilestone(
@@ -184,7 +202,22 @@ export async function updateMilestone(
   const next = {
     ...input,
     description_client: input.description_client || null,
+    gate_required: input.gate_required ?? before.gate_required,
   };
+  if (before.gate_required && !next.gate_required) {
+    assertCanDropGate(t);
+    const waiting = await maybeOne(
+      t,
+      `select 1 from ${S}.approvals
+        where type = 'milestone_acceptance' and entity_id = $1 and status = 'pending'`,
+      [id],
+    );
+    if (waiting) {
+      throw unprocessable(
+        `Há um pedido de aceite do ${before.code} esperando decisão. Decida o pedido antes de tirar o GATE.`,
+      );
+    }
+  }
   const changes = changedFields(before, next, AUDIT_KEYS);
   if (Object.keys(changes.after).length === 0) return before;
 
@@ -194,7 +227,8 @@ export async function updateMilestone(
             status = $6::${S}.milestone_status, visibility = $7, acceptance_criteria = $8::jsonb,
             delivered_at = case
               when $6::${S}.milestone_status = 'delivered' then coalesce(delivered_at, now())
-              else null end
+              else null end,
+            gate_required = $9
       where id = $1`,
     [
       id,
@@ -205,6 +239,7 @@ export async function updateMilestone(
       input.status,
       input.visibility,
       json(input.acceptance_criteria),
+      next.gate_required,
     ],
   );
   if ("due_date" in changes.after) {
@@ -254,6 +289,11 @@ export async function requestMilestoneAcceptance(
   if (milestone.status === "accepted") {
     throw unprocessable(`O marco ${milestone.code} já foi aceito.`);
   }
+  if (!milestone.gate_required) {
+    throw unprocessable(
+      `O marco ${milestone.code} não tem GATE: ao terminar, basta marcar como Entregue.`,
+    );
+  }
   const total = milestone.acceptance_criteria.length;
   const done = milestone.acceptance_criteria.filter((c) => c.done).length;
   return requestApproval(t, {
@@ -280,4 +320,55 @@ export async function pendingAcceptances(
     [projectId],
   );
   return rows.map((r) => r.entity_id);
+}
+
+/**
+ * Sobe ou desce o marco uma posição entre os marcos ativos do projeto (RF-09). A ordem é
+ * a da Visão geral, do portal e do plan.md; o código (M1, M2…) não muda.
+ */
+export async function moveMilestone(
+  t: TxCtx,
+  id: string,
+  direction: "up" | "down",
+): Promise<void> {
+  if (!Uuid.safeParse(id).success) throw badRequest("Marco inválido.");
+  const row = await maybeOne<{ project_id: string; code: string }>(
+    t,
+    `select project_id, code from ${S}.milestones
+      where id = $1 and archived_at is null`,
+    [id],
+  );
+  if (!row) throw notFound("Marco não encontrado neste workspace.");
+  await authorizeProjectId(t, row.project_id, "milestone.write");
+  // Trava os marcos do projeto: dois movimentos ao mesmo tempo não se embaralham.
+  const list = await many<{ id: string; sort_order: number }>(
+    t,
+    `select id, sort_order from ${S}.milestones
+      where project_id = $1 and archived_at is null
+      order by sort_order, code
+      for update`,
+    [row.project_id],
+  );
+  const from = list.findIndex((m) => m.id === id);
+  const to = direction === "up" ? from - 1 : from + 1;
+  if (to < 0 || to >= list.length) return;
+  const order = list.map((m) => m.id);
+  [order[from], order[to]] = [order[to], order[from]];
+  for (const [index, milestoneId] of order.entries()) {
+    const current = list.find((m) => m.id === milestoneId)!;
+    if (current.sort_order !== index + 1) {
+      await t.tx.query(
+        `update ${S}.milestones set sort_order = $2 where id = $1`,
+        [milestoneId, index + 1],
+      );
+    }
+  }
+  await audit(t, {
+    action: "milestone.moved",
+    entityType: "milestone",
+    entityId: id,
+    projectId: row.project_id,
+    before: { position: from + 1 },
+    after: { position: to + 1 },
+  });
 }

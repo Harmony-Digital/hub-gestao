@@ -49,6 +49,8 @@ Quando um marco não cabe mais na data, o escopo mudou ou falta um marco no plan
 
 O Fábio decide no Hoje. Ao aprovar, o Hub aplica sozinho, em nome dele: cria o marco (Planejado), muda as datas ou troca título e critérios. Você não muda nada por conta própria. Marco já aceito não muda mais: proponha um marco novo.
 
+Aceite de marco (`type: "milestone_acceptance"`) só vale para marco com GATE (`gate_required` no `hub_get_plan`); o marco sem GATE fecha quando é Entregue, sem pedido.
+
 Para um rascunho de status, use o papel RL-03 (skill `relator-de-status`).
 
 ## Nunca
