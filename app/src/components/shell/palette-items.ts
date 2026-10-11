@@ -2,6 +2,7 @@
  * Itens da janela ⌘K: telas, ações e o resultado da busca, já na ordem em que aparecem.
  * Puro (sem React nem servidor), para valer na tela e nos testes.
  */
+import { ROLE_LABEL } from "@/lib/labels";
 
 export type PaletteAction = "nova-tarefa" | "tema" | "concierge";
 
@@ -14,7 +15,9 @@ export type PaletteItem = {
     | "Projetos"
     | "Tarefas"
     | "Marcos"
-    | "Frentes";
+    | "Frentes"
+    | "Pessoas"
+    | "Agentes";
   label: string;
   /** Texto curto ao lado (código, projeto, situação). */
   hint?: string;
@@ -37,6 +40,13 @@ export type SearchResult = {
     title: string;
   }[];
   workstreams: { id: string; project_code: string; title: string }[];
+  people: { id: string; name: string; role: string }[];
+  agents: {
+    id: string;
+    name: string;
+    status: string;
+    department: string | null;
+  }[];
 };
 
 export const SCREENS: { href: string; label: string; keywords?: string }[] = [
@@ -212,6 +222,28 @@ export function paletteItems({
         label: w.title,
         hint: w.project_code,
         href: `/projetos/${w.project_code}`,
+      })),
+      // Pessoa ou agente: a tela com as tarefas dele em todos os projetos (RF-38).
+      ...(results.people ?? []).map((p) => ({
+        id: `pessoa-${p.id}`,
+        group: "Pessoas" as const,
+        label: p.name,
+        hint: Object.hasOwn(ROLE_LABEL, p.role)
+          ? ROLE_LABEL[p.role as keyof typeof ROLE_LABEL]
+          : p.role,
+        href: `/responsaveis/${p.id}`,
+      })),
+      ...(results.agents ?? []).map((a) => ({
+        id: `agente-${a.id}`,
+        group: "Agentes" as const,
+        label: a.name,
+        hint: [
+          a.department ?? "agente",
+          a.status === "paused" ? "pausado" : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        href: `/responsaveis/${a.id}`,
       })),
     );
   }

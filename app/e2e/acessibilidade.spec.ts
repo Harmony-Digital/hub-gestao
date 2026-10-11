@@ -62,6 +62,28 @@ const OPEN: {
     },
   },
   {
+    // Agente achado pela busca abre "Tarefas de" (RF-38).
+    name: "Tarefas de (pela busca)",
+    path: "/",
+    open: async (page) => {
+      const dialog = await openDialog(
+        page,
+        page.getByRole("button", { name: /^Buscar/ }).first(),
+        "Buscar no Hub",
+      );
+      await dialog.getByRole("combobox").fill("kratos");
+      await dialog
+        .getByRole("group", { name: "Agentes" })
+        .getByRole("option")
+        .first()
+        .click();
+      await expect(
+        page.getByRole("heading", { level: 1, name: /^Tarefas de Kratos/ }),
+      ).toBeVisible();
+      await page.waitForLoadState("networkidle");
+    },
+  },
+  {
     name: "Modelo de IA",
     path: "/agentes",
     open: (page) =>

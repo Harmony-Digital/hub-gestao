@@ -312,7 +312,7 @@ export function buildMcpServer(
       {
         title: "Buscar",
         description:
-          "Busca por texto ou código (ex.: HUB-12) em projetos, tarefas, marcos e frentes do seu escopo.",
+          "Busca por texto (sem diferenciar acento) ou código (ex.: HUB-12) em projetos, tarefas, marcos e frentes do seu escopo, e pessoas da equipe e agentes pelo nome (o id serve para atribuir: assignee { type, id }).",
         inputSchema: z.strictObject({ q: z.string().min(2).max(100) }),
         outputSchema: SearchDto,
         annotations: readOnly,

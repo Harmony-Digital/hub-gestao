@@ -8,8 +8,8 @@ import { search } from "@/modules/search/service";
 const HEADERS = { "Cache-Control": "private, no-store" };
 
 /**
- * Busca da janela ⌘K: projetos, tarefas (por código ou título), marcos e frentes, só no
- * alcance de quem está logado (a mesma busca da API e do MCP).
+ * Busca da janela ⌘K: projetos, tarefas (por código ou título), marcos, frentes, pessoas e
+ * agentes, só no alcance de quem está logado (a mesma busca da API e do MCP).
  */
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q") ?? "";
