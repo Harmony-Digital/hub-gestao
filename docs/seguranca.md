@@ -57,8 +57,8 @@ Conferido no catálogo do banco compartilhado:
   - uso do schema `net` e execução das funções `net.http_get`, `net.http_post` e `net.http_delete` (extensão `pg_net`, que faz o banco chamar endereços na internet);
   - leitura de duas tabelas do `net` e das visões de estatística `pg_stat_statements`.
 
-  O Hub não usa nada disso. Tirar a permissão de `PUBLIC` vale para todos os sistemas do Supabase compartilhado: é decisão do Fábio, depois de conferir que nenhum sistema depende dela. Até lá, o risco fica limitado: só o servidor do Hub conecta com esse papel, e nada que vem de pessoa ou de agente vira SQL (parâmetros sempre separados).
+  O Hub não usa nada disso. Tirar a permissão de `PUBLIC` valeria para todos os sistemas do Supabase compartilhado. **Decisão do Fábio em 2026-10-11: manter.** O risco fica limitado: só o servidor do Hub conecta com esse papel, e nada que vem de pessoa ou de agente vira SQL (parâmetros sempre separados). Se um dia mudar, conferir antes, só com leitura, que nenhum sistema depende da permissão.
 
 ## Segredos
 
-Os segredos ficam só em `/opt/hub-gestao/shared/.env.production` (VPS, `0600`) e `app/.env.local` (computador, fora do git). A lista está em `docs/credenciais.md`. O repositório está público até o fim da construção. A varredura de 2026-10-10 (commits, ramos, PRs, comentários e logs do Actions) achou só valores de teste. A varredura automática de segredos e a proteção de envio do GitHub aguardam a autorização do Fábio.
+Os segredos ficam só em `/opt/hub-gestao/shared/.env.production` (VPS, `0600`) e `app/.env.local` (computador, fora do git). A lista está em `docs/credenciais.md`. O repositório está público até o fim da construção. A varredura de 2026-10-10 (commits, ramos, PRs, comentários e logs do Actions) achou só valores de teste. A varredura automática de segredos e a proteção de envio do GitHub estão ligadas desde 2026-10-11, com a autorização do Fábio: o GitHub confere o histórico e recusa envio com chave conhecida. A `main` é protegida (PR obrigatório com os três jobs do CI, sem force-push, também para administradores) enquanto o repositório for público.
