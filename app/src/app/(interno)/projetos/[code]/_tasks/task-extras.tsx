@@ -244,10 +244,13 @@ export function DependenciesEditor({
   code,
   blockedBy,
   blocks,
+  peers = [],
 }: {
   code: string;
   blockedBy: LinkedRef[];
   blocks: LinkedRef[];
+  /** Outras tarefas do projeto, sugeridas pelo nome no campo de adicionar. */
+  peers?: { code: string; title: string }[];
 }) {
   const waiting = blockedBy.filter((d) => d.status_category !== "done");
   return (
@@ -273,7 +276,12 @@ export function DependenciesEditor({
             ))}
           </ul>
         )}
-        <AddDependency code={code} />
+        <AddDependency
+          code={code}
+          peers={peers.filter(
+            (p) => !blockedBy.some((dep) => dep.code === p.code),
+          )}
+        />
       </div>
       {blocks.length > 0 ? (
         <div className="flex flex-col gap-1.5">
@@ -321,8 +329,15 @@ function RemoveDependency({ code, other }: { code: string; other: string }) {
   );
 }
 
-function AddDependency({ code }: { code: string }) {
+function AddDependency({
+  code,
+  peers,
+}: {
+  code: string;
+  peers: { code: string; title: string }[];
+}) {
   const form = useRef<HTMLFormElement>(null);
+  const listId = `dependencias-${code}`;
   const [state, action, pending] = useActionState(
     async (previous: ActionState, data: FormData) => {
       const result = await dependenciaTarefa(previous, data);
@@ -338,18 +353,28 @@ function AddDependency({ code }: { code: string }) {
       <input type="hidden" name="code" value={code} />
       <div className="flex gap-2">
         <label htmlFor={`dependencia-${code}`} className="sr-only">
-          Código da tarefa de que esta depende
+          Tarefa de que esta depende (nome ou código)
         </label>
+        {/* Digitar parte do nome mostra as tarefas do projeto; a escolhida entra como
+            "HUB-12 · Título", e o código no começo é o que vale. */}
         <input
           id={`dependencia-${code}`}
           name="other"
-          maxLength={20}
+          list={peers.length > 0 ? listId : undefined}
+          maxLength={340}
           required
           disabled={pending}
-          placeholder="Código, como HUB-12"
-          autoCapitalize="characters"
-          className={`${inputClass} h-9 font-mono`}
+          autoComplete="off"
+          placeholder="Nome ou código da tarefa"
+          className={`${inputClass} h-9 min-w-0`}
         />
+        {peers.length > 0 ? (
+          <datalist id={listId}>
+            {peers.map((p) => (
+              <option key={p.code} value={`${p.code} · ${p.title}`} />
+            ))}
+          </datalist>
+        ) : null}
         <Button type="submit" variant="outline" size="lg" disabled={pending}>
           {pending ? (
             <LoaderCircle aria-hidden="true" className="animate-spin" />

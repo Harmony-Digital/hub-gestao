@@ -540,11 +540,16 @@ export function parseDependencyForm(
   if ((op !== "add" && op !== "remove") || !TASK_CODE.test(code)) {
     return { ok: false, message: RELOAD };
   }
-  const other = text(form, "other").trim().toUpperCase();
+  // Vale o código sozinho ("HUB-12") ou a sugestão escolhida na lista ("HUB-12 · Título").
+  const other =
+    /^\s*([A-Za-z]{2,6}-[0-9]{1,9})(?:\s|$)/
+      .exec(text(form, "other"))?.[1]
+      ?.toUpperCase() ?? "";
   if (!TASK_CODE.test(other)) {
     return {
       ok: false,
-      message: "Informe o código da tarefa de que esta depende, como HUB-12.",
+      message:
+        "Escolha a tarefa na lista (digite parte do nome) ou informe o código, como HUB-12.",
     };
   }
   if (other === code) {

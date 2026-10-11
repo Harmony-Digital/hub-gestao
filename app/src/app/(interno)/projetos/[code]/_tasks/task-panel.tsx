@@ -264,6 +264,7 @@ async function PanelContent({
             ...d,
             href: hrefFor(d.code),
           }))}
+          peers={data.peers}
         />
       </Section>
 
