@@ -5,6 +5,7 @@ import { authorize } from "@/lib/authorize";
 import { conflict, forbidden, notFound, unprocessable } from "@/lib/errors";
 import { iso, Line, Uuid } from "@/modules/common";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
+import { slugify } from "@/modules/projects/admin";
 
 /**
  * Configurações do workspace (M3, PRD §11): o nome, a equipe e os responsáveis dos
@@ -30,8 +31,11 @@ export type DepartmentSetting = {
   id: string;
   name: string;
   slug: string;
+  color: string;
   leadProfileId: string | null;
   leadName: string | null;
+  /** Onde o departamento está em uso (só dá para remover quando nada usa). */
+  usage: { projects: number; workstreams: number; agents: number };
 };
 
 export type WorkspaceSettings = {
@@ -94,11 +98,16 @@ export async function workspaceSettings(t: TxCtx): Promise<WorkspaceSettings> {
     id: string;
     name: string;
     slug: string;
+    color: string;
     lead_profile_id: string | null;
     lead_name: string | null;
+    projects: number;
+    workstreams: number;
+    agents: number;
   }>(
     t,
-    `select d.id, d.name, d.slug, d.lead_profile_id, p.full_name as lead_name
+    `select d.id, d.name, d.slug, d.color, d.lead_profile_id, p.full_name as lead_name,
+            ${DEPARTMENT_USAGE_SQL}
        from ${S}.departments d
        left join ${S}.profiles p on p.id = d.lead_profile_id
       order by d.sort_order, d.name`,
@@ -125,12 +134,25 @@ export async function workspaceSettings(t: TxCtx): Promise<WorkspaceSettings> {
       id: d.id,
       name: d.name,
       slug: d.slug,
+      color: d.color,
       leadProfileId: d.lead_profile_id,
       leadName: d.lead_name,
+      usage: {
+        projects: d.projects,
+        workstreams: d.workstreams,
+        agents: d.agents,
+      },
     })),
     aiBudgetUsd: Number.isFinite(budget) && budget > 0 ? budget : null,
   };
 }
+
+/** Onde cada departamento (d) está em uso: projetos, frentes (até arquivadas) e agentes. */
+const DEPARTMENT_USAGE_SQL = `
+  (select count(*)::int from ${S}.project_departments pd where pd.department_id = d.id) as projects,
+  (select count(*)::int from ${S}.workstreams w where w.department_id = d.id) as workstreams,
+  (select count(*)::int from ${S}.agents a
+    where a.department_id = d.id and a.status <> 'revoked') as agents`;
 
 export const WorkspaceNameInput = z.strictObject({ name: Line(120) });
 
@@ -352,4 +374,155 @@ export async function emailTestTarget(
   );
   if (!row) throw notFound("Perfil não encontrado.");
   return { email: row.email, name: row.full_name, orgName: row.org };
+}
+
+// Departamentos (RF-27) -------------------------------------------------------------------
+
+export const DepartmentInput = z.strictObject({
+  name: Line(80),
+  color: z
+    .string()
+    .trim()
+    .regex(/^#[0-9A-Fa-f]{6}$/, "Use a cor no formato #RRGGBB."),
+});
+export type DepartmentInput = z.infer<typeof DepartmentInput>;
+
+async function assertFreeDepartmentName(
+  t: TxCtx,
+  name: string,
+  exceptId: string | null,
+): Promise<void> {
+  const taken = await maybeOne(
+    t,
+    `select 1 from ${S}.departments
+      where lower(name) = lower($1) and ($2::uuid is null or id <> $2)`,
+    [name, exceptId],
+  );
+  if (taken) throw conflict(`Já existe um departamento chamado “${name}”.`);
+}
+
+/**
+ * Departamento novo (dono e administração), no fim da lista. O endereço (slug) sai do
+ * nome e não muda depois: renomear não quebra os links nem os modelos de projeto.
+ */
+export async function createDepartment(
+  t: TxCtx,
+  input: DepartmentInput,
+): Promise<{ id: string; slug: string }> {
+  authorize(t.actor, "workspace.admin");
+  const { name, color } = DepartmentInput.parse(input);
+  await assertFreeDepartmentName(t, name, null);
+  const base = slugify(name).slice(0, 50).replace(/-+$/g, "") || "departamento";
+  const used = new Set(
+    (
+      await many<{ slug: string }>(
+        t,
+        `select slug from ${S}.departments where slug = $1 or slug like $1 || '-%'`,
+        [base],
+      )
+    ).map((r) => r.slug),
+  );
+  let slug = base;
+  for (let n = 2; used.has(slug); n += 1) slug = `${base}-${n}`;
+  const row = await maybeOne<{ id: string }>(
+    t,
+    `insert into ${S}.departments (workspace_id, slug, name, color, sort_order)
+     values ($1, $2, $3, $4,
+             coalesce((select max(sort_order) + 1 from ${S}.departments), 0))
+     returning id`,
+    [t.actor.workspaceId, slug, name, color.toUpperCase()],
+  );
+  await audit(t, {
+    action: "department.created",
+    entityType: "department",
+    entityId: row!.id,
+    after: { name, slug, color: color.toUpperCase() },
+  });
+  return { id: row!.id, slug };
+}
+
+/** Novo nome ou nova cor (dono e administração). O endereço continua o mesmo. */
+export async function updateDepartment(
+  t: TxCtx,
+  departmentId: string,
+  input: DepartmentInput,
+): Promise<void> {
+  authorize(t.actor, "workspace.admin");
+  if (!Uuid.safeParse(departmentId).success) {
+    throw notFound("Departamento não encontrado.");
+  }
+  const { name, color } = DepartmentInput.parse(input);
+  const before = await maybeOne<{ name: string; color: string }>(
+    t,
+    `select name, color from ${S}.departments where id = $1 for update`,
+    [departmentId],
+  );
+  if (!before) throw notFound("Departamento não encontrado.");
+  const next = { name, color: color.toUpperCase() };
+  if (before.name === next.name && before.color.toUpperCase() === next.color) {
+    return;
+  }
+  if (before.name.toLowerCase() !== name.toLowerCase()) {
+    await assertFreeDepartmentName(t, name, departmentId);
+  }
+  await t.tx.query(
+    `update ${S}.departments set name = $2, color = $3 where id = $1`,
+    [departmentId, next.name, next.color],
+  );
+  await audit(t, {
+    action: "department.updated",
+    entityType: "department",
+    entityId: departmentId,
+    before,
+    after: next,
+  });
+}
+
+/**
+ * Remove o departamento (dono e administração), só quando nada o usa: projeto, frente
+ * (mesmo arquivada) ou agente. Senão, diz onde ele está, para tirar antes.
+ */
+export async function removeDepartment(
+  t: TxCtx,
+  departmentId: string,
+): Promise<void> {
+  authorize(t.actor, "workspace.admin");
+  if (!Uuid.safeParse(departmentId).success) {
+    throw notFound("Departamento não encontrado.");
+  }
+  const d = await maybeOne<{
+    name: string;
+    slug: string;
+    projects: number;
+    workstreams: number;
+    agents: number;
+  }>(
+    t,
+    `select d.name, d.slug, ${DEPARTMENT_USAGE_SQL}
+       from ${S}.departments d where d.id = $1 for update`,
+    [departmentId],
+  );
+  if (!d) throw notFound("Departamento não encontrado.");
+  const uses = [
+    [d.projects, "projeto", "projetos"],
+    [d.workstreams, "frente", "frentes"],
+    [d.agents, "agente", "agentes"],
+  ] as const;
+  const inUse = uses
+    .filter(([n]) => n > 0)
+    .map(([n, one, many]) => `${n} ${n === 1 ? one : many}`);
+  if (inUse.length > 0) {
+    throw unprocessable(
+      `${d.name} está em uso (${inUse.join(", ")}). Troque o departamento deles antes de remover.`,
+    );
+  }
+  await t.tx.query(`delete from ${S}.departments where id = $1`, [
+    departmentId,
+  ]);
+  await audit(t, {
+    action: "department.removed",
+    entityType: "department",
+    entityId: departmentId,
+    before: { name: d.name, slug: d.slug },
+  });
 }

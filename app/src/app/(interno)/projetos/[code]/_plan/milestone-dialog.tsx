@@ -3,8 +3,11 @@
 import { useActionState, useId, useState } from "react";
 import {
   Archive,
+  ArrowDown,
+  ArrowUp,
   Eye,
   LoaderCircle,
+  Lock,
   Pencil,
   Plus,
   Send,
@@ -22,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { IDLE, type ActionState } from "@/lib/action-state";
 import { MILESTONE_STATUS } from "@/lib/labels";
 import { ArchiveConfirm } from "../../../_archive/archive-controls";
-import { pedirAceite, salvarMarco } from "./actions";
+import { moverMarco, pedirAceite, salvarMarco } from "./actions";
 import { MILESTONE_STATUSES } from "./form";
 
 /** O marco como o formulário de edição precisa (só marcos ainda não aceitos). */
@@ -36,15 +39,19 @@ export type MilestoneInitial = {
   status: (typeof MILESTONE_STATUSES)[number];
   visibility: "internal" | "client";
   acceptance_criteria: { text: string; done: boolean }[];
+  gate_required: boolean;
 };
 
 /** "Novo marco" (sem marco) ou "Editar" (com o marco), numa janela. */
 export function MilestoneButton({
   projectCode,
   milestone,
+  canDropGate = false,
 }: {
   projectCode: string;
   milestone?: MilestoneInitial;
+  /** Quem aceita marcos (o dono) pode tirar o GATE (RF-09, D9). */
+  canDropGate?: boolean;
 }) {
   return (
     <FormDialog
@@ -69,6 +76,7 @@ export function MilestoneButton({
         <MilestoneForm
           projectCode={projectCode}
           milestone={milestone}
+          canDropGate={canDropGate}
           onDone={close}
         />
       )}
@@ -79,12 +87,15 @@ export function MilestoneButton({
 function MilestoneForm({
   projectCode,
   milestone,
+  canDropGate,
   onDone,
 }: {
   projectCode: string;
   milestone?: MilestoneInitial;
+  canDropGate: boolean;
   onDone: () => void;
 }) {
+  const gate = milestone?.gate_required ?? true;
   const [state, action, pending] = useActionState(
     async (previous: ActionState, form: FormData) => {
       const result = await salvarMarco(previous, form);
@@ -247,6 +258,34 @@ function MilestoneForm({
             </Button>
           </fieldset>
 
+          <div className="flex flex-col gap-1">
+            <input type="hidden" name="gate_section" value="1" />
+            <label className="flex items-start gap-2 text-sm text-ink">
+              <input
+                type="checkbox"
+                name="gate_required"
+                defaultChecked={gate}
+                // Com GATE, só o dono tira; sem GATE, quem edita pode pôr de volta.
+                disabled={gate && !canDropGate}
+                aria-describedby={`${id}-gate-hint`}
+                className="mt-0.5 size-4 accent-[var(--color-brand)]"
+              />
+              <span className="flex items-center gap-1.5">
+                <Lock aria-hidden="true" className="size-3.5 text-caption" />
+                Exige o aceite do dono (GATE)
+              </span>
+            </label>
+            {gate && !canDropGate ? (
+              // A caixa desabilitada não vai no formulário: o valor segue por aqui.
+              <input type="hidden" name="gate_required" value="on" />
+            ) : null}
+            <p id={`${id}-gate-hint`} className="text-xs text-caption">
+              {gate && !canDropGate
+                ? "Com o GATE, o marco fecha com o aceite pedido nas Aprovações. Só o dono tira o GATE."
+                : "Com o GATE, o marco fecha com o aceite pedido nas Aprovações. Sem o GATE, basta marcar como Entregue."}
+            </p>
+          </div>
+
           <div className="flex flex-col gap-3 rounded-xl bg-off p-4">
             <p className="flex items-center gap-2 text-sm font-semibold text-navy">
               <Eye aria-hidden="true" className="size-4" />O que o cliente vê
@@ -329,6 +368,54 @@ function MilestoneForm({
         </div>
       </form>
     </>
+  );
+}
+
+/** Subir e Descer: a ordem dos marcos na Visão geral, no portal e no plan.md (RF-09). */
+export function MilestoneOrder({
+  milestone,
+  first,
+  last,
+}: {
+  milestone: { id: string; code: string };
+  first: boolean;
+  last: boolean;
+}) {
+  const [state, action, pending] = useActionState(moverMarco, IDLE);
+  const submit = useSubmit(action);
+  return (
+    <form onSubmit={submit} className="flex flex-col items-end">
+      <input type="hidden" name="id" value={milestone.id} />
+      <span className="flex items-center">
+        <Button
+          type="submit"
+          name="direction"
+          value="up"
+          variant="ghost"
+          size="icon-sm"
+          disabled={pending || first}
+          aria-label={`Subir o ${milestone.code}`}
+        >
+          <ArrowUp aria-hidden="true" />
+        </Button>
+        <Button
+          type="submit"
+          name="direction"
+          value="down"
+          variant="ghost"
+          size="icon-sm"
+          disabled={pending || last}
+          aria-label={`Descer o ${milestone.code}`}
+        >
+          <ArrowDown aria-hidden="true" />
+        </Button>
+      </span>
+      {state.status === "error" ? (
+        <span role="alert" className="text-xs text-danger-fg">
+          {state.message}
+        </span>
+      ) : null}
+    </form>
   );
 }
 
