@@ -5,6 +5,7 @@ export const SCREENS = [
   "/",
   "/minhas-tarefas",
   "/aprovacoes",
+  "/relatorios",
   "/caixa-de-entrada",
   "/clientes",
   "/clientes/clinica-exemplo/portal",
