@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { HubError } from "@/lib/errors";
-import { inTx } from "@/modules/context";
+import { inTx, maybeOne } from "@/modules/context";
 import { createTask } from "@/modules/tasks/service";
 import { agentActor, ctxFor, openTestHub, type TestHub } from "@/test/hub";
 import { activityCsv, exportActivity, type ActivityRow } from "./export";
@@ -12,9 +12,16 @@ let code = "";
 
 beforeAll(async () => {
   h = await openTestHub();
-  today = (
-    await h.raw.query<{ today: string }>("select current_date::text as today")
-  ).rows[0].today;
+  // Hoje no fuso do workspace, o mesmo do período da exportação (fora da transação, o
+  // fuso do servidor muda o dia entre 0h e 3h UTC).
+  today = await inTx(
+    asOwner(),
+    async (t) =>
+      (await maybeOne<{ today: string }>(
+        t,
+        "select current_date::text as today",
+      ))!.today,
+  );
   const kratos = await agentActor(h, h.keys.kratos);
   code = (
     await inTx(ctxFor(h, kratos), (t) =>
