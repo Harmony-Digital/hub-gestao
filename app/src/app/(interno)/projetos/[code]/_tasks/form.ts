@@ -80,6 +80,27 @@ function dueDate(value: string): Parsed<string | null> {
     : { ok: false, message: "Data inválida. Use o calendário do campo." };
 }
 
+/**
+ * Referência externa (RF-14): o número do chamado, o endereço do card em outra ferramenta
+ * ou o id de um pedido. Uma linha, até 500 caracteres; vazio tira.
+ */
+function externalRef(value: string): Parsed<string | null> {
+  const clean = value.trim();
+  if (CONTROL.test(clean)) {
+    return {
+      ok: false,
+      message: "A referência externa precisa ser uma linha só.",
+    };
+  }
+  if (clean.length > 500) {
+    return {
+      ok: false,
+      message: "A referência externa passou de 500 caracteres.",
+    };
+  }
+  return { ok: true, value: clean || null };
+}
+
 /** Estimativa em minutos, escrita como "1h30", "90" ou "45 min"; vazio tira. */
 function estimate(value: string): Parsed<number | null> {
   const minutes = parseDuration(value);
@@ -172,9 +193,11 @@ export type TaskFields = {
   description_md?: string | null;
   priority?: Priority;
   assignee?: Assignee;
+  start_date?: string | null;
   due_date?: string | null;
   workstream_id?: string | null;
   estimate_minutes?: number | null;
+  external_ref?: string | null;
 };
 
 export function parseTaskFieldsForm(
@@ -188,9 +211,11 @@ export function parseTaskFieldsForm(
     ["description_md", description],
     ["priority", priority],
     ["assignee", parseAssignee],
+    ["start_date", dueDate],
     ["due_date", dueDate],
     ["workstream_id", workstream],
     ["estimate_minutes", estimate],
+    ["external_ref", externalRef],
   ];
   for (const [name, parse] of steps) {
     if (!form.has(name)) continue;
@@ -206,9 +231,11 @@ type CurrentTask = {
   description_md: string | null;
   priority: string;
   assignee: { type: string; id: string | null } | null;
+  start_date: string | null;
   due_date: string | null;
   workstream: { id: string } | null;
   estimate_minutes: number | null;
+  external_ref: string | null;
 };
 
 /** Só o que mudou em relação à tarefa como está no banco: o resto não é regravado. */
@@ -235,8 +262,20 @@ export function changedTaskFields(
   ) {
     changes.assignee = fields.assignee;
   }
+  if (
+    fields.start_date !== undefined &&
+    fields.start_date !== current.start_date
+  ) {
+    changes.start_date = fields.start_date;
+  }
   if (fields.due_date !== undefined && fields.due_date !== current.due_date) {
     changes.due_date = fields.due_date;
+  }
+  if (
+    fields.external_ref !== undefined &&
+    fields.external_ref !== (current.external_ref?.trim() || null)
+  ) {
+    changes.external_ref = fields.external_ref;
   }
   if (
     fields.workstream_id !== undefined &&

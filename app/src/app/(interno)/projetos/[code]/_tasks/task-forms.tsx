@@ -239,29 +239,34 @@ function Field({
 }
 
 /**
- * Responsável, prioridade e frente salvam ao escolher; o prazo, ao sair do campo (assim
- * digitar a data aos poucos não grava datas pela metade). Remonta a cada versão salva.
+ * Responsável, prioridade e frente salvam ao escolher; início, prazo, estimativa e
+ * referência externa, ao sair do campo (assim digitar aos poucos não grava pela metade).
+ * Remonta a cada versão salva.
  */
 export function TaskFieldsForm({
   code,
   version,
   assignee,
+  startDate,
   dueDate,
   late,
   priority,
   workstreamId,
   estimateMinutes,
+  externalRef,
   assignees,
   workstreams,
 }: {
   code: string;
   version: number;
   assignee: string;
+  startDate: string | null;
   dueDate: string | null;
   late: boolean;
   priority: string;
   workstreamId: string | null;
   estimateMinutes: number | null;
+  externalRef: string | null;
   assignees: AssigneeOption[];
   workstreams: WorkstreamOption[];
 }) {
@@ -308,6 +313,48 @@ export function TaskFieldsForm({
             ) : null}
           </select>
         </Field>
+        <Field id={`${ids}-prioridade`} label="Prioridade">
+          <select
+            id={`${ids}-prioridade`}
+            name="priority"
+            defaultValue={priority}
+            disabled={pending}
+            onChange={save}
+            className={inputClass}
+          >
+            {PRIORITIES.map((p) => (
+              <option key={p} value={p}>
+                {PRIORITY[p].label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field id={`${ids}-inicio`} label="Início">
+          <input
+            id={`${ids}-inicio`}
+            type="date"
+            name="start_date"
+            defaultValue={startDate ?? ""}
+            disabled={pending}
+            onBlur={(e) => {
+              // Como no prazo: data digitada pela metade fica de fora.
+              const input = e.currentTarget;
+              if (
+                !input.validity.badInput &&
+                input.value !== (startDate ?? "")
+              ) {
+                save();
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                save();
+              }
+            }}
+            className={inputClass}
+          />
+        </Field>
         <Field
           id={`${ids}-prazo`}
           label={
@@ -342,22 +389,6 @@ export function TaskFieldsForm({
             }}
             className={inputClass}
           />
-        </Field>
-        <Field id={`${ids}-prioridade`} label="Prioridade">
-          <select
-            id={`${ids}-prioridade`}
-            name="priority"
-            defaultValue={priority}
-            disabled={pending}
-            onChange={save}
-            className={inputClass}
-          >
-            {PRIORITIES.map((p) => (
-              <option key={p} value={p}>
-                {PRIORITY[p].label}
-              </option>
-            ))}
-          </select>
         </Field>
         <Field id={`${ids}-frente`} label="Frente">
           <select
@@ -400,6 +431,39 @@ export function TaskFieldsForm({
             className={inputClass}
           />
         </Field>
+        <div className="sm:col-span-2">
+          <Field id={`${ids}-referencia`} label="Referência externa">
+            <input
+              id={`${ids}-referencia`}
+              name="external_ref"
+              defaultValue={externalRef ?? ""}
+              maxLength={500}
+              placeholder="Ex.: o endereço do card em outra ferramenta ou o número do chamado"
+              disabled={pending}
+              onBlur={(e) => {
+                if (e.currentTarget.value.trim() !== (externalRef ?? ""))
+                  save();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  save();
+                }
+              }}
+              className={inputClass}
+            />
+          </Field>
+          {externalRef && /^https?:\/\//i.test(externalRef) ? (
+            <a
+              href={externalRef}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-block text-xs font-medium text-navy underline underline-offset-2"
+            >
+              Abrir a referência externa
+            </a>
+          ) : null}
+        </div>
       </div>
       <div aria-live="polite">
         {state.status === "error" ? (
