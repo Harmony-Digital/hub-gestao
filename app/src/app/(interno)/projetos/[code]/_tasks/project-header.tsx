@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import {
   Archive,
   CalendarDays,
+  ChartGantt,
   LayoutDashboard,
   List,
   SquareKanban,
@@ -14,12 +15,19 @@ import { HEALTH, PHASES, PROJECT_STATUS } from "@/lib/labels";
 import type { ProjectDetail } from "@/modules/projects/schemas";
 import { RestoreButton } from "../../../_archive/archive-controls";
 
-export type ProjectTab = "overview" | "list" | "board" | "calendar";
+export type ProjectTab =
+  "overview" | "list" | "board" | "timeline" | "calendar";
 
 const TABS = [
   { key: "overview", label: "Visão geral", path: "", icon: LayoutDashboard },
   { key: "list", label: "Lista", path: "/lista", icon: List },
   { key: "board", label: "Quadro", path: "/quadro", icon: SquareKanban },
+  {
+    key: "timeline",
+    label: "Linha do tempo",
+    path: "/linha-do-tempo",
+    icon: ChartGantt,
+  },
   {
     key: "calendar",
     label: "Calendário",
