@@ -150,6 +150,13 @@ async function ClientsView() {
                           Contatos e portal
                         </Link>
                       ) : null}
+                      <Link
+                        href={`/historico/cliente/${c.id}`}
+                        aria-label={`Histórico de ${c.name}`}
+                        className="text-sm font-semibold text-brand-strong hover:text-navy"
+                      >
+                        Histórico
+                      </Link>
                     </div>
                     {admin ? (
                       <div className="flex flex-col items-start gap-2 border-t border-line pt-3">
