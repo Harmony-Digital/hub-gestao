@@ -105,14 +105,19 @@ export async function salvarFrente(
               description_internal: f.description_internal ?? undefined,
               status: f.status,
               assignee: f.assignee ?? undefined,
+              depends_on: v.dependsOn?.length ? v.dependsOn : undefined,
             }),
           );
       const changes = workstreamChanges(current, v);
-      if (v.id && Object.keys(changes.fields).length > 0) {
+      const update = {
+        ...changes.fields,
+        ...(changes.dependsOn ? { depends_on: v.dependsOn! } : {}),
+      };
+      if (v.id && Object.keys(update).length > 0) {
         await updateWorkstream(
           t,
           current.id,
-          UpdateWorkstreamInput.parse(changes.fields),
+          UpdateWorkstreamInput.parse(update),
         );
       }
       if (v.visibility && changes.visibility) {

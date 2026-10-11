@@ -1,6 +1,8 @@
 import { ACTOR_NAME_SQL, actorRef, iso, type ActorRef } from "@/modules/common";
 import { many, S, type TxCtx } from "@/modules/context";
 import { milestonesOfProject } from "@/modules/milestones/service";
+import { dependencyAlertsOf } from "@/modules/workstreams/dependencies";
+import type { DependencyAlert } from "@/modules/workstreams/dependency-rule";
 import { workstreamsOfProject } from "@/modules/workstreams/service";
 import type {
   MilestoneDto,
@@ -30,6 +32,8 @@ export type ProjectOverview = {
   project: ProjectDetail;
   milestones: MilestoneDto[];
   workstreams: WorkstreamDto[];
+  /** Frentes que começaram antes de terminar a frente de que dependem (RF-13). */
+  dependencyAlerts: DependencyAlert[];
   /** Abertas e fora de bloqueio, na ordem de trabalho. */
   queue: TaskSummary[];
   blocked: TaskSummary[];
@@ -63,6 +67,7 @@ const VERBS: Record<string, string> = {
   "workstream.created": "criou uma frente",
   "workstream.updated": "atualizou uma frente",
   "workstream.visibility_changed": "mudou o que o cliente vê de uma frente",
+  "workstream.dependencies_changed": "mudou as dependências de uma frente",
   "milestone.created": "criou um marco",
   "milestone.updated": "atualizou um marco",
   "milestone.archived": "arquivou um marco",
@@ -189,6 +194,7 @@ export async function projectOverview(
   const project = await getProject(t, code);
   const milestones = await milestonesOfProject(t, project.id);
   const workstreams = await workstreamsOfProject(t, project.id);
+  const dependencyAlerts = await dependencyAlertsOf(t, project.id);
 
   const queue = await many<SummaryRow>(
     t,
@@ -224,6 +230,7 @@ export async function projectOverview(
     project,
     milestones,
     workstreams,
+    dependencyAlerts,
     queue: queue.map(toTaskSummary),
     blocked: blocked.map(toTaskSummary),
     activity: activity.map((a) => ({

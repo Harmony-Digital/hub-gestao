@@ -32,12 +32,16 @@ export type WorkstreamInitial = {
   visibility: "internal" | "client";
   title_client: string | null;
   description_client: string | null;
+  /** Frentes de que esta depende (ids). */
+  dependsOn: string[];
 };
 
 export type WorkstreamFormOptions = {
   milestones: { code: string; title: string }[];
   departments: { slug: string; name: string }[];
   assignees: AssigneeOption[];
+  /** Frentes ativas do projeto, para a lista "Depende de". */
+  workstreams: { id: string; title: string; milestone: string | null }[];
   /** Quem pode mostrar a frente ao cliente (workstream.visibility). */
   canShowClient: boolean;
 };
@@ -114,6 +118,7 @@ function WorkstreamForm({
     !options.assignees.some((a) => `${a.type}:${a.id}` === current);
   // Arquivar troca o formulário pela confirmação, na mesma janela.
   const [archiving, setArchiving] = useState(false);
+  const others = options.workstreams.filter((w) => w.id !== workstream?.id);
 
   return (
     <>
@@ -244,6 +249,44 @@ function WorkstreamForm({
               className={textareaClass}
             />
           </Field>
+
+          {others.length > 0 ? (
+            <fieldset className="flex min-w-0 flex-col gap-2">
+              <input type="hidden" name="dependencies_section" value="1" />
+              <legend className="text-sm font-medium text-ink">
+                Depende de (opcional)
+              </legend>
+              <p id={`${id}-depends-hint`} className="text-xs text-caption">
+                Esta frente só deveria começar quando as marcadas terminarem. A
+                Visão geral avisa se ela começar antes.
+              </p>
+              <div
+                aria-describedby={`${id}-depends-hint`}
+                className="flex max-h-44 flex-col gap-1.5 overflow-y-auto rounded-xl border border-line p-3"
+              >
+                {others.map((w) => (
+                  <label
+                    key={w.id}
+                    className="flex items-start gap-2 text-sm text-ink"
+                  >
+                    <input
+                      type="checkbox"
+                      name="depends_on"
+                      value={w.id}
+                      defaultChecked={workstream?.dependsOn.includes(w.id)}
+                      className="mt-0.5 size-4 shrink-0 accent-[var(--color-brand)]"
+                    />
+                    <span>
+                      {w.title}
+                      {w.milestone ? (
+                        <span className="text-ink-2"> · {w.milestone}</span>
+                      ) : null}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
 
           {options.canShowClient ? (
             <div className="flex flex-col gap-3 rounded-xl bg-off p-4">

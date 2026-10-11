@@ -62,7 +62,7 @@
   {
     "name": "hub_create_workstream",
     "title": "Criar frente",
-    "description": "Cria uma frente (camada tática) ligada a marco e departamento. Nasce interna; mostrar ao cliente é pedido de aprovação.",
+    "description": "Cria uma frente (camada tática) ligada a marco e departamento, com as frentes de que ela depende (depends_on). Nasce interna; mostrar ao cliente é pedido de aprovação.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -224,7 +224,7 @@
   {
     "name": "hub_update_workstream",
     "title": "Atualizar frente",
-    "description": "Atualiza título, marco, departamento, descrição interna, status, ordem ou responsável de uma frente.",
+    "description": "Atualiza título, marco, departamento, descrição interna, status, ordem, responsável ou dependências (depends_on, a lista inteira, sem ciclos) de uma frente.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,

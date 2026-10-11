@@ -12,6 +12,7 @@ import {
   importProjectPlan,
 } from "@/modules/projects/import";
 import { inTx } from "@/modules/context";
+import { addDependency } from "@/modules/tasks/extras";
 import {
   blockTask,
   completeTask,
@@ -20,7 +21,10 @@ import {
   updateTask,
 } from "@/modules/tasks/service";
 import type { CreateTaskInput } from "@/modules/tasks/schemas";
-import { createWorkstream } from "@/modules/workstreams/service";
+import {
+  createWorkstream,
+  updateWorkstream,
+} from "@/modules/workstreams/service";
 import { SCHEMA as S } from "./local";
 import type { Db } from "./types";
 
@@ -196,6 +200,13 @@ export async function ensureDevSample(db: Db, raw: PGlite): Promise<void> {
       );
     }
   }
+  // Dependências entre frentes (RF-13): a agenda depende do fluxo e as telas, da agenda.
+  // A agenda já tem tarefa bloqueada (começou antes de o fluxo terminar): a Visão geral
+  // mostra o alerta.
+  await inTx(ctx(owner), async (t) => {
+    await updateWorkstream(t, fronts.agenda, { depends_on: [fronts.fluxo] });
+    await updateWorkstream(t, fronts.telas, { depends_on: [fronts.agenda] });
+  });
 
   const task = async (
     who: AgentActor | UserActor,
@@ -242,10 +253,17 @@ export async function ensureDevSample(db: Db, raw: PGlite): Promise<void> {
   await inTx(ctx(kratos), (t) =>
     updateTask(t, t4.code, { status: "Em revisão" }),
   );
-  await task(owner, "Aprovar o roteiro de passagem para a recepção", "fluxo", {
-    priority: "high",
-    assignee: { type: "user", id: base.owner },
-  });
+  const t5 = await task(
+    owner,
+    "Aprovar o roteiro de passagem para a recepção",
+    "fluxo",
+    {
+      priority: "high",
+      assignee: { type: "user", id: base.owner },
+    },
+  );
+  // O roteiro só é aprovado depois do fluxo escrito: o Quadro mostra "Espera".
+  await inTx(ctx(owner), (t) => addDependency(t, t5.code, t2.code));
   await task(kratos, "Desenhar a tela de fila da recepção", "telas");
   await task(kratos, "Testar com 20 conversas reais anonimizadas", "fluxo", {
     priority: "low",

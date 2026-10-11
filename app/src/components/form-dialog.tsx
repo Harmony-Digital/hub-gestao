@@ -60,7 +60,7 @@ export function FormDialog({
       <dialog
         ref={setDialog}
         aria-labelledby={titleId}
-        className={`m-auto ${wide ? "w-[min(94vw,42rem)]" : "w-[min(92vw,30rem)]"} max-w-none rounded-2xl border border-line bg-paper p-0 text-ink shadow-2xl backdrop:bg-navy-3/50`}
+        className={`m-auto ${wide ? "w-[min(94vw,42rem)]" : "w-[min(92vw,30rem)]"} max-w-none rounded-2xl border border-line bg-paper p-0 text-left whitespace-normal text-ink shadow-2xl backdrop:bg-navy-3/50`}
       >
         <div key={round} className="flex flex-col gap-4 p-5 sm:p-6">
           <div className="flex flex-col gap-1">

@@ -89,7 +89,12 @@ async function BoardView({
   const columns = boardColumns(data.statuses, data.tasks, data.doneTotal);
   const cards = sortForBoard(
     data.tasks.map((task) =>
-      toBoardCard(task, data.today, taskHref(basePath, keep, task.code)),
+      toBoardCard(
+        task,
+        data.today,
+        taskHref(basePath, keep, task.code),
+        data.waitingOn[task.code],
+      ),
     ),
   );
   // Raias só quando há cartão; sem nenhum, o quadro único mostra as colunas vazias.

@@ -9,6 +9,7 @@ import {
 } from "@/modules/common";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
 import { computeHealth } from "@/modules/health/rule";
+import { dependencyAlertsOf } from "@/modules/workstreams/dependencies";
 import { milestonesOfProject } from "@/modules/milestones/service";
 import type {
   HealthDto,
@@ -345,7 +346,8 @@ export async function getProjectHealth(
     oldest_pending_approval_at: null,
     stored: "healthy" as const,
   };
-  const result = computeHealth(base, now);
+  const broken = (await dependencyAlertsOf(t, ref.id)).length;
+  const result = computeHealth({ ...base, broken_dependencies: broken }, now);
   return {
     project_code: ref.code,
     health: result.health,
@@ -354,6 +356,7 @@ export async function getProjectHealth(
       open_task_count: base.open_task_count,
       blocked_task_count: base.blocked_task_count,
       late_milestones: base.late_milestones,
+      broken_dependencies: broken,
       next_due_date: base.next_due_date,
       oldest_pending_approval_at: isoOrNull(base.oldest_pending_approval_at),
     },

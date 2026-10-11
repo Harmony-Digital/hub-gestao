@@ -69,6 +69,7 @@ function card(code: string, statusId: string): BoardCard {
     late: false,
     parent: null,
     done: false,
+    waitingOn: [],
     href: `/x?tarefa=${code}`,
   };
 }
@@ -106,6 +107,21 @@ describe("cartões do quadro", () => {
     );
     expect(feita.late).toBe(false);
     expect(feita.done).toBe(true);
+    expect(aberta.waitingOn).toEqual([]);
+    expect(
+      toBoardCard(task(), "2026-10-10", "/x", ["HUB-2", "HUB-5"]).waitingOn,
+    ).toEqual(["HUB-2", "HUB-5"]);
+    // Concluída não espera mais nada, mesmo com a outra ainda aberta.
+    expect(
+      toBoardCard(
+        task({
+          status: { id: "s4", name: "Concluída", category: "done", color: "" },
+        }),
+        "2026-10-10",
+        "/x",
+        ["HUB-2"],
+      ).waitingOn,
+    ).toEqual([]);
     expect(
       toBoardCard(task({ due_date: "2026-10-10" }), "2026-10-10", "/x").late,
     ).toBe(false);

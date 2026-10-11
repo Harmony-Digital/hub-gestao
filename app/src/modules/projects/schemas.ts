@@ -110,6 +110,11 @@ export const WorkstreamDto = z.object({
   task_count: z.number().int(),
   done_count: z.number().int(),
   blocked_count: z.number().int(),
+  depends_on: z
+    .array(Uuid)
+    .describe(
+      "Frentes ativas de que esta depende (ids), na ordem das frentes.",
+    ),
   updated_at: Timestamp,
 });
 export type WorkstreamDto = z.infer<typeof WorkstreamDto>;
@@ -173,6 +178,12 @@ export const HealthDto = z.object({
     open_task_count: z.number().int(),
     blocked_task_count: z.number().int(),
     late_milestones: z.number().int(),
+    broken_dependencies: z
+      .number()
+      .int()
+      .describe(
+        "Frentes que começaram antes de terminar a frente de que dependem.",
+      ),
     next_due_date: IsoDate.nullable(),
     oldest_pending_approval_at: Timestamp.nullable(),
   }),

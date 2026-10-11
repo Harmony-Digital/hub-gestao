@@ -28,7 +28,7 @@ import {
   type DragStartEvent,
   type KeyboardCoordinateGetter,
 } from "@dnd-kit/core";
-import { CornerDownRight, LoaderCircle, X } from "lucide-react";
+import { CornerDownRight, Hourglass, LoaderCircle, X } from "lucide-react";
 import { Avatar, Pill } from "@/components/shell/pill";
 import { Button } from "@/components/ui/button";
 import { formatDayMonth, initials } from "@/lib/format";
@@ -525,6 +525,7 @@ function DraggableCard({
     card.priority === "urgent" || card.priority === "high"
       ? `prioridade ${PRIORITY[card.priority].label.toLowerCase()}`
       : null,
+    card.waitingOn.length > 0 ? `espera ${card.waitingOn.join(" e ")}` : null,
   ]
     .filter(Boolean)
     .join(", ");
@@ -599,6 +600,12 @@ function CardFace({
       </p>
       {card.workstream ? (
         <p className="truncate text-xs text-ink-2">{card.workstream}</p>
+      ) : null}
+      {card.waitingOn.length > 0 ? (
+        <p className="flex items-center gap-1 text-xs font-medium text-warn-fg">
+          <Hourglass aria-hidden="true" className="size-3.5 shrink-0" />
+          <span className="truncate">Espera {card.waitingOn.join(", ")}</span>
+        </p>
       ) : null}
       {card.assignee || card.due ? (
         <div className="flex items-center gap-2 text-xs">

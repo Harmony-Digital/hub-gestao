@@ -2,6 +2,7 @@ import { audit } from "@/lib/audit";
 import { json, many, S, type TxCtx } from "@/modules/context";
 import { emitEvent, recomputeRollup } from "@/modules/events";
 import { computeHealth, type Health } from "@/modules/health/rule";
+import { dependencyAlertsOf } from "@/modules/workstreams/dependencies";
 
 /**
  * Recalcula progresso e saúde de todos os projetos em andamento. Grava só quando a
@@ -39,7 +40,8 @@ export async function refreshAllHealth(
       )
     )[0];
     if (!row) continue;
-    const result = computeHealth(row, now);
+    const broken = (await dependencyAlertsOf(t, project.id)).length;
+    const result = computeHealth({ ...row, broken_dependencies: broken }, now);
     const reasons = { reasons: result.reasons };
     if (
       result.health === row.health &&

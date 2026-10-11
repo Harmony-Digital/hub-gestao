@@ -81,6 +81,16 @@ const OPEN: {
         "Novo marco em EXE",
       ),
   },
+  {
+    name: "Editar frente (com Depende de)",
+    path: "/projetos/EXE",
+    open: (page) =>
+      openDialog(
+        page,
+        page.getByRole("button", { name: /^Editar a frente / }).first(),
+        "Editar frente",
+      ),
+  },
 ];
 
 async function violations(page: Page) {

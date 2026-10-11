@@ -10,6 +10,7 @@ import {
   ListChecks,
   Lock,
   Pencil,
+  TriangleAlert,
 } from "lucide-react";
 import { ChannelThread } from "@/components/channel-thread";
 import { Avatar, Pill, Progress } from "@/components/shell/pill";
@@ -150,6 +151,11 @@ async function ProjectView({
     milestones: data.milestones.map((m) => ({ code: m.code, title: m.title })),
     departments,
     assignees: options.assignees,
+    workstreams: data.workstreams.map((w) => ({
+      id: w.id,
+      title: w.title,
+      milestone: w.milestone?.code ?? null,
+    })),
     canShowClient: can(user.actor, "workstream.visibility"),
   };
 
@@ -609,7 +615,16 @@ function workstreamInitial(w: WorkstreamDto): WorkstreamInitial {
     visibility: w.visibility,
     title_client: w.title_client,
     description_client: w.description_client,
+    dependsOn: w.depends_on,
   };
+}
+
+/** “A”, “A” e “B”, “A”, “B” e “C”. */
+function quotedList(titles: string[]): string {
+  const quoted = titles.map((t) => `“${t}”`);
+  return quoted.length <= 1
+    ? (quoted[0] ?? "")
+    : `${quoted.slice(0, -1).join(", ")} e ${quoted.at(-1)}`;
 }
 
 function Workstreams({
@@ -623,6 +638,8 @@ function Workstreams({
   canWrite: boolean;
   options: WorkstreamFormOptions;
 }) {
+  const titleOf = new Map(data.workstreams.map((w) => [w.id, w.title]));
+  const alerts = new Map(data.dependencyAlerts.map((a) => [a.id, a]));
   if (data.workstreams.length === 0) {
     return (
       <Empty>
@@ -653,6 +670,10 @@ function Workstreams({
         <tbody className="divide-y divide-line">
           {data.workstreams.map((w) => {
             const status = WORKSTREAM_STATUS[w.status];
+            const dependsOn = w.depends_on
+              .map((id) => titleOf.get(id))
+              .filter((t): t is string => Boolean(t));
+            const alert = alerts.get(w.id);
             return (
               <tr key={w.id} className="align-top">
                 <td className="py-2.5 pr-3">
@@ -679,6 +700,23 @@ function Workstreams({
                         : w.blocked_count > 1
                           ? ` · ${w.blocked_count} bloqueadas`
                           : ""}
+                    </span>
+                  ) : null}
+                  {dependsOn.length > 0 ? (
+                    <span className="block text-xs text-ink-2">
+                      Depende de {quotedList(dependsOn)}
+                    </span>
+                  ) : null}
+                  {alert ? (
+                    <span className="mt-1 flex items-start gap-1 text-xs font-medium text-warn-fg">
+                      <TriangleAlert
+                        aria-hidden="true"
+                        className="mt-px size-3.5 shrink-0"
+                      />
+                      Começou antes de{" "}
+                      {quotedList(alert.waitingOn.map((x) => x.title))}{" "}
+                      {alert.waitingOn.length === 1 ? "terminar" : "terminarem"}
+                      .
                     </span>
                   ) : null}
                 </td>
