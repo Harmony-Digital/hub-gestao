@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseDepartmentForm,
   parseLabelForm,
+  parseRetentionForm,
   parseDepartmentLeadForm,
   parseDepartmentRemoveForm,
   parseMemberForm,
@@ -179,6 +180,41 @@ describe("departamento (RF-27)", () => {
       value: ID,
     });
     expect(parseDepartmentRemoveForm(data({})).ok).toBe(false);
+  });
+});
+
+describe("prazos de retenção (PRD §12)", () => {
+  const all = {
+    agent_denials: "90",
+    webhook_deliveries: "30",
+    jobs_done: "30",
+    jobs_failed: "90",
+    notifications_read: "180",
+    portal_sessions: "90",
+    agent_runs: "365",
+  };
+  const fd = (values: Record<string, string>) => {
+    const f = new FormData();
+    for (const [k, v] of Object.entries(values)) f.set(k, v);
+    return f;
+  };
+  it("lê os dias de cada registro e recusa fora da faixa ou sem número", () => {
+    expect(parseRetentionForm(fd({ ...all, agent_runs: "120" }))).toEqual({
+      ok: true,
+      value: {
+        ...Object.fromEntries(
+          Object.entries(all).map(([k, v]) => [k, Number(v)]),
+        ),
+        agent_runs: 120,
+      },
+    });
+    expect(parseRetentionForm(fd({ ...all, jobs_done: "3" }))).toEqual({
+      ok: false,
+      message: "Jobs concluídos: de 7 a 365 dias.",
+    });
+    expect(
+      parseRetentionForm(fd({ ...all, agent_denials: "noventa" })).ok,
+    ).toBe(false);
   });
 });
 

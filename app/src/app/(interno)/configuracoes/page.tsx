@@ -17,6 +17,9 @@ import {
 import { DepartmentButton, RemoveDepartmentButton } from "./departments";
 import { LabelButton, RemoveLabelButton } from "./labels";
 import { listLabels, type LabelDto } from "@/modules/tasks/labels";
+import { RetentionForm } from "./retention";
+import { retentionSettings } from "@/modules/privacy/retention";
+import type { RetentionValues } from "@/modules/privacy/retention-rules";
 import { EmailTestButton } from "./email-test";
 import {
   AddMemberButton,
@@ -88,8 +91,9 @@ async function Settings() {
       </>
     );
   }
-  const { settings, labels } = await inTx(ctx, async (t) => ({
+  const { settings, retention, labels } = await inTx(ctx, async (t) => ({
     settings: await workspaceSettings(t),
+    retention: await retentionSettings(t),
     labels: await listLabels(t),
   }));
   const owner = user.actor.role === "owner";
@@ -100,6 +104,7 @@ async function Settings() {
       <DepartmentsSection settings={settings} />
       <LabelsSection labels={labels} />
       <EmailSection owner={owner} on={emailConfig() !== null} />
+      <RetentionSection values={retention} owner={owner} />
       <Shortcuts admin />
     </>
   );
@@ -287,6 +292,25 @@ function DepartmentsSection({ settings }: { settings: WorkspaceSettings }) {
           );
         })}
       </ul>
+    </section>
+  );
+}
+
+function RetentionSection({
+  values,
+  owner,
+}: {
+  values: RetentionValues;
+  owner: boolean;
+}) {
+  return (
+    <section aria-labelledby="retencao" className={SECTION}>
+      <SectionTitle id="retencao" title="Retenção dos registros">
+        Por quanto tempo o Hub guarda os registros de operação antes da limpeza
+        diária (LGPD; docs/privacidade.md). O histórico de quem fez o quê não
+        entra: é a trilha de auditoria e fica guardado.
+      </SectionTitle>
+      <RetentionForm values={values} editable={owner} />
     </section>
   );
 }

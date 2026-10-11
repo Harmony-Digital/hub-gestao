@@ -16,11 +16,13 @@ import {
   setMemberStatus,
   updateDepartment,
 } from "@/modules/workspace/settings";
+import { setRetention } from "@/modules/privacy/retention";
 import { removeLabel, updateLabel } from "@/modules/tasks/labels";
 import {
   parseDepartmentForm,
   parseLabelForm,
   parseLabelRemoveForm,
+  parseRetentionForm,
   parseDepartmentLeadForm,
   parseDepartmentRemoveForm,
   parseMemberForm,
@@ -198,6 +200,26 @@ export async function removerDepartamento(
     await inTx(ctx, (t) => removeDepartment(t, parsed.value));
     refresh();
     return { status: "ok", message: "Departamento removido." };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+/** Os prazos de retenção (PRD §12), só o dono: valem a partir da próxima limpeza. */
+export async function salvarRetencao(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseRetentionForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  try {
+    await inTx(ctx, (t) => setRetention(t, parsed.value));
+    refresh();
+    return {
+      status: "ok",
+      message: "Prazos salvos. Valem a partir da próxima limpeza diária.",
+    };
   } catch (err) {
     return failure(err, ctx.requestId);
   }

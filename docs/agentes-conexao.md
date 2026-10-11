@@ -65,6 +65,7 @@ O servidor mostra só as ferramentas que a chave pode usar. A primeira chamada �
 | `hub_create_task`, `hub_update_task` | Criar e editar tarefa (também as etiquetas: `labels`, a lista inteira pelo nome, e, na edição, os campos personalizados do projeto: `custom_fields`, pelo nome do campo) |
 | `hub_start_task`, `hub_block_task`, `hub_complete_task`, `hub_reopen_task` | Transições; concluir exige evidência |
 | `hub_comment` | Comentário interno em tarefa, frente, marco ou projeto |
+| `hub_notify` | Aviso na caixa de entrada do Hub, para os donos ou uma pessoa da equipe (o digest, lembretes, alertas); `dedupe_key` evita repetir em 24 horas; até 30 por dia (`comments:write`; na API, `POST /api/v1/notices`) |
 | `hub_create_workstream`, `hub_update_workstream` | Frentes, com as dependências entre elas (`depends_on`: a lista inteira de ids de frentes do mesmo projeto, sem ciclo) |
 | `hub_request_approval`, `hub_list_approvals` | Pedir decisão e acompanhar |
 | `hub_draft_status_report` | Rascunho de status, que vira pedido de aprovação |

@@ -27,13 +27,16 @@ Os logs técnicos do servidor não guardam dado pessoal: guardam ids e o `reques
 
 ## Por quanto tempo
 
+Os prazos da limpeza diária têm um padrão e uma faixa; o dono muda em **Configurações → Retenção dos registros** (PRD §12), e o novo prazo vale a partir da próxima limpeza.
+
 | Registro | Prazo | Como sai |
 |---|---|---|
-| Recusas de acesso dos agentes | 90 dias | limpeza diária automática (`apply_retention`, migração 0021) |
-| Entregas de webhook já resolvidas | 30 dias | limpeza diária |
-| Jobs do relógio | concluídos: 30 dias; com falha: 90 dias | limpeza diária |
-| Avisos da caixa de entrada já lidos | 180 dias | limpeza diária |
-| Sessões e links do portal encerrados, vencidos ou usados | 90 dias | limpeza diária |
+| Recusas de acesso dos agentes | 90 dias (de 30 a 365) | limpeza diária automática (`apply_retention`, migrações 0021 e 0027) |
+| Entregas de webhook já resolvidas | 30 dias (de 7 a 365) | limpeza diária |
+| Jobs do relógio | concluídos: 30 dias (de 7 a 365); com falha: 90 dias (de 30 a 365) | limpeza diária |
+| Avisos da caixa de entrada já lidos | 180 dias (de 30 a 730) | limpeza diária |
+| Sessões e links do portal encerrados, vencidos ou usados | 90 dias (de 30 a 365) | limpeza diária |
+| Chamadas de IA dos agentes (custo e modelo de cada uma) | 365 dias, os 12 meses do PRD (de 90 a 1095) | limpeza diária |
 | Chaves de repetição (idempotência) | até vencerem | limpeza de hora em hora |
 | Dump diário do banco | 14 dias | o próprio backup apaga |
 | Cópia cifrada do dump no Google Drive | 30 dias | a própria cópia apaga as mais antigas |

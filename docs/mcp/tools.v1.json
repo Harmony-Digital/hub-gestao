@@ -199,6 +199,16 @@
     }
   },
   {
+    "name": "hub_notify",
+    "title": "Avisar na caixa de entrada",
+    "description": "Aviso na caixa de entrada do Hub (o digest matinal, um lembrete, um alerta que também foi ao Telegram): para os donos (to: \"owners\") ou uma pessoa da equipe (id do hub_search) que enxergue o projeto citado. Use dedupe_key para não repetir o mesmo aviso em 24 horas. Até 30 por dia.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "hub_reopen_task",
     "title": "Reabrir tarefa",
     "description": "Reabre tarefa concluída ou bloqueada, por exemplo uma conclusão sem prova. O motivo vira comentário interno.",
