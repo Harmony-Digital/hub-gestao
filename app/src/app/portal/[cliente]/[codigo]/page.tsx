@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { ChannelThread } from "@/components/channel-thread";
 import { Markdown } from "@/components/markdown";
 import { Pill, Progress } from "@/components/shell/pill";
 import { HubError } from "@/lib/errors";
@@ -9,13 +10,16 @@ import { formatDate, formatTimestampDate } from "@/lib/format";
 import { PHASES, type Tone } from "@/lib/labels";
 import { ProjectCode } from "@/modules/common";
 import { inTx } from "@/modules/context";
+import type { ChannelMessage } from "@/modules/comments/client-channel";
 import {
+  portalChannel,
   portalProject,
   type PortalMilestone,
   type PortalMilestoneStatus,
   type PortalProjectDetail,
   type PortalWorkstream,
 } from "@/modules/portal/views";
+import { MessageBox } from "../../_ui/message-box";
 import { NoAccess, PortalTop } from "../../_ui/parts";
 import { portalContext, portalSessionFor } from "../../_ui/session";
 
@@ -58,11 +62,16 @@ async function Project({
 
   const back = { href: `/portal/${cliente}`, label: "Seus projetos" };
   let project: PortalProjectDetail | null = null;
+  let messages: ChannelMessage[] = [];
   if (ProjectCode.safeParse(codigo).success) {
     try {
-      project = await inTx(await portalContext(session), (t) =>
-        portalProject(t, codigo),
-      );
+      ({ project, messages } = await inTx(
+        await portalContext(session),
+        async (t) => ({
+          project: await portalProject(t, codigo),
+          messages: await portalChannel(t, codigo),
+        }),
+      ));
     } catch (err) {
       if (!(err instanceof HubError && err.status === 404)) throw err;
     }
@@ -211,6 +220,26 @@ async function Project({
             ))}
           </ul>
         )}
+      </section>
+
+      <section aria-labelledby="conversa" className="flex flex-col gap-3">
+        <h2
+          id="conversa"
+          className="font-heading text-xl font-semibold text-navy"
+        >
+          Conversa com a equipe
+        </h2>
+        <p className="text-sm text-ink-2">
+          Dúvidas, pedidos e retornos sobre este projeto. A equipe da Harmony
+          recebe o aviso e responde por aqui.
+        </p>
+        <ChannelThread
+          messages={messages}
+          clientLabel={session.clientName}
+          teamLabel="Equipe Harmony"
+          empty="Ainda não há mensagens neste projeto."
+        />
+        <MessageBox projectCode={project.code} />
       </section>
     </main>
   );

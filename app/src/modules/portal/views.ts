@@ -1,6 +1,11 @@
 import { forbidden, notFound } from "@/lib/errors";
 import type { Actor } from "@/lib/db/actor";
 import { iso } from "@/modules/common";
+import {
+  CHANNEL_SQL,
+  toMessage,
+  type ChannelMessage,
+} from "@/modules/comments/client-channel";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
 
 /**
@@ -245,4 +250,27 @@ export async function portalProject(
       bodyMd: r.body_md,
     })),
   };
+}
+
+// Conversa com a equipe ------------------------------------------------------------------
+
+/**
+ * O canal do projeto visto pelo cliente: só as mensagens do canal (a RLS já esconde o
+ * resto), da mais antiga para a mais nova. Projeto que ele não vê: 404.
+ */
+export async function portalChannel(
+  t: TxCtx,
+  code: string,
+): Promise<ChannelMessage[]> {
+  assertClient(t.actor);
+  const project = await maybeOne<{ id: string }>(
+    t,
+    `select p.id from ${S}.projects p where p.code = $1`,
+    [code],
+  );
+  if (!project) throw notFound("Projeto não encontrado.");
+  const rows = await many<Parameters<typeof toMessage>[0]>(t, CHANNEL_SQL, [
+    project.id,
+  ]);
+  return rows.reverse().map(toMessage);
 }

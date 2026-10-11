@@ -11,6 +11,7 @@ import {
   Lock,
   Pencil,
 } from "lucide-react";
+import { ChannelThread } from "@/components/channel-thread";
 import { Avatar, Pill, Progress } from "@/components/shell/pill";
 import { Button } from "@/components/ui/button";
 import { can } from "@/lib/authorize";
@@ -32,6 +33,10 @@ import {
   archivedInProject,
   type ArchivedInProject,
 } from "@/modules/archive/service";
+import {
+  clientChannel,
+  type ChannelMessage,
+} from "@/modules/comments/client-channel";
 import { inTx } from "@/modules/context";
 import { projectChangeMarker } from "@/modules/live";
 import { pendingAcceptances } from "@/modules/milestones/admin";
@@ -59,6 +64,7 @@ import {
 import { LiveRefresh } from "../../_live/live-refresh";
 import { RestoreButton } from "../../_archive/archive-controls";
 import { ArchivedSection, archivedWhen } from "../../_archive/archived-section";
+import { ReplyBox } from "./_channel/reply-box";
 import { NewTaskButton } from "./_tasks/new-task";
 import { openTaskParam, PROJECT_CODE } from "./_tasks/params";
 import { ProjectHeader } from "./_tasks/project-header";
@@ -95,11 +101,11 @@ async function ProjectView({
   let departments: Awaited<ReturnType<typeof departmentOptions>>;
   let pending: string[];
   let archived: ArchivedInProject;
+  let channel: { portalEnabled: boolean; messages: ChannelMessage[] };
   let marker: string;
   try {
-    ({ data, options, departments, pending, archived, marker } = await inTx(
-      ctx,
-      async (t) => {
+    ({ data, options, departments, pending, archived, channel, marker } =
+      await inTx(ctx, async (t) => {
         const overview = await projectOverview(t, code);
         return {
           data: overview,
@@ -107,10 +113,10 @@ async function ProjectView({
           departments: await departmentOptions(t),
           pending: await pendingAcceptances(t, overview.project.id),
           archived: await archivedInProject(t, overview.project.id),
+          channel: await clientChannel(t, code),
           marker: await projectChangeMarker(t, code),
         };
-      },
-    ));
+      }));
   } catch (err) {
     // Projeto inexistente ou fora do alcance de quem vê: a mesma página de "não achei".
     if (err instanceof HubError && (err.status === 404 || err.status === 403)) {
@@ -247,6 +253,49 @@ async function ProjectView({
           >
             <Operational data={data} hrefFor={hrefFor} />
           </Layer>
+
+          {channel.portalEnabled || channel.messages.length > 0 ? (
+            <section
+              id="canal-do-cliente"
+              aria-labelledby="canal-do-cliente-titulo"
+              className="flex scroll-mt-4 flex-col gap-3 rounded-2xl border border-line bg-card p-4 sm:p-5"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2
+                  id="canal-do-cliente-titulo"
+                  className="font-heading text-lg font-semibold text-navy"
+                >
+                  Canal do cliente
+                </h2>
+                <span className="inline-flex items-center gap-1 text-xs text-caption">
+                  <Eye aria-hidden="true" className="size-3.5" />O cliente vê
+                  esta conversa no portal
+                </span>
+              </div>
+              <ChannelThread
+                messages={channel.messages}
+                clientLabel="cliente"
+                teamLabel="equipe"
+                empty="Nenhuma mensagem ainda. O que o cliente escrever no portal aparece aqui."
+              />
+              {archivedProject ? (
+                <p className="text-sm text-caption">
+                  Projeto arquivado: a conversa fica só para consulta.
+                </p>
+              ) : data.project.status === "in_review" ? (
+                <p className="text-sm text-caption">
+                  Projeto em revisão: a conversa começa depois da decisão da
+                  importação.
+                </p>
+              ) : can(user.actor, "comment.write_client") ? (
+                <ReplyBox projectCode={code} />
+              ) : (
+                <p className="text-sm text-caption">
+                  Responder ao cliente é do dono ou da administração.
+                </p>
+              )}
+            </section>
+          ) : null}
         </main>
       </div>
       {open ? (

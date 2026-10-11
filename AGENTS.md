@@ -106,7 +106,7 @@ hub-gestao/
 │   │                                  #   agentes e chaves criados pelo caminho real
 │   ├── e2e/                           # testes de ponta a ponta (Playwright) e playwright.config.ts
 │   └── scripts/cron-tick.mjs          # relógio dos jobs, chamado pelo timer da VPS
-├── supabase/migrations/ · seeds/      # hub_gestao_0001 a 0016 e o seed da Harmony
+├── supabase/migrations/ · seeds/      # hub_gestao_0001 a 0017 e o seed da Harmony
 ├── deploy/vps/                        # Dockerfile, compose, rota do Traefik, timers, publicação,
 │                                      #   backup e provisionamento (README com o passo a passo)
 ├── scripts/                           # conectar o Claude Code à produção e teste MCP de produção
@@ -119,7 +119,7 @@ hub-gestao/
 └── .github/workflows/                 # ci.yml ("Qualidade") e deploy-vps.yml ("Publicação na VPS")
 ```
 
-As skills de gestão do Kratos ficam em `agents/hermes/` (cópia de referência; a instalação no Kratos é do Fábio) e a do importador em `agents/skills/`. O portal do cliente tem, por enquanto, o acesso por convite, a lista de projetos e a página de cada projeto (M6, `docs/portal.md`). Os testes de unidade e integração ficam ao lado do código (`*.test.ts`), não numa pasta `tests/`; os de ponta a ponta ficam em `app/e2e/`.
+As skills de gestão do Kratos ficam em `agents/hermes/` (cópia de referência; a instalação no Kratos é do Fábio) e a do importador em `agents/skills/`. O portal do cliente tem, por enquanto, o acesso por convite, a lista de projetos, a página de cada projeto e a conversa com a equipe (M6, `docs/portal.md`). Os testes de unidade e integração ficam ao lado do código (`*.test.ts`), não numa pasta `tests/`; os de ponta a ponta ficam em `app/e2e/`.
 
 ### 5.2 Convenções
 

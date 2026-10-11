@@ -14,6 +14,7 @@ export const NOTIFICATION_GROUPS = [
   "approval",
   "blocked",
   "agents",
+  "client",
 ] as const;
 export type NotificationGroup = (typeof NOTIFICATION_GROUPS)[number];
 
@@ -23,6 +24,7 @@ export const GROUP_LABEL: Record<NotificationGroup, string> = {
   approval: "Aprovações",
   blocked: "Bloqueios nos seus projetos",
   agents: "Orçamento de IA dos agentes",
+  client: "Mensagens dos clientes no portal",
 };
 
 export function groupOf(type: string): NotificationGroup | null {
@@ -33,6 +35,7 @@ export function groupOf(type: string): NotificationGroup | null {
     return "approval";
   }
   if (type.startsWith("agent.")) return "agents";
+  if (type.startsWith("client.")) return "client";
   return null;
 }
 
@@ -184,6 +187,12 @@ export function describeNotification(
             : `${str(payload.agent_name) ?? "Um agente"} parou de usar IA: o orçamento do mês acabou`,
         detail: str(payload.detail),
         href: "/agentes",
+      };
+    case "client.comment":
+      return {
+        text: `${who} escreveu no portal${project ? `, em ${project}` : ""}`,
+        detail: str(payload.excerpt),
+        href: project ? `/projetos/${project}#canal-do-cliente` : null,
       };
     case "approval.aging":
       return {
