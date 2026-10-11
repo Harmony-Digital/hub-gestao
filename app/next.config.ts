@@ -6,6 +6,9 @@ import { securityHeaders } from "./src/lib/security-headers";
 // (FSEvents) e o `next dev` não sobe ("unable to start FSEvent stream").
 const pollIntervalMs = Number(process.env.HUB_DEV_POLL_MS);
 
+/** Corpo máximo de um envio: o anexo de 25 MB mais a folga do multipart. */
+export const ATTACHMENT_BODY_LIMIT = "26mb";
+
 const nextConfig: NextConfig = {
   ...(Number.isFinite(pollIntervalMs) && pollIntervalMs > 0
     ? { watchOptions: { pollIntervalMs } }
@@ -39,8 +42,11 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   experimental: {
-    // Anexo de tarefa: até 25 MB por arquivo (mais a folga do envio multipart).
-    serverActions: { bodySizeLimit: "26mb" },
+    // Anexo de tarefa: até 25 MB por arquivo (mais a folga do envio multipart). O proxy
+    // (src/proxy.ts) lê o corpo antes da ação e, sem este limite, corta em 10 MB: o envio
+    // chegava truncado e a página caía ("Unexpected end of form").
+    serverActions: { bodySizeLimit: ATTACHMENT_BODY_LIMIT },
+    proxyClientMaxBodySize: ATTACHMENT_BODY_LIMIT,
   },
   turbopack: {
     rules: {
