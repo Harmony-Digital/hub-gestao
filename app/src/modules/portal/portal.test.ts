@@ -6,6 +6,7 @@ import {
   recordPortalConsent,
   redeemPortalLink,
   endPortalSession,
+  requestPortalLinks,
 } from "@/lib/portal/session";
 import { inTx } from "@/modules/context";
 import {
@@ -351,5 +352,127 @@ describe("convite do portal por e-mail (D9)", () => {
     expect(
       await status(inTx(asOwner(), (t) => inviteEmailTarget(t, contactId))),
     ).toBe(422);
+  });
+});
+
+describe("link novo pedido pelo próprio contato (RF-05)", () => {
+  const ask = (email: string) =>
+    requestPortalLinks(h.db, email, { pepper: TEST_PEPPER, appUrl: APP });
+  const newContact = (name: string, email: string, client = clientId) =>
+    inTx(asOwner(), (t) =>
+      createContact(t, client, { name, email, role: "client_viewer" }),
+    ).then((c) => c.id);
+
+  it("só quem o dono liberou recebe, com um link curto que vale uma vez", async () => {
+    const contactId = await newContact(
+      "Bruna Pedido",
+      "bruna.pedido@clinica.com.br",
+    );
+    // Sem acesso liberado (D9), nada sai.
+    expect(await ask("bruna.pedido@clinica.com.br")).toEqual([]);
+    const invite = await inTx(asOwner(), (t) =>
+      issuePortalLink(t, contactId, { pepper: TEST_PEPPER, appUrl: APP }),
+    );
+
+    // Maiúsculas e espaços não atrapalham; o link vem com o nome do cliente.
+    const [link, ...rest] = await ask("  Bruna.Pedido@Clinica.com.br ");
+    expect(rest).toEqual([]);
+    expect(link).toMatchObject({
+      email: "bruna.pedido@clinica.com.br",
+      contactName: "Bruna Pedido",
+      clientName: expect.any(String),
+    });
+    expect(link.url).toMatch(
+      /^https:\/\/hub\.exemplo\.com\.br\/portal\/entrar\/[A-Za-z0-9_-]{43}$/,
+    );
+    // O convite que ainda não tinha sido usado deixa de valer (um link vivo por vez).
+    expect(
+      await redeemPortalLink(h.db, tokenOf(invite.url), TEST_PEPPER),
+    ).toBeNull();
+    const redeemed = await redeemPortalLink(
+      h.db,
+      tokenOf(link.url),
+      TEST_PEPPER,
+    );
+    expect(redeemed?.clientSlug).toBe("clinica-exemplo");
+    expect(
+      await redeemPortalLink(h.db, tokenOf(link.url), TEST_PEPPER),
+    ).toBeNull();
+
+    // Vale por 30 minutos; o histórico registra o pedido, nunca o link.
+    const row = await h.raw.query<{ minutes: number; purpose: string }>(
+      `select round(extract(epoch from expires_at - created_at) / 60)::int as minutes, purpose
+         from ${S}.client_access_links where contact_id = $1 and purpose = 'request'`,
+      [contactId],
+    );
+    expect(row.rows).toEqual([{ minutes: 30, purpose: "request" }]);
+    const logged = await h.raw.query<{ actor_type: string; after: unknown }>(
+      `select actor_type::text as actor_type, after from ${S}.activity_log
+        where entity_id = $1 and action = 'portal.link_requested'`,
+      [contactId],
+    );
+    expect(logged.rows).toHaveLength(1);
+    expect(logged.rows[0].actor_type).toBe("system");
+    expect(JSON.stringify(logged.rows)).not.toContain(tokenOf(link.url));
+
+    // Acesso revogado: nada sai.
+    await inTx(asOwner(), (t) => revokePortalAccess(t, contactId));
+    expect(await ask("bruna.pedido@clinica.com.br")).toEqual([]);
+  });
+
+  it("e-mail que não existe ou fora do formato não recebe nada", async () => {
+    expect(await ask("ninguem@exemplo.com")).toEqual([]);
+    expect(await ask("")).toEqual([]);
+    expect(await ask("x".repeat(300))).toEqual([]);
+  });
+
+  it("no máximo 3 links pedidos por contato por hora", async () => {
+    const contactId = await newContact(
+      "Duda Limite",
+      "duda.limite@clinica.com.br",
+    );
+    await inTx(asOwner(), (t) =>
+      issuePortalLink(t, contactId, { pepper: TEST_PEPPER, appUrl: APP }),
+    );
+    for (let i = 0; i < 3; i++) {
+      expect(await ask("duda.limite@clinica.com.br")).toHaveLength(1);
+    }
+    expect(await ask("duda.limite@clinica.com.br")).toEqual([]);
+    // Só o último pedido vale.
+    expect(
+      await count(
+        h,
+        `select count(*)::int as n from ${S}.client_access_links
+          where contact_id = $1 and used_at is null and expires_at > now()`,
+        [contactId],
+      ),
+    ).toBe(1);
+  });
+
+  it("a mesma pessoa contato de dois clientes recebe um link de cada", async () => {
+    const other = (
+      await h.raw.query<{ id: string }>(
+        `insert into ${S}.clients (workspace_id, slug, name) values ($1, 'otica-pedido', 'Ótica Pedido') returning id`,
+        [h.ws],
+      )
+    ).rows[0].id;
+    const a = await newContact("Eva Duas", "eva.duas@exemplo.com");
+    const b = await newContact("Eva Duas", "eva.duas@exemplo.com", other);
+    for (const id of [a, b]) {
+      await inTx(asOwner(), (t) =>
+        issuePortalLink(t, id, { pepper: TEST_PEPPER, appUrl: APP }),
+      );
+    }
+    const links = await ask("eva.duas@exemplo.com");
+    expect(links).toHaveLength(2);
+    expect(new Set(links.map((l) => l.url)).size).toBe(2);
+    const slugs = await Promise.all(
+      links.map(
+        async (l) =>
+          (await redeemPortalLink(h.db, tokenOf(l.url), TEST_PEPPER))
+            ?.clientSlug,
+      ),
+    );
+    expect(slugs.sort()).toEqual(["clinica-exemplo", "otica-pedido"]);
   });
 });

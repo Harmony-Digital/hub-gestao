@@ -31,3 +31,22 @@ export function parseMessageForm(
   }
   return { ok: true, value: { project, body } };
 }
+
+/** "Receber um link novo" (RF-05): só o e-mail, no formato de um endereço. */
+export function parseLinkRequestForm(
+  form: FormData,
+): Parsed<{ email: string }> {
+  const email = String(form.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+  if (
+    email.length > 254 ||
+    !/^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/.test(email)
+  ) {
+    return {
+      ok: false,
+      message: "Escreva o e-mail em que você recebeu o convite do portal.",
+    };
+  }
+  return { ok: true, value: { email } };
+}
