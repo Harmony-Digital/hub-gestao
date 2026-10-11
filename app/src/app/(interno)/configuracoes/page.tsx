@@ -79,7 +79,7 @@ async function Settings() {
           </Link>
           .
         </p>
-        <Shortcuts />
+        <Shortcuts admin={false} />
       </>
     );
   }
@@ -90,7 +90,7 @@ async function Settings() {
       <WorkspaceSection settings={settings} owner={owner} />
       <TeamSection team={settings.team} owner={owner} />
       <DepartmentsSection settings={settings} />
-      <Shortcuts />
+      <Shortcuts admin />
     </>
   );
 }
@@ -241,7 +241,13 @@ function DepartmentsSection({ settings }: { settings: WorkspaceSettings }) {
   );
 }
 
-const SHORTCUTS = [
+/** Atalhos; `adminOnly` some para quem é só da equipe (a tela de destino recusaria). */
+const SHORTCUTS: {
+  href: string;
+  label: string;
+  hint: string;
+  adminOnly?: boolean;
+}[] = [
   {
     href: "/agentes",
     label: "Sala de Controle",
@@ -250,11 +256,13 @@ const SHORTCUTS = [
   {
     href: "/agentes/auditoria",
     label: "Auditoria de acesso",
+    adminOnly: true,
     hint: "Chaves velhas, paradas ou largas demais, pessoas e contatos sem uso, recusas, gasto de IA e webhooks com falha.",
   },
   {
     href: "/modelos",
     label: "Modelos de projeto",
+    adminOnly: true,
     hint: "Os esqueletos de marcos, frentes e tarefas para começar um projeto.",
   },
   {
@@ -272,9 +280,9 @@ const SHORTCUTS = [
     label: "Minha conta",
     hint: "Seus dados, a senha e o tema das telas.",
   },
-] as const;
+];
 
-function Shortcuts() {
+function Shortcuts({ admin }: { admin: boolean }) {
   return (
     <section aria-labelledby="atalhos" className={SECTION}>
       <SectionTitle id="atalhos" title="Atalhos">
@@ -282,7 +290,7 @@ function Shortcuts() {
         personalizados ficam no Editar de cada projeto.
       </SectionTitle>
       <ul className="grid gap-2 sm:grid-cols-2">
-        {SHORTCUTS.map((s) => (
+        {SHORTCUTS.filter((s) => admin || !s.adminOnly).map((s) => (
           <li key={s.href}>
             <Link
               href={s.href}
