@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Building2, LayoutTemplate, Plus } from "lucide-react";
+import { ActivityExportForm } from "@/components/activity-export-form";
 import { PageHeader } from "@/components/shell/page-header";
 import { Pill, Progress } from "@/components/shell/pill";
 import { formatDayMonth, formatTimestampDay } from "@/lib/format";
@@ -10,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { can } from "@/lib/authorize";
 import { pageContext } from "@/lib/ui-context";
 import { archivedProjects } from "@/modules/archive/service";
-import { inTx } from "@/modules/context";
+import { inTx, maybeOne } from "@/modules/context";
 import {
   listProjectsBoard,
   type ProjectBoardRow,
@@ -89,10 +90,14 @@ async function ProjectsBoard({
     ? (raw as FilterKey)
     : "todos";
 
-  const { ctx } = await pageContext();
-  const { rows, archived } = await inTx(ctx, async (t) => ({
+  const { user, ctx } = await pageContext();
+  const { rows, archived, today } = await inTx(ctx, async (t) => ({
     rows: await listProjectsBoard(t),
     archived: await archivedProjects(t),
+    today: (await maybeOne<{ today: string }>(
+      t,
+      "select current_date::text as today",
+    ))!.today,
   }));
   const count = (key: FilterKey) =>
     key === "todos" ? rows.length : rows.filter((r) => r.health === key).length;
@@ -186,6 +191,22 @@ async function ProjectsBoard({
           </li>
         ))}
       </ArchivedSection>
+
+      {can(user.actor, "workspace.admin") ? (
+        <details className="rounded-2xl border border-line bg-card p-4 sm:p-5">
+          <summary className="cursor-pointer font-heading text-base font-semibold text-navy">
+            Exportar a atividade de todos os projetos
+          </summary>
+          <div className="mt-3 flex flex-col gap-3">
+            <p className="text-sm text-ink-2">
+              O registro de tudo o que pessoas e agentes fizeram no período, em
+              todos os projetos e no workspace. Para um projeto só, use o Painel
+              dele.
+            </p>
+            <ActivityExportForm project={null} today={today} />
+          </div>
+        </details>
+      ) : null}
     </>
   );
 }

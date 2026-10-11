@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { TriangleAlert } from "lucide-react";
+import { ActivityExportForm } from "@/components/activity-export-form";
 import { Avatar, Pill } from "@/components/shell/pill";
 import { can } from "@/lib/authorize";
 import { HubError } from "@/lib/errors";
@@ -144,6 +145,14 @@ async function DashboardView({
             <Agents data={data} />
           </Card>
         </div>
+        <Card id="painel-exportar" title="Exportar a atividade">
+          <p className="text-sm text-ink-2">
+            O registro de tudo o que pessoas e agentes fizeram no projeto no
+            período: quem, em que papel, por onde e o quê. O CSV abre direto na
+            planilha.
+          </p>
+          <ActivityExportForm project={project.code} today={data.today} />
+        </Card>
       </main>
     </>
   );

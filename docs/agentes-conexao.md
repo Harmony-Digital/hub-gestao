@@ -93,6 +93,12 @@ Erros vêm em `application/problem+json`, com `detail` em português dizendo o q
 curl -s https://hub.harmonydigital.com.br/api/v1/me -H "Authorization: Bearer $HUB_API_KEY"
 ```
 
+A atividade de um projeto por período (RF-43), em JSON, para relatório ou análise (escopo `projects:read`; até 366 dias e 50 mil registros):
+
+```bash
+curl -s "https://hub.harmonydigital.com.br/api/v1/activity?project=HUB&from=2026-10-01&to=2026-10-31" -H "Authorization: Bearer $HUB_API_KEY"
+```
+
 ```bash
 curl -s https://hub.harmonydigital.com.br/api/v1/tasks/HUB-12/complete \
   -H "Authorization: Bearer $HUB_API_KEY" \
