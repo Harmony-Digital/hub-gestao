@@ -1,3 +1,7 @@
+import {
+  RETENTION,
+  type RetentionValues,
+} from "@/modules/privacy/retention-rules";
 /**
  * Formulários das Configurações: leitura do que chega do navegador, com mensagens em
  * PT-BR. Puro, para valer nos testes. O resto (quem pode, e-mail repetido) é o serviço.
@@ -106,4 +110,24 @@ export function parseDepartmentRemoveForm(form: FormData): Parsed<string> {
   return UUID.test(id)
     ? { ok: true, value: id }
     : { ok: false, message: RELOAD };
+}
+
+/** Prazos de retenção (PRD §12): um número de dias por registro, dentro dos limites. */
+export function parseRetentionForm(form: FormData): Parsed<RetentionValues> {
+  const values: Record<string, number> = {};
+  for (const r of RETENTION) {
+    const raw = text(form, r.key).trim();
+    if (!/^[0-9]{1,5}$/.test(raw)) {
+      return { ok: false, message: `${r.label}: escreva os dias em número.` };
+    }
+    const n = Number(raw);
+    if (n < r.min || n > r.max) {
+      return {
+        ok: false,
+        message: `${r.label}: de ${r.min} a ${r.max} dias.`,
+      };
+    }
+    values[r.key] = n;
+  }
+  return { ok: true, value: values as RetentionValues };
 }
