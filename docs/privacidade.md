@@ -19,7 +19,7 @@ Os logs técnicos do servidor não guardam dado pessoal: guardam ids e o `reques
 | Onde | O quê |
 |---|---|
 | Banco do Hub (Supabase próprio da Harmony, na VPS da Hostinger no Brasil; o endereço IP fica em São Paulo) | tudo o que está acima |
-| Backups | dump diário na própria VPS (14 dias); backup semanal da VPS inteira pela Hostinger, em Campinas (Brasil) |
+| Backups | dump diário na própria VPS (14 dias); backup semanal da VPS inteira pela Hostinger, em Campinas (Brasil); depois de o Fábio ligar, cópia diária no Google Drive da Harmony (30 dias), cifrada antes de sair da VPS: o Google guarda só o arquivo cifrado, sem a senha (os servidores do Google podem estar fora do Brasil; a cifra entra na revisão jurídica abaixo) |
 | Provedores de IA (Anthropic, OpenAI ou xAI, conforme o modelo de cada agente), só quando um agente interno com IA está ligado | o texto do pedido: trechos de projeto, como o documento enviado ao Planejador ou o texto para o cliente que o Redator reescreve. São operadores fora do Brasil (transferência internacional, LGPD art. 33): usar os planos que não treinam modelo com os dados e não mandar dado pessoal desnecessário |
 | Telegram, pelo Hermes, quando os avisos estiverem ligados | os eventos marcados no webhook: título de pedido, código de projeto e, no aviso de mensagem do cliente, o nome do contato e o começo da mensagem |
 | Resend (e-mail), se ligado | e-mail e nome de quem recebe o link de acesso |
@@ -36,6 +36,7 @@ Os logs técnicos do servidor não guardam dado pessoal: guardam ids e o `reques
 | Sessões e links do portal encerrados, vencidos ou usados | 90 dias | limpeza diária |
 | Chaves de repetição (idempotência) | até vencerem | limpeza de hora em hora |
 | Dump diário do banco | 14 dias | o próprio backup apaga |
+| Cópia cifrada do dump no Google Drive | 30 dias | a própria cópia apaga as mais antigas |
 | Cadastro de contato, mensagens e projetos | enquanto durar a relação com o cliente | exclusão pelo dono (abaixo), a pedido do titular ou no fim do contrato |
 | Histórico (`activity_log`) | enquanto o workspace existir | não sai: é a trilha de auditoria, só de inserção, e guarda quem fez o quê. Alguns registros de acesso ao portal levam o nome do contato. Retenção por legítimo interesse e para o exercício regular de direitos (LGPD art. 7, VI e IX), a confirmar com orientação jurídica |
 | Logs do contêiner na VPS | hoje sem limite | recomendado: rotação de 10 MB por arquivo e 5 arquivos (`logging` no `deploy/vps/docker-compose.yml`). Aplicar na VPS é passo do Fábio, num clique: `deploy/vps/hub-apply-compose.sh` (mostra a diferença, guarda a cópia anterior e volta sozinho se o contêiner não ficar saudável) |

@@ -1,0 +1,9 @@
+[Unit]
+Description=Hub de Gestão - cópia diária do backup no Google Drive (cifrada)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/hub-gestao/bin/hub-backup-offsite.sh
+TimeoutStartSec=20min

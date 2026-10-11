@@ -26,6 +26,8 @@ O que está nesta pasta é a fonte canônica, versionada. As cópias ativas fica
 | `hub-traefik.yaml` | `/etc/easypanel/traefik/config/hub.yaml` |
 | `hub-cron.service`, `hub-cron.timer` | `/etc/systemd/system/` |
 | `hub-backup.service`, `hub-backup.timer` | `/etc/systemd/system/` |
+| `hub-backup-offsite.sh` | `/opt/hub-gestao/bin/hub-backup-offsite.sh` |
+| `hub-backup-offsite.service`, `hub-backup-offsite.timer` | `/etc/systemd/system/` |
 | `hub-db-role.sql`, `hub-db-verifier.py` | `/opt/hub-gestao/config/` (usados no provisionamento do banco) |
 | `hub-db-provision.sh` | `/opt/hub-gestao/bin/hub-db-provision.sh` |
 | `hub-provision.sh` | `/opt/hub-gestao/bin/hub-provision.sh` (unidades systemd copiadas antes para `/opt/hub-gestao/config/systemd/`) |
@@ -90,7 +92,7 @@ O login usa o Supabase Auth compartilhado da Harmony, com cadastro aberto deslig
 
 ## Backup (decisão D8)
 
-`hub-backup.sh` gera todo dia um dump do schema `proj_hub_gestao`, confere que ele abre e guarda 14 dias em `/opt/hub-gestao/backups`. A Hostinger faz o backup semanal da VPS inteira, fora dela. A cópia diária fora da VPS espera o destino que o Fábio escolher.
+`hub-backup.sh` gera todo dia um dump do schema `proj_hub_gestao`, confere que ele abre e guarda 14 dias em `/opt/hub-gestao/backups`. A Hostinger faz o backup semanal da VPS inteira, fora dela. A cópia diária fora da VPS vai cifrada (gpg, AES-256) para a pasta `hub-gestao-backups` do Google Drive da Harmony: `hub-backup-offsite.sh`, pelo timer das 06:45 UTC, 30 dias. Liga com o `hub-backup-offsite-setup.sh` (passo do Fábio; `docs/operacao.md`, Cópia no Google Drive).
 
 Teste mensal de restauração: `hub-restore-test.sh` restaura o dump mais recente num banco temporário, compara as contagens com a produção e apaga o banco temporário (não precisa instalar: roda de `/tmp`). Para uma restauração de verdade, `hub-db-grants.sql` devolve as permissões do papel do Hub depois da troca do schema. O passo a passo e o ensaio estão em `docs/operacao.md` (Backup e restauração).
 
@@ -102,6 +104,7 @@ Rodam no Mac do Fábio, na pasta do repositório (botão Rodar), com o acesso de
 |---|---|
 | `hub-alert-secret.sh` | Liga o aviso de publicação que falhou: gera o `HUB_ALERT_SECRET`, grava no `.env.production` e no segredo do repositório, recria o contêiner e confere a rota (401 sem o segredo). Rodar de novo troca o segredo. |
 | `hub-apply-compose.sh` | Aplica na VPS o `docker-compose.yml` do repositório (hoje, a rotação dos logs): mostra a diferença, confere a sintaxe com o Docker, guarda a cópia anterior, recria o contêiner e volta sozinho se ele não ficar saudável. |
+| `hub-backup-offsite-setup.sh` | Liga a cópia diária do backup no Google Drive: o Fábio autoriza o rclone no navegador (escopo `drive.file`). A senha das cópias vai para o Keychain do Mac e para a VPS. Também instala o envio, o timer e o `hub-backup.sh` atualizado, depois manda a primeira cópia e confere a volta. Para sem mudar nada se a senha da VPS for outra. |
 | `hub-env-set.sh` | Ajudante que os scripts acima mandam para a VPS: grava uma variável de uma lista fechada no `.env.production`, com o valor pela entrada padrão (nunca em argumento), mantendo dono e permissão, e para sem mudar nada se a conferência falhar. |
 
 ## Operação

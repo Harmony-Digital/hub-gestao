@@ -111,7 +111,7 @@ Sem o segredo, o último passo do workflow só diz que o aviso está desligado e
 |---|---|---|
 | Dump do schema `proj_hub_gestao` (`hub-backup.timer`) | todo dia, 06:00 UTC (03:00 em Brasília) | `/opt/hub-gestao/backups/hub-<data>.dump`, 14 dias |
 | Backup da VPS inteira (Hostinger) | semanal | fora da VPS, no servidor de backup da Hostinger (vistos em 03/10 e 10/10/2026 pela API) |
-| Cópia diária do dump fora da VPS | — | destino a escolher pelo Fábio (D8) |
+| Cópia diária do dump fora da VPS (`hub-backup-offsite.timer`) | todo dia, 06:45 UTC, depois do dump | Google Drive da Harmony, pasta `hub-gestao-backups`, cifrada (gpg, AES-256), 30 dias; ligada pelo Fábio (seção "Cópia no Google Drive") |
 
 Conferir o backup diário:
 
@@ -130,6 +130,35 @@ ssh -t vps-harmony 'sudo bash /tmp/hub-restore-test.sh'
 ```
 
 A última linha diz "OK" com o número de tabelas e linhas, e o resultado fica em `/opt/hub-gestao/backups/restauracoes.log`. Registrar no `PLAN.md` a data e o resultado. Contagens um pouco diferentes da produção são normais: o dump é de até 24 horas atrás.
+
+**Cópia no Google Drive** (D8, decisão do Fábio em 2026-10-11). O `hub-backup-offsite.sh` cifra o dump do dia com `gpg` (AES-256) e manda para a pasta `hub-gestao-backups` do Google Drive pelo rclone, com acesso só aos arquivos que ele mesmo cria (escopo `drive.file`). Confere o tamanho lá e apaga as cópias com mais de 30 dias. O Google guarda só o arquivo cifrado. A senha que abre as cópias fica em dois lugares: `/opt/hub-gestao/shared/backup-passphrase` (VPS, root, `0600`) e o Keychain do Mac do Fábio (serviço `hub-gestao-backup`, conta `senha-da-copia`). **Sem a senha, nenhuma cópia abre**; uma segunda guarda, no cofre de senhas da Harmony, é escolha do Fábio.
+
+- Ligar (uma vez; rodar de novo renova a autorização do Drive e mantém a senha). O navegador abre para o Fábio entrar com a conta Google da Harmony e permitir:
+
+  ```bash
+  deploy/vps/hub-backup-offsite-setup.sh
+  ```
+
+  O script instala o rclone na VPS (pacote do Ubuntu) e grava a autorização e a senha. Depois instala o envio diário e atualiza o `hub-backup.sh`. No fim, manda a primeira cópia e confere a volta. Se a VPS já tiver uma senha diferente da do Keychain, ele para sem trocar nada.
+- Conferir a idade da cópia mais recente (falha com mais de 48 horas) e, no teste mensal de restauração, a volta (baixa, decifra e o dump abre):
+
+  ```bash
+  ssh -t vps-harmony 'sudo /opt/hub-gestao/bin/hub-backup-offsite.sh --conferir && sudo /opt/hub-gestao/bin/hub-backup-offsite.sh --testar-volta'
+  ```
+
+- A VPS tem a senha e o Keychain não (o instalador para e pede isto): trazer a senha da VPS para o Keychain, sem ela aparecer na tela:
+
+  ```bash
+  ssh vps-harmony 'sudo cat /opt/hub-gestao/shared/backup-passphrase' | { read -r s; printf 'add-generic-password -s hub-gestao-backup -a senha-da-copia -l hub-gestao-backup -w %s\n' "$s" | security -i >/dev/null; }
+  ```
+
+- **Restaurar da cópia do Drive** (a VPS foi perdida): baixar o `hub-<data>.dump.gpg` mais recente da pasta `hub-gestao-backups` no drive.google.com e decifrar no Mac com a senha do Keychain. Depois, seguir "Restaurar de verdade" (abaixo) com o `hub.dump`, num Postgres novo:
+
+  ```bash
+  security find-generic-password -s hub-gestao-backup -a senha-da-copia -w | gpg --batch --pinentry-mode loopback --passphrase-fd 0 --decrypt --output hub.dump hub-AAAAMMDDTHHMMSSZ.dump.gpg
+  ```
+
+- A autorização do Drive pode ser revogada a qualquer momento na conta Google (Segurança → Acesso de terceiros → rclone). Depois disso, as cópias param, e o `--conferir` acusa em até dois dias. Para voltar, rodar o instalador de novo.
 
 **Restaurar de verdade** (perda ou estrago de dados; só com o Fábio, em hora combinada). Tudo o que foi gravado depois do dump escolhido se perde.
 
