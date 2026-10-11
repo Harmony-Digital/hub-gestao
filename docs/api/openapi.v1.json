@@ -6045,6 +6045,53 @@
                 "maximum": 9007199254740991,
                 "description": "Frentes que começaram antes de terminar a frente de que dependem."
               },
+              "tasks_done_last_14_days": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Ritmo: tarefas de primeiro nível concluídas nos últimos 14 dias."
+              },
+              "drifting_milestones": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "remaining": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "slack_days": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "needed_days": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "remaining",
+                    "slack_days",
+                    "needed_days"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "Marcos com deriva prevista: no ritmo atual, o trabalho que falta (remaining) precisa de needed_days (null com ritmo zero) e a folga é slack_days."
+              },
               "next_due_date": {
                 "anyOf": [
                   {
@@ -6069,6 +6116,8 @@
               "blocked_task_count",
               "late_milestones",
               "broken_dependencies",
+              "tasks_done_last_14_days",
+              "drifting_milestones",
               "next_due_date",
               "oldest_pending_approval_at"
             ],
