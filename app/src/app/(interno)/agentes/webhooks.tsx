@@ -6,6 +6,8 @@ import {
   Copy,
   KeyRound,
   LoaderCircle,
+  Moon,
+  MoonStar,
   Pause,
   Play,
   Plus,
@@ -135,6 +137,21 @@ export function NovoWebhookForm() {
               ))}
             </div>
           </fieldset>
+          <label className="flex items-start gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              name="quiet_hours"
+              defaultChecked
+              className="mt-0.5 size-4 shrink-0 accent-brand"
+            />
+            <span>
+              Silêncio das 23h às 8h
+              <span className="block text-xs text-caption">
+                O que acontecer nesse horário sai às 8h. Os alertas de operação
+                (publicação, job e backup com falha) saem na hora.
+              </span>
+            </span>
+          </label>
         </fieldset>
         <div>
           <Button type="submit" size="lg" disabled={pending}>
@@ -157,10 +174,13 @@ export function WebhookControls({
   id,
   url,
   active,
+  quietHours,
 }: {
   id: string;
   url: string;
   active: boolean;
+  /** Silêncio das 23h às 8h ligado (RF-33). */
+  quietHours: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [state, action, pending] = useActionState(mudarWebhook, WEBHOOK_IDLE);
@@ -207,6 +227,29 @@ export function WebhookControls({
               <Play aria-hidden="true" />
             )}
             {active ? "Pausar" : "Reativar"}
+          </Button>
+          <Button
+            type="submit"
+            name="intent"
+            value={quietHours ? "silencio-desligar" : "silencio-ligar"}
+            variant="ghost"
+            size="sm"
+            disabled={busy}
+            aria-label={`Silêncio à noite: ${quietHours ? "ligado" : "desligado"}, no webhook ${url}`}
+            title={
+              quietHours
+                ? "Das 23h às 8h, os avisos esperam até as 8h. Clique para desligar."
+                : "Os avisos saem a qualquer hora. Clique para ligar o silêncio das 23h às 8h."
+            }
+          >
+            {quietHours ? (
+              <MoonStar aria-hidden="true" />
+            ) : (
+              <Moon aria-hidden="true" />
+            )}
+            {quietHours
+              ? "Silêncio à noite: ligado"
+              : "Silêncio à noite: desligado"}
           </Button>
         </form>
         {confirming ? (

@@ -93,6 +93,10 @@ Use o corpo exatamente como chegou (os bytes), antes de qualquer conversão.
 - Outra resposta ou falha de rede: nova tentativa com espera crescente (1, 2, 4, 8... minutos), até 8 tentativas. A lista "Últimos avisos" mostra o erro.
 - Sem `HUB_ENCRYPTION_KEY` no servidor, as entregas ficam esperando (o segredo não pode ser lido).
 
+## Horário de silêncio (23h às 8h)
+
+Cada webhook tem a opção "Silêncio das 23h às 8h", ligada por padrão no cadastro e trocada pelo botão "Silêncio à noite" na Sala de Controle (só o dono). Com ela ligada, o aviso que acontece das 23h às 8h, no fuso do workspace, fica na fila e sai às 8h; o corpo leva o `occurred_at` de quando aconteceu. Os alertas de operação (`system.job_failed`, `system.deploy_failed` e `system.backup_stale`) saem na hora, mesmo à noite. O aviso de teste também sai na hora. Regra em `emitEvent` (`app/src/modules/events.ts`), com a migração 0024.
+
 ## Hermes → Telegram (passo do Fábio)
 
 O Hermes tem receptor de webhooks próprio, que, pela documentação dele (skill `hermes-agent`, no segundo cérebro), confere a assinatura no padrão do GitHub (`X-Hub-Signature-256`, que o Hub manda) e entrega a resposta do agente no Telegram. A versão instalada na VPS ainda não foi conferida por dentro do contêiner: se a assinatura não bater no teste, o passo seguinte é ver no Hermes qual cabeçalho ele espera.

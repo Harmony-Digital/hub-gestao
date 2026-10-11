@@ -401,7 +401,12 @@ function WebhooksSection({
                   Nenhum aviso enviado ainda.
                 </p>
               )}
-              <WebhookControls id={h.id} url={h.url} active={h.active} />
+              <WebhookControls
+                id={h.id}
+                url={h.url}
+                active={h.active}
+                quietHours={h.quietHours}
+              />
             </li>
           ))}
         </ul>

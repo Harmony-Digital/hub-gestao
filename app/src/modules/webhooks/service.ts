@@ -37,6 +37,8 @@ export const CreateWebhookInput = z.strictObject({
     .array(z.enum(WEBHOOK_EVENTS))
     .min(1, "Marque pelo menos um evento.")
     .max(WEBHOOK_EVENTS.length),
+  /** Silêncio das 23h às 8h (RF-33): o padrão é ligado. */
+  quiet_hours: z.boolean().default(true),
 });
 export type CreateWebhookInput = z.infer<typeof CreateWebhookInput>;
 
@@ -55,6 +57,8 @@ export type WebhookItem = {
   url: string;
   events: string[];
   active: boolean;
+  /** Silêncio das 23h às 8h: os avisos dessa hora saem às 8h (menos os system.*). */
+  quietHours: boolean;
   createdAt: string;
   /** Entregas que ainda vão sair (na fila ou esperando nova tentativa). */
   pending: number;
@@ -128,6 +132,7 @@ type Row = {
   url: string;
   events: string[];
   active: boolean;
+  quiet_hours: boolean;
   created_at: Date | string;
   pending: number;
 };
@@ -148,7 +153,7 @@ export async function listWebhooks(t: TxCtx): Promise<WebhookItem[]> {
   authorize(t.actor, MANAGE);
   const rows = await many<Row>(
     t,
-    `select w.id, w.url, w.events, w.active, w.created_at,
+    `select w.id, w.url, w.events, w.active, w.quiet_hours, w.created_at,
             (select count(*)::int from ${S}.webhook_deliveries d
               where d.webhook_id = w.id and d.delivered_at is null and d.attempts < 8) as pending
        from ${S}.webhooks w
@@ -172,6 +177,7 @@ export async function listWebhooks(t: TxCtx): Promise<WebhookItem[]> {
     url: r.url,
     events: r.events,
     active: r.active,
+    quietHours: r.quiet_hours,
     createdAt: iso(r.created_at),
     pending: Number(r.pending),
     recent: deliveries
@@ -193,7 +199,7 @@ async function webhookRow(t: TxCtx, id: string): Promise<Row> {
   if (!Uuid.safeParse(id).success) throw notFound("Webhook não encontrado.");
   const row = await maybeOne<Row>(
     t,
-    `select id, url, events, active, created_at, 0 as pending
+    `select id, url, events, active, quiet_hours, created_at, 0 as pending
        from ${S}.webhooks where id = $1 and workspace_id = $2 for update`,
     [id, t.actor.workspaceId],
   );
@@ -223,13 +229,14 @@ export async function createWebhook(
   const events = WEBHOOK_EVENTS.filter((e) => input.events.includes(e));
   const row = await maybeOne<{ id: string }>(
     t,
-    `insert into ${S}.webhooks (workspace_id, url, events, secret_ciphertext)
-     values ($1, $2, $3::text[], $4) returning id`,
+    `insert into ${S}.webhooks (workspace_id, url, events, secret_ciphertext, quiet_hours)
+     values ($1, $2, $3::text[], $4, $5) returning id`,
     [
       t.actor.workspaceId,
       input.url,
       events,
       encryptSecret(secret, encryptionKey()),
+      input.quiet_hours,
     ],
   );
   // O histórico guarda o endereço e os eventos; nunca o segredo.
@@ -237,7 +244,7 @@ export async function createWebhook(
     action: "webhook.created",
     entityType: "webhook",
     entityId: row!.id,
-    after: { url: input.url, events },
+    after: { url: input.url, events, quiet_hours: input.quiet_hours },
   });
   return { id: row!.id, secret };
 }
@@ -279,6 +286,26 @@ export async function setWebhookActive(
     entityType: "webhook",
     entityId: row.id,
     after: { url: row.url },
+  });
+}
+
+/** Liga ou desliga o silêncio das 23h às 8h (RF-33) de um webhook. */
+export async function setWebhookQuietHours(
+  t: TxCtx,
+  id: string,
+  quiet: boolean,
+): Promise<void> {
+  const row = await webhookRow(t, id);
+  if (row.quiet_hours === quiet) return;
+  await t.tx.query(`update ${S}.webhooks set quiet_hours = $2 where id = $1`, [
+    row.id,
+    quiet,
+  ]);
+  await audit(t, {
+    action: quiet ? "webhook.quiet_on" : "webhook.quiet_off",
+    entityType: "webhook",
+    entityId: row.id,
+    after: { url: row.url, quiet_hours: quiet },
   });
 }
 

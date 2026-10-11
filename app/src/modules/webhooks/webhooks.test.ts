@@ -11,6 +11,7 @@ import {
   openTestHub,
   type TestHub,
 } from "@/test/hub";
+import { emitEvent } from "@/modules/events";
 import {
   assertPublicUrl,
   createWebhook,
@@ -18,6 +19,7 @@ import {
   rotateWebhookSecret,
   sendWebhookTest,
   setWebhookActive,
+  setWebhookQuietHours,
 } from "./service";
 
 const S = "proj_hub_gestao";
@@ -176,5 +178,52 @@ describe("webhooks de saída", () => {
         [made.id],
       ),
     ).toBe(3);
+  });
+});
+
+describe("silêncio das 23h às 8h (RF-33)", () => {
+  it("de madrugada o aviso espera as 8h de Brasília; de dia e alerta de operação saem na hora", async () => {
+    const { id } = await inTx(asOwner(), (t) =>
+      createWebhook(t, {
+        url: "https://hermes.harmonydigital.com.br/silencio",
+        events: ["approval.requested", "system.deploy_failed"],
+      }),
+    );
+    expect(
+      (await inTx(asOwner(), (t) => listWebhooks(t))).find((w) => w.id === id)
+        ?.quietHours,
+    ).toBe(true);
+    const nextOf = async (event: string) =>
+      (
+        await h.raw.query<{ next: string }>(
+          `select to_char(next_attempt_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI') as next
+             from ${S}.webhook_deliveries
+            where webhook_id = $1 and event = $2
+            order by created_at desc limit 1`,
+          [id, event],
+        )
+      ).rows[0].next;
+    const emit = (
+      event: "approval.requested" | "system.deploy_failed",
+      at: string,
+    ) => inTx(asOwner(), (t) => emitEvent(t, event, {}, { now: new Date(at) }));
+
+    // 2h da manhã em Brasília (5h UTC): sai às 8h de Brasília (11h UTC).
+    await emit("approval.requested", "2026-10-12T05:00:00Z");
+    expect(await nextOf("approval.requested")).toBe("2026-10-12T11:00");
+    // 23h30 em Brasília (2h30 UTC do dia seguinte): sai às 8h do outro dia.
+    await emit("approval.requested", "2026-10-13T02:30:00Z");
+    expect(await nextOf("approval.requested")).toBe("2026-10-13T11:00");
+    // Meio-dia: na hora.
+    await emit("approval.requested", "2026-10-13T15:00:00Z");
+    expect(await nextOf("approval.requested")).toBe("2026-10-13T15:00");
+    // Alerta de operação de madrugada: na hora.
+    await emit("system.deploy_failed", "2026-10-12T05:00:00Z");
+    expect(await nextOf("system.deploy_failed")).toBe("2026-10-12T05:00");
+
+    // Sem o silêncio, a madrugada também sai na hora.
+    await inTx(asOwner(), (t) => setWebhookQuietHours(t, id, false));
+    await emit("approval.requested", "2026-10-12T05:00:00Z");
+    expect(await nextOf("approval.requested")).toBe("2026-10-12T05:00");
   });
 });
