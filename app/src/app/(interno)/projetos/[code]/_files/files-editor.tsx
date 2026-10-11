@@ -9,7 +9,7 @@ import { formatBytes, formatTimestampDay } from "@/lib/format";
 import type { ClientFile } from "@/modules/attachments/client-files";
 import { enviarArquivoAoCliente, tirarArquivoDoCliente } from "./actions";
 
-const MAX_BYTES = 10 * 1024 * 1024;
+const MAX_BYTES = 25 * 1024 * 1024;
 
 /**
  * Arquivos entregues ao cliente: a lista (a equipe abre pelo /anexos) e, para quem pode
@@ -123,7 +123,7 @@ function SendFile({
         if (file instanceof File && file.size > MAX_BYTES) {
           event.preventDefault();
           setTooBig(
-            `${file.name} passou de 10 MB. Compacte ou divida o arquivo.`,
+            `${file.name} passou de 25 MB. Compacte ou divida o arquivo.`,
           );
           return;
         }
@@ -156,7 +156,7 @@ function SendFile({
         </Button>
       </div>
       <p className="text-xs text-caption">
-        Até 10 MB: imagens, PDF, texto, CSV, planilhas, documentos e zip. O
+        Até 25 MB: imagens, PDF, texto, CSV, planilhas, documentos e zip. O
         cliente vê e baixa no portal.
       </p>
       <div aria-live="polite">
