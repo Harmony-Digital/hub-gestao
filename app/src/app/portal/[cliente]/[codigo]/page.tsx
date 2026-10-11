@@ -13,6 +13,7 @@ import { ProjectCode } from "@/modules/common";
 import { inTx } from "@/modules/context";
 import type { ChannelMessage } from "@/modules/comments/client-channel";
 import {
+  portalAccent,
   portalChannel,
   portalFiles,
   portalProject,
@@ -24,7 +25,7 @@ import {
 } from "@/modules/portal/views";
 import { MessageBox } from "../../_ui/message-box";
 import { ReceiptButton } from "../../_ui/receipt-button";
-import { NoAccess, PortalTop } from "../../_ui/parts";
+import { accentBorder, NoAccess, PortalTop } from "../../_ui/parts";
 import { portalContext, portalSessionFor } from "../../_ui/session";
 
 export const metadata: Metadata = { title: "Entregas do projeto" };
@@ -68,14 +69,16 @@ async function Project({
   let project: PortalProjectDetail | null = null;
   let messages: ChannelMessage[] = [];
   let files: PortalFile[] = [];
+  let accent: string | null = null;
   if (ProjectCode.safeParse(codigo).success) {
     try {
-      ({ project, messages, files } = await inTx(
+      ({ project, messages, files, accent } = await inTx(
         await portalContext(session),
         async (t) => ({
           project: await portalProject(t, codigo),
           messages: await portalChannel(t, codigo),
           files: await portalFiles(t, codigo),
+          accent: await portalAccent(t),
         }),
       ));
     } catch (err) {
@@ -88,7 +91,11 @@ async function Project({
         id="conteudo"
         className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6"
       >
-        <PortalTop clientName={session.clientName} back={back} />
+        <PortalTop
+          clientName={session.clientName}
+          accent={accent}
+          back={back}
+        />
         <h1 className="font-heading text-2xl font-semibold text-navy">
           Projeto não encontrado
         </h1>
@@ -106,7 +113,7 @@ async function Project({
       id="conteudo"
       className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6"
     >
-      <PortalTop clientName={session.clientName} back={back} />
+      <PortalTop clientName={session.clientName} accent={accent} back={back} />
 
       <section aria-labelledby="projeto" className="flex flex-col gap-4">
         <h1
@@ -173,6 +180,7 @@ async function Project({
               <MilestoneCard
                 key={i}
                 milestone={m}
+                accent={accent}
                 projectCode={project.code}
                 canConfirm={
                   project.clientCanConfirm &&
@@ -296,10 +304,13 @@ async function Project({
 
 function MilestoneCard({
   milestone: m,
+  accent,
   projectCode,
   canConfirm,
 }: {
   milestone: PortalMilestone;
+  /** Cor de destaque do cliente, na borda do cartão. */
+  accent: string | null;
   projectCode: string;
   /** O projeto liga a opção e o contato é o decisor (D9). */
   canConfirm: boolean;
@@ -307,7 +318,10 @@ function MilestoneCard({
   const status = MILESTONE[m.status];
   const delivered = m.status === "delivered" || m.status === "accepted";
   return (
-    <li className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-5">
+    <li
+      className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-5"
+      style={accentBorder(accent)}
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h3 className="min-w-0 flex-1 basis-56 font-heading text-lg font-semibold break-words text-navy">
           {m.title}

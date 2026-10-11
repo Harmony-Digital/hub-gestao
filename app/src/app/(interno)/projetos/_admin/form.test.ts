@@ -109,11 +109,28 @@ describe("formulário de cliente", () => {
         name: "Clínica",
         segment: "Saúde",
         notes_internal: null,
+        accent_color: null,
       },
     });
     const edit = parseClientForm(form({ id: ID, name: "Clínica" }));
     expect(edit.ok && edit.value.id).toBe(ID);
     expect(parseClientForm(form({ id: "x", name: "Clínica" })).ok).toBe(false);
     expect(parseClientForm(form({ name: "  " })).ok).toBe(false);
+  });
+
+  it("cor de destaque do portal: código com # e seis caracteres, ou vazia", () => {
+    const accent = (accent_color: string) =>
+      parseClientForm(form({ name: "Clínica", accent_color }));
+    expect(accent(" #2e7d6b ")).toMatchObject({
+      ok: true,
+      value: { accent_color: "#2E7D6B" },
+    });
+    expect(accent("")).toMatchObject({
+      ok: true,
+      value: { accent_color: null },
+    });
+    expect(accent("verde").ok).toBe(false);
+    expect(accent("#2E7D6").ok).toBe(false);
+    expect(accent("#2E7D6B;}").ok).toBe(false);
   });
 });
