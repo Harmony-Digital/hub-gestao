@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ActivityExport } from "@/modules/activity/export";
 import { MeDto } from "@/modules/agents/service";
 import {
   ApprovalDto,
@@ -102,6 +103,7 @@ const RESPONSES = {
   CommentList,
   Comment: CommentDto,
   TimeEntry: TimeEntryDto,
+  ActivityExport,
   ProjectTime: ProjectTimeDto,
   ApprovalList,
   Approval: ApprovalDto,
@@ -418,6 +420,21 @@ export const API_SPECS: Spec[] = [
     response: "TimeEntry",
     status: 201,
     write: true,
+  },
+  {
+    method: "get",
+    path: "/activity",
+    tag: "Projetos",
+    summary: "Atividade do projeto por período",
+    description:
+      "O registro de atividades do projeto (quem, papel, origem, ação em PT-BR, tarefa e o que foi gravado), do primeiro ao último dia, até 366 dias e 50 mil registros. Agente informa sempre o projeto.",
+    scope: "projects:read",
+    query: [
+      { name: "project", description: "Código do projeto." },
+      { name: "from", description: "Primeiro dia (AAAA-MM-DD)." },
+      { name: "to", description: "Último dia (AAAA-MM-DD), incluído." },
+    ],
+    response: "ActivityExport",
   },
   {
     method: "get",
