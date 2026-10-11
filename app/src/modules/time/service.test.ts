@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { inTx } from "@/modules/context";
+import { inTx, maybeOne } from "@/modules/context";
 import { createTask, updateTask } from "@/modules/tasks/service";
 import { agentActor, ctxFor, openTestHub, type TestHub } from "@/test/hub";
 import { logTime, projectTime, taskTime } from "./service";
@@ -10,11 +10,16 @@ const tasks: Record<string, { id: string; code: string }> = {};
 
 beforeAll(async () => {
   h = await openTestHub();
-  const old = (
-    await h.raw.query<{ day: string }>(
-      `select (date_trunc('month', current_date) - interval '10 days')::date::text as day`,
-    )
-  ).rows[0].day;
+  // O dia no fuso do workspace, o mesmo das contas do mês (fora da transação, o fuso do
+  // servidor muda o dia entre 0h e 3h UTC).
+  const old = await inTx(
+    asOwner(),
+    async (t) =>
+      (await maybeOne<{ day: string }>(
+        t,
+        `select (date_trunc('month', current_date) - interval '10 days')::date::text as day`,
+      ))!.day,
+  );
   await inTx(asOwner(), async (t) => {
     tasks.a = await createTask(t, {
       project: "VIT",
