@@ -98,6 +98,21 @@ const OPEN: {
     },
   },
   {
+    // Histórico do marco, pelo código dele na Visão geral (RF-43).
+    name: "Histórico do marco",
+    path: "/projetos/EXE",
+    open: async (page) => {
+      await page
+        .getByRole("link", { name: /^Histórico do M\d+$/ })
+        .first()
+        .click();
+      await expect(
+        page.getByRole("heading", { level: 1, name: "Histórico do marco" }),
+      ).toBeVisible();
+      await page.waitForLoadState("networkidle");
+    },
+  },
+  {
     name: "Modelo de IA",
     path: "/agentes",
     open: (page) =>

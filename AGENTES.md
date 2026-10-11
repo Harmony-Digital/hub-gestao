@@ -83,7 +83,7 @@ Quatro tipos, um princípio: **a IA executa, o humano decide**.
 - **Gatilhos**: cron matinal (8h, dias úteis); evento `approval.decided` do tipo `replan`/`scope_change`/`milestone_proposal` aprovado (o `effect` do evento diz o que o Hub já aplicou); evento `task.blocked`; `workstream.updated`.
 - **Entradas**: árvore do projeto, carga por agente/pessoa (`v_department_load`), dependências, capacidade declarada dos executores.
 - **Saídas**: frentes e tarefas criadas (camadas 2 e 3), fila do dia por projeto e departamento, atribuições, digest matinal (Telegram via Hermes + inbox), lista de bloqueios com dono e próxima ação.
-- **Ferramentas MCP**: `hub_get_plan`, `hub_list_tasks`, `hub_create_workstream`, `hub_update_workstream`, `hub_create_task`, `hub_update_task`, `hub_comment`, `hub_request_approval` (quando precisa de um marco novo ou de decisão).
+- **Ferramentas MCP**: `hub_get_plan`, `hub_list_tasks`, `hub_create_workstream`, `hub_update_workstream`, `hub_create_task`, `hub_update_task`, `hub_comment`, `hub_request_approval` (quando precisa de um marco novo ou de decisão). O status da frente com tarefas sai delas (RF-12): para mudar o status, mude as tarefas.
 - **Escopos**: `projects:read`, `tasks:read`, `tasks:write`, `workstreams:write`, `comments:write`, `approvals:request`.
 - **Red lines**: não conclui tarefas de outros; não muda visibilidade; não cria marcos; não reatribui tarefa em andamento sem comentar o motivo.
 - **Métricas**: tarefas sem responsável < 5%; bloqueios com dono em < 24h; fila do dia publicada até 8h15.
@@ -190,7 +190,7 @@ Mesmo contrato do EX-06, com departamento e tipo de evidência próprios:
 
 - **Missão**: revisar semanalmente chaves de agente (uso, expiração, escopo excessivo), membros sem atividade, aprovações antigas, falhas de autorização recorrentes, custos de IA por agente; propor revogações e ajustes.
 - **Tipo / runtime**: A (regras no Hub + resumo no Hermes).
-- **Saídas**: relatório semanal no inbox do Fábio com ações sugeridas (revogar chave X, reduzir escopo Y); pedidos `agent_key` quando exigir decisão.
+- **Saídas**: relatório semanal no inbox do Fábio com ações sugeridas (revogar chave X, reduzir escopo Y); pedidos `agent_key` quando exigir decisão (revogar uma chave, com o `key_id` da auditoria e sem projeto; ao aprovar, a chave é revogada na hora).
 - **Red lines**: não revoga nem altera sozinho (exceto chaves expiradas, que o Hub bloqueia por regra).
 - **Fase**: M8.
 - **No Hub (PR #79)**: as regras rodam em código (`app/src/modules/audit/access.ts`) e aparecem em `/agentes/auditoria` (atalho na Sala de Controle), com o que fazer em cada ponto: chave de agente com mais de 90 dias, parada há 30, nunca usada depois de 14, com escopo amplo ou vencendo em 14 dias, e de agente pausado; pessoa da equipe sem gravar nada há 60 dias; contato com acesso parado há 90; aprovação parada há mais de 3 dias úteis; recusas da semana; gasto de IA acima de 80% do orçamento; chave de IA com mais de 180 dias; webhook com falha na semana. Toda segunda, o job `access-audit` deixa o aviso "Auditoria semanal" na caixa de entrada do dono. Para agentes: `hub_get_access_audit` (MCP) e `GET /api/v1/audit/access`, com `agents:read` e acesso a todos os projetos. A skill `agents/hermes/skills/gestao-hub/auditor-de-acesso` leva o resumo ao Telegram. **Para ligar** (Fábio): copiar a skill para o Kratos, o papel AC-14 no cadastro dele e a rotina de segunda às 10h no Hermes (a chave do Kratos já tem `agents:read` e todos os projetos). A política de rotação está em `docs/operacao.md`.

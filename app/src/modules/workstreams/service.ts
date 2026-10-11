@@ -57,7 +57,9 @@ export const UpdateWorkstreamInput = z.strictObject({
   milestone: MilestoneCode.nullable().optional(),
   department: DepartmentSlug.nullable().optional(),
   description_internal: z.string().max(4000).nullable().optional(),
-  status: WorkstreamStatus.optional(),
+  status: WorkstreamStatus.optional().describe(
+    "Só vale para frente sem tarefa: com tarefas, o status sai delas (RF-12) e este campo é ignorado.",
+  ),
   sort_order: z.number().int().optional(),
   assignee: AssigneeInput.nullable().optional(),
   depends_on: DependsOn.optional(),
@@ -316,7 +318,10 @@ export async function updateWorkstream(
   if (fields.description_internal !== undefined) {
     set("description_internal", fields.description_internal);
   }
-  if (fields.status !== undefined) set("status", fields.status);
+  // Com tarefas, o status sai delas no recálculo (RF-12, migração 0023): o pedido não muda.
+  if (fields.status !== undefined && current.task_count === 0) {
+    set("status", fields.status);
+  }
   if (fields.sort_order !== undefined) set("sort_order", fields.sort_order);
   if (fields.milestone !== undefined) {
     set(

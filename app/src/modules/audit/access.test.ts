@@ -133,6 +133,12 @@ describe("auditoria de acesso (AC-14)", () => {
     expect(audit.findings.find((f) => f.kind === "member_idle")?.subject).toBe(
       "Pessoa Parada",
     );
+    // Os pontos de chave trazem o id dela, para o auditor pedir a revogação (agent_key).
+    for (const f of audit.findings) {
+      if (f.kind.startsWith("key_"))
+        expect(f.key_id, f.kind).toMatch(/^[0-9a-f-]{36}$/);
+      else expect(f.key_id, f.kind).toBeUndefined();
+    }
     expect(
       audit.findings.find((f) => f.kind === "webhook_failing")?.subject,
     ).toBe("hermes.exemplo.com.br");
