@@ -5,8 +5,18 @@ import { badRequest, toHubError } from "@/lib/errors";
 import { actionContext, actionErrorMessage } from "@/lib/ui-context";
 import { createComment } from "@/modules/comments/service";
 import { inTx } from "@/modules/context";
-import { deleteView, saveView } from "@/modules/views/service";
-import { listQuery, readListState } from "./list-state";
+import {
+  deleteView,
+  resetDepartmentView,
+  saveView,
+  setDepartmentView,
+} from "@/modules/views/service";
+import {
+  departmentViewQuery,
+  listQuery,
+  readListState,
+  stateFor,
+} from "./list-state";
 import {
   addChecklistItem,
   addDependency,
@@ -31,6 +41,7 @@ import {
   parseInlineEdit,
   parseReorderForm,
   parseViewForm,
+  parseDepartmentViewForm,
   parseMoveForm,
   parseNewTaskForm,
   parseTaskFieldsForm,
@@ -358,13 +369,64 @@ export async function salvarVisao(
   const parsed = parseViewForm(form);
   if (!parsed.ok) return { status: "error", message: parsed.message };
   const { project, type, name, query } = parsed.value;
-  const state = readListState(Object.fromEntries(new URLSearchParams(query)));
+  const state = stateFor(
+    type,
+    readListState(Object.fromEntries(new URLSearchParams(query))),
+  );
   try {
     await inTx(ctx, (t) =>
       saveView(t, project, { type, name, query: listQuery(state).toString() }),
     );
     refresh();
     return { status: "ok", message: `Visão “${name}” salva.` };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+/**
+ * Os filtros de agora viram a visão padrão do departamento nesta tela, para toda a
+ * equipe e em todos os projetos (RF-23). A frente não entra: é de um projeto só.
+ */
+export async function definirVisaoDepartamento(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseDepartmentViewForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  const { department, type, query } = parsed.value;
+  try {
+    await inTx(ctx, (t) =>
+      setDepartmentView(t, {
+        department,
+        type,
+        query: departmentViewQuery(type, department, query),
+      }),
+    );
+    refresh();
+    return { status: "ok", message: "Visão padrão do departamento guardada." };
+  } catch (err) {
+    return failure(err, ctx.requestId);
+  }
+}
+
+/** Volta a visão padrão do departamento nesta tela para a do Hub (só o filtro dele). */
+export async function restaurarVisaoDepartamento(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const ctx = await actionContext();
+  const parsed = parseDepartmentViewForm(form);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+  const { department, type } = parsed.value;
+  try {
+    await inTx(ctx, (t) => resetDepartmentView(t, { department, type }));
+    refresh();
+    return {
+      status: "ok",
+      message: "A visão do departamento voltou à do Hub.",
+    };
   } catch (err) {
     return failure(err, ctx.requestId);
   }

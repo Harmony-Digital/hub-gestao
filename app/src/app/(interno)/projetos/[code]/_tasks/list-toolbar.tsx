@@ -2,9 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Columns3, ListFilter, Search, X } from "lucide-react";
-import type { AssigneeOption, WorkstreamOption } from "@/modules/tasks/board";
+import type {
+  AssigneeOption,
+  DepartmentOption,
+  WorkstreamOption,
+} from "@/modules/tasks/board";
 import {
   COLUMNS,
   hasFilters,
@@ -33,25 +37,63 @@ const COLUMN_LABEL = {
 } as const;
 
 /**
- * Filtros combináveis (e, na Lista, agrupar, ordenar e colunas) num formulário GET: cada
- * escolha atualiza o endereço, que é a fonte da verdade da tela (dá para salvar e
- * compartilhar). Funciona também sem JavaScript, com o botão Aplicar.
+ * Filtros combináveis (departamento, frente, responsável, prioridade, prazo e busca; na
+ * Lista, também agrupar, ordenar e colunas) num formulário GET: cada escolha atualiza o
+ * endereço, que é a fonte da verdade da tela (dá para salvar e compartilhar). Funciona
+ * também sem JavaScript, com o botão Aplicar.
  */
 export function ListToolbar({
   basePath,
   state,
+  departments,
   workstreams,
   assignees,
   mode,
 }: {
   basePath: string;
   state: ListState;
+  /** Departamentos com frente no projeto (o filtro aparece quando há algum). */
+  departments: Pick<DepartmentOption, "slug" | "name">[];
   workstreams: WorkstreamOption[];
   assignees: AssigneeOption[];
   mode: "list" | "board";
 }) {
   const form = useRef<HTMLFormElement>(null);
   const router = useRouter();
+  // O endereço também muda por link (Visões, Limpar filtros) sem remontar a barra, e
+  // os campos não controlados ficariam com o valor antigo: acompanham o endereço, menos
+  // o campo em uso.
+  const signature = listQuery(state).toString();
+  useEffect(() => {
+    const el = form.current;
+    if (!el) return;
+    const now = readListState(
+      Object.fromEntries(new URLSearchParams(signature)),
+    );
+    const values: Record<string, string> = {
+      depto: now.depto ?? "",
+      frente: now.frente ?? "",
+      resp: now.resp ?? "",
+      prazo: now.prazo ?? "",
+      busca: now.busca ?? "",
+      agrupar: now.agrupar,
+      ordem: now.ordem,
+      raia: now.raia,
+    };
+    for (const field of el.querySelectorAll<
+      HTMLSelectElement | HTMLInputElement
+    >("select[name], input[name]")) {
+      if (field === document.activeElement) continue;
+      if (field instanceof HTMLInputElement && field.type === "checkbox") {
+        field.checked =
+          field.name === "prio"
+            ? now.prio.includes(field.value as (typeof now.prio)[number])
+            : now.colunas.includes(field.value as (typeof now.colunas)[number]);
+      } else if (Object.hasOwn(values, field.name)) {
+        field.value = values[field.name];
+      }
+    }
+  }, [signature]);
   // O endereço leva só o que difere do padrão (fica curto, salvável e compartilhável).
   const apply = () => {
     if (!form.current) return;
@@ -68,6 +110,7 @@ export function ListToolbar({
   const clear = listQuery({
     ...state,
     frente: null,
+    depto: null,
     resp: null,
     prio: [],
     prazo: null,
@@ -87,6 +130,27 @@ export function ListToolbar({
       aria-label="Filtros"
     >
       <ListFilter aria-hidden="true" className="size-4 text-caption" />
+      {departments.length ? (
+        <>
+          <label className="sr-only" htmlFor="filtro-departamento">
+            Departamento
+          </label>
+          <select
+            id="filtro-departamento"
+            name="depto"
+            defaultValue={state.depto ?? ""}
+            onChange={submit}
+            className={SELECT}
+          >
+            <option value="">Todos os departamentos</option>
+            {departments.map((d) => (
+              <option key={d.slug} value={d.slug}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </>
+      ) : null}
       <label className="sr-only" htmlFor="filtro-frente">
         Frente
       </label>

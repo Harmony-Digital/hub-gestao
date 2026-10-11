@@ -340,7 +340,7 @@ export function buildMcpServer(
       {
         title: "Listar tarefas",
         description:
-          'Tarefas com filtros: projeto, responsável ("me", "none", "agent:<id>"), categoria de status, prazo, bloqueio, frente e tarefa-pai. Paginação por cursor.',
+          'Tarefas com filtros: projeto, responsável ("me", "none", "agent:<id>"), categoria de status, prazo, bloqueio, frente, departamento (slug) e tarefa-pai. Paginação por cursor.',
         inputSchema: TaskFilter,
         outputSchema: TaskPage,
         annotations: readOnly,

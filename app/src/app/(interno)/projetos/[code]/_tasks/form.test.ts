@@ -14,6 +14,7 @@ import {
   parseTaskFieldsForm,
   parseTimeForm,
   parseViewForm,
+  parseDepartmentViewForm,
 } from "./form";
 
 const ID = "4dc6721e-2ac8-463d-84cb-3b25ab170bbd";
@@ -556,6 +557,23 @@ describe("edição na linha e visões salvas", () => {
     expect(
       parseViewForm(fd({ project: "EXE", type: "mapa", name: "x" })).ok,
     ).toBe(false);
+  });
+  it("visão padrão do departamento: slug, tela e filtros", () => {
+    expect(
+      parseDepartmentViewForm(
+        fd({ department: "design", type: "board", query: "depto=design" }),
+      ),
+    ).toEqual({
+      ok: true,
+      value: { department: "design", type: "board", query: "depto=design" },
+    });
+    for (const bad of [
+      { department: "Design", type: "list", query: "" },
+      { department: "design", type: "mapa", query: "" },
+      { department: "design", type: "list", query: "x".repeat(601) },
+    ]) {
+      expect(parseDepartmentViewForm(fd(bad)).ok).toBe(false);
+    }
   });
 });
 

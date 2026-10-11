@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { TaskDto } from "@/modules/tasks/schemas";
 import {
+  departmentViewQuery,
   groupTasks,
   hasFilters,
   listQuery,
   readListState,
   sortTasks,
+  stateFor,
+  toTaskFilter,
 } from "./list-state";
 
 const ID = "4dc6721e-2ac8-463d-84cb-3b25ab170bbd";
@@ -56,6 +59,7 @@ describe("estado da lista no endereço", () => {
       }),
     ).toEqual({
       frente: ID,
+      depto: null,
       resp: `agent:${ID}`,
       prio: ["urgent", "high", "low"],
       prazo: "atrasadas",
@@ -95,6 +99,69 @@ describe("estado da lista no endereço", () => {
     expect(query.toString()).toBe("resp=eu&prio=urgent&col=titulo%2Cprazo");
     expect(readListState(Object.fromEntries(query))).toEqual(state);
     expect(listQuery(readListState({})).toString()).toBe("");
+  });
+
+  it("filtra por departamento (slug) e ignora o que não é slug", () => {
+    const state = readListState({
+      depto: "agentes-e-automacoes",
+      prio: "high",
+    });
+    expect(state.depto).toBe("agentes-e-automacoes");
+    expect(hasFilters(state)).toBe(true);
+    expect(listQuery(state).toString()).toBe(
+      "depto=agentes-e-automacoes&prio=high",
+    );
+    expect(toTaskFilter(state).department).toBe("agentes-e-automacoes");
+    for (const wrong of [
+      "Design",
+      "a b",
+      "x--y",
+      "-x",
+      "'; drop",
+      "a".repeat(61),
+    ]) {
+      expect(readListState({ depto: wrong }).depto).toBeNull();
+    }
+  });
+});
+
+describe("visão de cada tela e visão padrão do departamento", () => {
+  it("o Quadro guarda só filtros e raias; a Lista, o resto", () => {
+    const state = readListState({
+      resp: "eu",
+      agrupar: "frente",
+      ordem: "prazo",
+      col: "titulo,prazo",
+      raia: "responsavel",
+    });
+    expect(listQuery(stateFor("board", state)).toString()).toBe(
+      "resp=eu&raia=responsavel",
+    );
+    expect(listQuery(stateFor("list", state)).toString()).toBe(
+      "resp=eu&agrupar=frente&ordem=prazo&col=titulo%2Cprazo",
+    );
+  });
+
+  it("sem padrão guardado, é só o filtro do departamento", () => {
+    expect(departmentViewQuery("list", "design", null)).toBe("depto=design");
+    expect(departmentViewQuery("board", "design", "")).toBe("depto=design");
+  });
+
+  it("o padrão guardado sempre leva o departamento e nunca a frente", () => {
+    expect(
+      departmentViewQuery(
+        "list",
+        "design",
+        `frente=${ID}&depto=sistemas&prio=urgent,high&agrupar=responsavel&raia=frente`,
+      ),
+    ).toBe("depto=design&prio=urgent%2Chigh&agrupar=responsavel");
+    expect(
+      departmentViewQuery(
+        "board",
+        "design",
+        "depto=design&raia=frente&ordem=prazo",
+      ),
+    ).toBe("depto=design&raia=frente");
   });
 });
 

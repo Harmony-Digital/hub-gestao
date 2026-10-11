@@ -4,6 +4,7 @@ import { HubError } from "@/lib/errors";
 import { inTx } from "@/modules/context";
 import { createTask } from "@/modules/tasks/service";
 import { ctxFor, openTestHub, type TestHub } from "@/test/hub";
+import { setDepartmentView } from "@/modules/views/service";
 import { departmentDetail, departmentsOverview } from "./view";
 
 const S = "proj_hub_gestao";
@@ -102,6 +103,25 @@ describe("visão por departamento", () => {
       },
     ]);
     expect(detail.workstreams.map((w) => w.projectCode)).toEqual(["VIT"]);
+    // Sem padrão guardado, a tela leva só o filtro do departamento (RF-23).
+    expect(detail.views).toEqual({ list: null, board: null });
+    await inTx(asOwner(), (t) =>
+      setDepartmentView(t, {
+        department: "agentes-e-automacoes",
+        type: "board",
+        query: "depto=agentes-e-automacoes&raia=responsavel",
+      }),
+    );
+    expect(
+      (
+        await inTx(asOwner(), (t) =>
+          departmentDetail(t, "agentes-e-automacoes"),
+        )
+      ).views,
+    ).toEqual({
+      list: null,
+      board: "depto=agentes-e-automacoes&raia=responsavel",
+    });
     const err = await inTx(asOwner(), (t) =>
       departmentDetail(t, "nao-existe"),
     ).catch((e: unknown) => e);

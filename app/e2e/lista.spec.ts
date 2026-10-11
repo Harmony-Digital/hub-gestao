@@ -47,3 +47,40 @@ test("muda a prioridade na linha da Lista e o valor fica gravado", async ({
       .first(),
   ).toBeVisible();
 });
+
+/**
+ * Visão padrão por departamento (RF-23): o atalho do departamento na faixa Visões
+ * mostra só as tarefas das frentes dele, e a barra de filtros acompanha o endereço
+ * (o campo do departamento muda junto, também ao voltar para Tudo).
+ */
+test("o atalho do departamento filtra a Lista e a barra acompanha", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/projetos/EXE/lista");
+  await settle(page);
+  const main = page.getByRole("main");
+  const department = main.getByRole("combobox", {
+    name: "Departamento",
+    exact: true,
+  });
+  const sistemas = main.getByRole("link", { name: "Departamento Sistemas" });
+
+  await sistemas.click();
+  await expect(page).toHaveURL(/\/lista\?depto=sistemas$/);
+  await expect(sistemas).toHaveAttribute("aria-current", "page");
+  await expect(department).toHaveValue("sistemas");
+  await expect(
+    main.getByRole("link", { name: /Integrar consulta de horários livres/ }),
+  ).toBeVisible();
+  await expect(
+    main.getByRole("link", { name: /Desenhar a tela de fila da recepção/ }),
+  ).toHaveCount(0);
+
+  await main.getByRole("link", { name: "Tudo", exact: true }).click();
+  await expect(page).toHaveURL(/\/lista$/);
+  await expect(department).toHaveValue("");
+  await expect(
+    main.getByRole("link", { name: /Desenhar a tela de fila da recepção/ }),
+  ).toBeVisible();
+});

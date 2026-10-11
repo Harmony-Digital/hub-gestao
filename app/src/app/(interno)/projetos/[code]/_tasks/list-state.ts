@@ -1,7 +1,8 @@
 /**
- * Estado da Lista e do Quadro guardado no endereço: filtros combináveis (frente,
- * responsável, prioridade, prazo, busca) e, na Lista, agrupamento, ordem e colunas.
- * Puro: vale no servidor, no navegador e nos testes. Valor fora do formato é ignorado.
+ * Estado da Lista e do Quadro guardado no endereço: filtros combináveis (departamento,
+ * frente, responsável, prioridade, prazo, busca) e, na Lista, agrupamento, ordem e
+ * colunas. Puro: vale no servidor, no navegador e nos testes. Valor fora do formato é
+ * ignorado.
  */
 
 import type { TaskDto } from "@/modules/tasks/schemas";
@@ -46,6 +47,8 @@ export type Lane = (typeof LANES)[number];
 export type ListState = {
   /** "none" (sem frente) ou o id de uma frente. */
   frente: string | null;
+  /** Slug de um departamento: só as tarefas das frentes dele (RF-23). */
+  depto: string | null;
   /** "eu", "nenhum", "user:<id>" ou "agent:<id>". */
   resp: string | null;
   prio: Priority[];
@@ -58,6 +61,7 @@ export type ListState = {
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const CONTROL = /[\u0000-\u001F\u007F-\u009F]/;
 
 function all(value: string | string[] | undefined): string[] {
@@ -81,6 +85,7 @@ function pick<T extends string>(
 
 export function readListState(query: Query): ListState {
   const frente = one(query.frente);
+  const depto = one(query.depto);
   const resp = one(query.resp);
   const busca = one(query.busca)?.trim();
   const cols = all(query.col).filter((c): c is Column =>
@@ -88,6 +93,7 @@ export function readListState(query: Query): ListState {
   );
   return {
     frente: frente === "none" || (frente && UUID.test(frente)) ? frente : null,
+    depto: depto && depto.length <= 60 && SLUG.test(depto) ? depto : null,
     resp:
       resp === "eu" ||
       resp === "nenhum" ||
@@ -124,6 +130,7 @@ export function readListState(query: Query): ListState {
 export function listQuery(state: ListState): URLSearchParams {
   const q = new URLSearchParams();
   if (state.frente) q.set("frente", state.frente);
+  if (state.depto) q.set("depto", state.depto);
   if (state.resp) q.set("resp", state.resp);
   if (state.prio.length) q.set("prio", state.prio.join(","));
   if (state.prazo) q.set("prazo", state.prazo);
@@ -143,11 +150,48 @@ export function listQuery(state: ListState): URLSearchParams {
 export function hasFilters(state: ListState): boolean {
   return Boolean(
     state.frente ||
+    state.depto ||
     state.resp ||
     state.prio.length ||
     state.prazo ||
     state.busca,
   );
+}
+
+/**
+ * O que cada tela usa: o Quadro, os filtros e as raias (agrupar, ordem e colunas são da
+ * Lista); a Lista, todo o resto (as raias são do Quadro).
+ */
+export function stateFor(type: "list" | "board", state: ListState): ListState {
+  const base = readListState({});
+  return type === "board"
+    ? {
+        ...state,
+        agrupar: base.agrupar,
+        ordem: base.ordem,
+        colunas: base.colunas,
+      }
+    : { ...state, raia: base.raia };
+}
+
+/**
+ * Endereço da visão padrão de um departamento (RF-23): a que ele guardou ou, sem ela, só
+ * o filtro dele. Sempre com o departamento e nunca com uma frente, que é de um projeto só.
+ */
+export function departmentViewQuery(
+  type: "list" | "board",
+  slug: string,
+  stored: string | null,
+): string {
+  const values: Record<string, string[]> = {};
+  for (const [key, value] of new URLSearchParams(stored ?? "")) {
+    (values[key] ??= []).push(value);
+  }
+  return listQuery({
+    ...stateFor(type, readListState(values)),
+    depto: slug,
+    frente: null,
+  }).toString();
 }
 
 // Ordem e grupos ----------------------------------------------------------------------
@@ -276,6 +320,7 @@ export function groupTasks(
 /** Filtros do endereço no formato do núcleo (`projectTaskList`). */
 export function toTaskFilter(state: ListState): {
   workstream: string | null;
+  department: string | null;
   assignee: string | null;
   priorities: Priority[];
   due: "late" | "week" | "none" | null;
@@ -283,6 +328,7 @@ export function toTaskFilter(state: ListState): {
 } {
   return {
     workstream: state.frente,
+    department: state.depto,
     assignee:
       state.resp === "eu"
         ? "me"

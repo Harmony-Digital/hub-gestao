@@ -60,7 +60,7 @@ O servidor mostra só as ferramentas que a chave pode usar. A primeira chamada �
 | `hub_whoami` | Identidade, workspace, projetos, escopos e orçamento |
 | `hub_get_today` | Minha fila: tarefas, bloqueios, prazos e pedidos |
 | `hub_list_projects`, `hub_get_project`, `hub_get_plan` | Projetos e o plano (JSON ou `plan.md`) |
-| `hub_list_tasks`, `hub_get_task` | Tarefas com filtros; detalhe com comentários |
+| `hub_list_tasks`, `hub_get_task` | Tarefas com filtros (projeto, responsável, status, prazo, bloqueio, frente, departamento pelo slug e tarefa-pai); detalhe com comentários |
 | `hub_create_task`, `hub_update_task` | Criar e editar tarefa (na edição, também os campos personalizados do projeto: `custom_fields`, pelo nome do campo) |
 | `hub_start_task`, `hub_block_task`, `hub_complete_task`, `hub_reopen_task` | Transições; concluir exige evidência |
 | `hub_comment` | Comentário interno em tarefa, frente, marco ou projeto |

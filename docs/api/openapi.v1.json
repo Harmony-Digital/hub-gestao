@@ -845,6 +845,15 @@
             }
           },
           {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "description": "Slug do departamento (ex.: sistemas): só as tarefas das frentes ativas dele.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "parent",
             "in": "query",
             "required": false,

@@ -6,6 +6,7 @@ import {
   ACTOR_NAME_SQL,
   actorRef,
   authorizeProjectId,
+  DepartmentSlug,
   iso,
   MilestoneCode,
   ProjectCode,
@@ -26,10 +27,6 @@ import {
   MAX_WORKSTREAM_DEPENDENCIES,
   replaceWorkstreamDependencies,
 } from "./dependencies";
-
-const DepartmentSlug = z
-  .string()
-  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Departamento pelo slug, como sistemas.");
 
 const DependsOn = z
   .array(Uuid)

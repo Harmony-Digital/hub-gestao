@@ -128,15 +128,25 @@ export const OPEN_LIMIT = 500;
 
 /**
  * Filtros combináveis da Lista e do Quadro. Frente: "none" (sem frente) ou um id.
+ * Departamento: o slug (só as tarefas das frentes ativas dele no projeto, RF-23).
  * Responsável: "me", "none", "user:<id>" ou "agent:<id>". Prazo: atrasadas, próximos 7
  * dias ou sem prazo. Busca: título ou código (HUB-12).
  */
 export type TaskListFilter = {
   workstream?: string | null;
+  department?: string | null;
   assignee?: string | null;
   priorities?: string[];
   due?: "late" | "week" | "none" | null;
   search?: string | null;
+};
+
+/** Departamento com frente ativa no projeto: a visão padrão dele (RF-23). */
+export type DepartmentOption = {
+  id: string;
+  slug: string;
+  name: string;
+  color: string;
 };
 
 export type ProjectTaskList = TaskFormOptions & {
@@ -144,6 +154,13 @@ export type ProjectTaskList = TaskFormOptions & {
   today: string;
   /** Frente filtrada, já conferida: "none", o id de uma frente do projeto ou null. */
   workstream: string | null;
+  /**
+   * Departamentos com frente ativa no projeto, na ordem do workspace (e o filtrado,
+   * mesmo sem frente aqui).
+   */
+  departments: DepartmentOption[];
+  /** Departamento filtrado, já conferido: o slug de um departamento ou null. */
+  department: string | null;
   tasks: TaskDto[];
   doneTotal: number;
   /** Abertas com os filtros (todas, não só as que vieram em `tasks`). */
@@ -154,6 +171,8 @@ export type ProjectTaskList = TaskFormOptions & {
    */
   waitingOn: Record<string, string[]>;
 };
+
+const DEPARTMENT_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const LIST_ORDER = `
   case t.priority when 'urgent' then 0 when 'high' then 1 when 'normal' then 2 else 3 end,
@@ -180,6 +199,24 @@ export async function projectTaskList(
       : options.workstreams.some((w) => w.id === filter.workstream)
         ? filter.workstream!
         : null;
+  const wanted =
+    filter.department &&
+    filter.department.length <= 60 &&
+    DEPARTMENT_SLUG.test(filter.department)
+      ? filter.department
+      : null;
+  const departments = await many<DepartmentOption>(
+    t,
+    `select d.id, d.slug, d.name, d.color from ${S}.departments d
+      where exists (select 1 from ${S}.workstreams w
+                     where w.project_id = $1 and w.department_id = d.id
+                       and w.archived_at is null)
+         or d.slug = $2
+      order by d.sort_order, d.name`,
+    [project.id, wanted],
+  );
+  const department =
+    wanted && departments.some((d) => d.slug === wanted) ? wanted : null;
   const params: unknown[] = [project.id];
   let where = "t.project_id = $1 and t.archived_at is null";
   const param = (value: unknown) => {
@@ -190,6 +227,13 @@ export async function projectTaskList(
     where += " and t.workstream_id is null";
   } else if (workstream) {
     where += ` and t.workstream_id = ${param(workstream)}`;
+  }
+  if (department) {
+    // Departamento que existe mas não tem frente aqui: a lista fica vazia, não inteira.
+    where += ` and t.workstream_id in (
+      select w.id from ${S}.workstreams w
+        join ${S}.departments d on d.id = w.department_id
+       where w.project_id = $1 and w.archived_at is null and d.slug = ${param(department)})`;
   }
   const who = filter.assignee;
   if (who === "me") {
@@ -256,6 +300,8 @@ export async function projectTaskList(
     project,
     today: await today(t),
     workstream,
+    departments,
+    department,
     tasks: [...open, ...done].map(toTaskDto),
     doneTotal: totals?.done ?? 0,
     openTotal: totals?.open ?? 0,

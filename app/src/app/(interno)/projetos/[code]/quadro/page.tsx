@@ -6,7 +6,12 @@ import { can } from "@/lib/authorize";
 import { pageContext } from "@/lib/ui-context";
 import { inTx } from "@/modules/context";
 import { projectTaskList, type ProjectTaskList } from "@/modules/tasks/board";
-import { listSavedViews, type SavedViewDto } from "@/modules/views/service";
+import {
+  departmentViews,
+  listSavedViews,
+  type DepartmentViewDto,
+  type SavedViewDto,
+} from "@/modules/views/service";
 import { projectChangeMarker } from "@/modules/live";
 import { LiveRefresh } from "../../../_live/live-refresh";
 import {
@@ -18,9 +23,11 @@ import {
 import { KanbanBoard } from "../_tasks/kanban";
 import { ListToolbar } from "../_tasks/list-toolbar";
 import {
+  departmentViewQuery,
   hasFilters,
   listQuery,
   readListState,
+  stateFor,
   toTaskFilter,
 } from "../_tasks/list-state";
 import { NewTaskButton } from "../_tasks/new-task";
@@ -54,23 +61,20 @@ async function BoardView({
   const { code } = await params;
   if (!PROJECT_CODE.test(code)) notFound();
   const query = await searchParams;
-  // O Quadro usa só os filtros (agrupar, ordem e colunas são da Lista).
-  const state = {
-    ...readListState(query),
-    agrupar: "status" as const,
-    ordem: "padrao" as const,
-    colunas: readListState({}).colunas,
-  };
+  // O Quadro usa só os filtros e as raias (agrupar, ordem e colunas são da Lista).
+  const state = stateFor("board", readListState(query));
   const { user, ctx } = await pageContext();
   let data: ProjectTaskList;
   let views: SavedViewDto[];
+  let deptViews: DepartmentViewDto[];
   let marker: string;
   try {
-    ({ data, views, marker } = await inTx(ctx, async (t) => {
+    ({ data, views, deptViews, marker } = await inTx(ctx, async (t) => {
       const list = await projectTaskList(t, code, toTaskFilter(state));
       return {
         data: list,
         views: await listSavedViews(t, list.project.id, "board"),
+        deptViews: await departmentViews(t, list.departments, "board"),
         marker: await projectChangeMarker(t, code),
       };
     }));
@@ -135,11 +139,18 @@ async function BoardView({
             type="board"
             basePath={basePath}
             views={views}
+            departments={deptViews.map((d) => ({
+              ...d,
+              query: departmentViewQuery("board", d.slug, d.stored),
+              custom: d.stored !== null,
+            }))}
+            currentDepartment={data.department}
             currentQuery={current.toString()}
           />
           <ListToolbar
             basePath={basePath}
             state={state}
+            departments={data.departments}
             workstreams={data.workstreams}
             assignees={data.assignees}
             mode="board"

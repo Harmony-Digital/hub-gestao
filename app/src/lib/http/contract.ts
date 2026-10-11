@@ -312,6 +312,11 @@ export const API_SPECS: Spec[] = [
       { name: "blocked", description: '"true" ou "false".' },
       { name: "workstream_id", description: "Id da frente." },
       {
+        name: "department",
+        description:
+          "Slug do departamento (ex.: sistemas): só as tarefas das frentes ativas dele.",
+      },
+      {
         name: "parent",
         description: "Código da tarefa-pai, para listar subtarefas.",
       },
