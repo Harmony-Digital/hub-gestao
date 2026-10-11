@@ -21,6 +21,7 @@ import {
 import { attempt } from "@/modules/attempt";
 import { checkProjectClientTexts } from "@/modules/client-text/context";
 import { enqueueClientRewrite } from "@/modules/client-text/writer";
+import { enqueueReportEmail } from "@/modules/reports/email";
 import { json, many, maybeOne, S, type TxCtx } from "@/modules/context";
 import { emitEvent } from "@/modules/events";
 import { notifyOwners, notifyProfile } from "@/modules/notifications";
@@ -754,7 +755,15 @@ async function applyEffect(
         [row.entity_id],
       );
       await emitEvent(t, "report.published", { report_id: row.entity_id });
-      return { applied: true, report_published: true };
+      // RF-34: com a opção do projeto ligada, o relatório vai também por e-mail.
+      const emailed = row.entity_id
+        ? await enqueueReportEmail(t, row.entity_id)
+        : false;
+      return {
+        applied: true,
+        report_published: true,
+        ...(emailed ? { report_email_queued: true } : {}),
+      };
     }
     case "import_review": {
       const next =

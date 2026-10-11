@@ -212,6 +212,8 @@ const ProjectFields = {
   plan_path: Line(300).nullable(),
   require_evidence: z.boolean(),
   client_can_confirm_receipt: z.boolean(),
+  /** RF-34: o relatório aprovado para o cliente vai também por e-mail aos contatos. */
+  email_client_reports: z.boolean().optional(),
   departments: z.array(z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)).max(20),
 };
 
@@ -367,6 +369,7 @@ const PROJECT_AUDIT_KEYS = [
   "plan_path",
   "require_evidence",
   "client_can_confirm_receipt",
+  "email_client_reports",
   "departments",
 ] as const;
 
@@ -387,8 +390,9 @@ export async function createProject(
     `insert into ${S}.projects
        (workspace_id, client_id, code, name, phase, status, objective_internal,
         objective_client, start_date, target_date, owner_profile_id, pm_agent_id,
-        repo_url, plan_path, require_evidence, client_can_confirm_receipt)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        repo_url, plan_path, require_evidence, client_can_confirm_receipt,
+        email_client_reports)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
      returning id`,
     [
       t.actor.workspaceId,
@@ -407,6 +411,7 @@ export async function createProject(
       input.plan_path,
       input.require_evidence,
       input.client_can_confirm_receipt,
+      input.email_client_reports ?? false,
     ],
   );
   const projectId = row!.id;
@@ -451,7 +456,8 @@ async function editable(t: TxCtx, id: string) {
     `select p.name, p.client_id, p.phase::text as phase, p.status::text as status,
             p.objective_internal, p.objective_client, p.start_date, p.target_date,
             p.owner_profile_id, p.pm_agent_id, p.repo_url, p.plan_path,
-            p.require_evidence, p.client_can_confirm_receipt, p.updated_at,
+            p.require_evidence, p.client_can_confirm_receipt, p.email_client_reports,
+            p.updated_at,
             coalesce((select array_agg(d.slug order by d.slug)
                         from ${S}.project_departments pd
                         join ${S}.departments d on d.id = pd.department_id
@@ -494,6 +500,9 @@ export async function updateProject(
     ...input,
     objective_internal: input.objective_internal || null,
     objective_client: input.objective_client || null,
+    // Sem o campo (outro chamador que não a tela), a opção fica como estava.
+    email_client_reports:
+      input.email_client_reports ?? Boolean(before.email_client_reports),
     departments: [...new Set(input.departments)].sort(),
   };
   const changes = changedFields(before, next, PROJECT_AUDIT_KEYS);
@@ -504,7 +513,7 @@ export async function updateProject(
         set name = $2, client_id = $3, phase = $4, status = $5, objective_internal = $6,
             objective_client = $7, start_date = $8, target_date = $9, owner_profile_id = $10,
             pm_agent_id = $11, repo_url = $12, plan_path = $13, require_evidence = $14,
-            client_can_confirm_receipt = $15
+            client_can_confirm_receipt = $15, email_client_reports = $16
       where id = $1`,
     [
       ref.id,
@@ -522,6 +531,7 @@ export async function updateProject(
       input.plan_path,
       input.require_evidence,
       input.client_can_confirm_receipt,
+      next.email_client_reports,
     ],
   );
   await setDepartments(t, ref.id, departmentIds);

@@ -56,6 +56,7 @@ describe("formulário de projeto", () => {
           plan_path: "PLAN.md",
           require_evidence: true,
           client_can_confirm_receipt: false,
+          email_client_reports: false,
           departments: ["sistemas", "design"],
         },
       },

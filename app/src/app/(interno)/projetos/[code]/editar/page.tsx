@@ -120,6 +120,7 @@ async function EditProject({
             planPath: project.plan_path ?? "",
             requireEvidence: project.require_evidence,
             clientCanConfirmReceipt: project.client_can_confirm_receipt,
+            emailClientReports: project.email_client_reports,
             departments: project.departments.map((d) => d.slug),
             updatedAt: project.updated_at,
           }}
