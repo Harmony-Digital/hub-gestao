@@ -568,9 +568,14 @@ function Milestones({
             key={m.id}
             className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3"
           >
-            <span className="w-10 font-mono text-xs font-semibold text-caption">
+            {/* O código leva ao histórico do marco (RF-43). */}
+            <Link
+              href={`/historico/marco/${m.id}`}
+              aria-label={`Histórico do ${m.code}`}
+              className="w-10 font-mono text-xs font-semibold text-caption underline-offset-2 hover:text-navy hover:underline"
+            >
               {m.code}
-            </span>
+            </Link>
             <span className="min-w-48 flex-1">
               <span className="block font-semibold text-navy">{m.title}</span>
               <span className="block text-xs text-caption">
@@ -736,16 +741,22 @@ function Workstreams({
                 </td>
                 <td className="py-2.5 pr-3">
                   <span className="font-medium text-navy">{w.title}</span>
-                  {w.milestone ? (
-                    <span className="block text-xs text-caption">
-                      Marco {w.milestone.code}
-                      {w.blocked_count === 1
-                        ? " · 1 bloqueada"
-                        : w.blocked_count > 1
-                          ? ` · ${w.blocked_count} bloqueadas`
-                          : ""}
-                    </span>
-                  ) : null}
+                  <span className="block text-xs text-caption">
+                    {w.milestone ? `Marco ${w.milestone.code}` : null}
+                    {w.milestone && w.blocked_count === 1
+                      ? " · 1 bloqueada"
+                      : w.milestone && w.blocked_count > 1
+                        ? ` · ${w.blocked_count} bloqueadas`
+                        : ""}
+                    {w.milestone ? " · " : null}
+                    <Link
+                      href={`/historico/frente/${w.id}`}
+                      aria-label={`Histórico da frente ${w.title}`}
+                      className="underline underline-offset-2 hover:text-navy"
+                    >
+                      Histórico
+                    </Link>
+                  </span>
                   {dependsOn.length > 0 ? (
                     <span className="block text-xs text-ink-2">
                       Depende de {quotedList(dependsOn)}
