@@ -88,6 +88,7 @@ export const SyncConflict = z.object({
     "hub_wins",
     "no_evidence",
     "refused",
+    "department_unknown",
   ]),
   line: z.number().int().nullable().describe("Linha do arquivo (começa em 1)."),
   code: z.string().nullable(),
@@ -334,6 +335,40 @@ async function push(
   const missingMilestone = new Set<number>();
   const createdWorkstream = new Map<string, string>(); // chave → id da frente
 
+  // Departamento escrito embaixo da frente (`Departamento: Sistemas.`), pelo slug ou pelo
+  // nome, sem acento nem caixa. Vale só para a frente criada agora.
+  const deptKey = (text: string) =>
+    text
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  const departments = await many<{ slug: string; name: string }>(
+    t,
+    `select slug, name from ${S}.departments order by sort_order`,
+  );
+  const deptSlug = new Map<string, string>();
+  for (const d of departments) {
+    deptSlug.set(deptKey(d.slug), d.slug);
+    deptSlug.set(deptKey(d.name), d.slug);
+  }
+  const unknownDepartment = new Set<number>();
+  const departmentOf = (index: number): string | undefined => {
+    const ws = file.workstreams[index];
+    if (!ws.department) return undefined;
+    const slug = deptSlug.get(deptKey(ws.department));
+    if (!slug && !unknownDepartment.has(index)) {
+      unknownDepartment.add(index);
+      conflicts.push({
+        kind: "department_unknown",
+        line: ws.line + 1,
+        code: null,
+        detail: `O departamento "${ws.department}" da frente "${ws.title}" não existe no Hub: a frente entrou sem departamento. Departamentos: ${departments.map((d) => d.name).join(", ")}.`,
+      });
+    }
+    return slug;
+  };
+
   const evidenceFor = (item: PlanItem): string | null =>
     item.evidence ??
     (input.commit_sha
@@ -386,10 +421,12 @@ async function push(
       return null;
     }
     let title: string | null = null;
+    let department: string | undefined;
     if (item.workstream !== null) {
       const found = match.workstreams[item.workstream];
       if (found) return { id: found.id };
       title = file.workstreams[item.workstream].title;
+      department = departmentOf(item.workstream);
     } else if (milestone) {
       // Item direto embaixo do `##`: vai para a frente com o nome do marco.
       const own = milestone.workstreams.find(
@@ -410,6 +447,7 @@ async function push(
           project: projectCode,
           title: title.slice(0, 200),
           ...(milestone ? { milestone: milestone.code } : {}),
+          ...(department ? { department } : {}),
         }),
       ),
     );

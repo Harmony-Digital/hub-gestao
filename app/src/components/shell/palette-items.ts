@@ -69,6 +69,11 @@ export const SCREENS: { href: string; label: string; keywords?: string }[] = [
     keywords: "agentes chaves recusas",
   },
   { href: "/clientes", label: "Clientes" },
+  {
+    href: "/modelos",
+    label: "Modelos de projeto",
+    keywords: "templates esqueleto novo projeto",
+  },
   { href: "/conta", label: "Minha conta", keywords: "senha perfil" },
 ];
 

@@ -230,6 +230,8 @@ export type ProjectFormOptions = {
   people: { id: string; name: string }[];
   agents: { id: string; name: string }[];
   departments: { slug: string; name: string; color: string }[];
+  /** Modelos de projeto (só no Novo projeto). */
+  templates?: { id: string; name: string; departments: string[] }[];
 };
 
 export async function projectFormOptions(

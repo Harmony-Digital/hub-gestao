@@ -12,6 +12,7 @@ import type { ProjectDetail } from "@/modules/projects/schemas";
 import { getProject } from "@/modules/projects/service";
 import { projectStatusesAdmin } from "@/modules/tasks/statuses";
 import { ArchiveButton } from "../../../_archive/archive-controls";
+import { SaveAsTemplate } from "../../../modelos/save-as-template";
 import { ProjectForm } from "../../_admin/project-form";
 import { PROJECT_CODE } from "../_tasks/params";
 import { StatusEditor } from "./status-editor";
@@ -142,6 +143,26 @@ async function EditProject({
           >
             Importar o plan.md
           </Link>
+        </section>
+        <section
+          aria-labelledby="salvar-modelo"
+          className="flex max-w-4xl flex-col items-start gap-3 rounded-2xl border border-line bg-card p-4 sm:p-5"
+        >
+          <h2
+            id="salvar-modelo"
+            className="font-heading text-base font-semibold text-navy"
+          >
+            Salvar como modelo
+          </h2>
+          <p className="text-sm text-ink-2">
+            Guarda a estrutura deste projeto (marcos, frentes, tarefas e
+            critérios de aceite) como um modelo para os próximos, em Modelos de
+            projeto. O projeto não muda.
+          </p>
+          <SaveAsTemplate
+            projectCode={project.code}
+            projectName={project.name}
+          />
         </section>
         <section
           aria-labelledby="arquivar-projeto"

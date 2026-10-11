@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
+import { parsePlanFile } from "@/modules/sync/plan-file";
+import { templateProblem } from "@/modules/templates/markdown";
 import { migrationsDir, openLocalDatabase } from "./local";
 import { withActor } from "./actor";
 import type { Db } from "./types";
@@ -94,5 +96,55 @@ describe("seed do workspace da Harmony", () => {
         ).rows.map((r) => r.code),
     );
     expect(codes).toEqual(["HUB"]);
+  });
+});
+
+describe("seed dos modelos de projeto da Harmony", () => {
+  const templates = () =>
+    raw.query<{
+      name: string;
+      structure: { markdown: string; departments: string[] };
+    }>(`select name, structure from ${S}.project_templates order by name`);
+
+  it("cria os seis modelos iniciais, sem duplicar ao rodar de novo", async () => {
+    const file = await readFile(
+      path.resolve(migrationsDir(), "..", "seeds", "harmony_templates.sql"),
+      "utf8",
+    );
+    await raw.exec(file);
+    await raw.exec(file);
+    expect((await templates()).rows.map((r) => r.name)).toEqual([
+      "Agente de atendimento WhatsApp",
+      "Funil de aquisição",
+      "Monitoramento e inteligência",
+      "Posicionamento de marca",
+      "Sistema sob medida com IA",
+      "Site institucional",
+    ]);
+  });
+
+  it("cada esqueleto passa na conferência e só cita departamentos que existem", async () => {
+    const departments = (
+      await raw.query<{ slug: string; name: string }>(
+        `select slug, name from ${S}.departments`,
+      )
+    ).rows;
+    const slugs = new Set(departments.map((d) => d.slug));
+    const names = new Set(departments.map((d) => d.name));
+    for (const t of (await templates()).rows) {
+      expect(templateProblem(t.structure.markdown), t.name).toBeNull();
+      expect(
+        t.structure.departments.every((d) => slugs.has(d)),
+        t.name,
+      ).toBe(true);
+      const parsed = parsePlanFile(t.structure.markdown);
+      expect(parsed.milestones.length, t.name).toBeGreaterThanOrEqual(3);
+      for (const ws of parsed.workstreams) {
+        expect(
+          ws.department && names.has(ws.department),
+          `${t.name}: ${ws.title}`,
+        ).toBe(true);
+      }
+    }
   });
 });

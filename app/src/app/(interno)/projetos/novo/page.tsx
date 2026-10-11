@@ -5,6 +5,7 @@ import { can } from "@/lib/authorize";
 import { pageContext } from "@/lib/ui-context";
 import { inTx } from "@/modules/context";
 import { projectFormOptions } from "@/modules/projects/admin";
+import { listTemplates } from "@/modules/templates/service";
 import { ProjectForm } from "../_admin/project-form";
 
 export const metadata: Metadata = { title: "Novo projeto" };
@@ -18,7 +19,7 @@ export default function NovoProjetoPage() {
           { label: "Novo projeto" },
         ]}
         title="Novo projeto"
-        description="O projeto nasce com os status padrão da Harmony (A fazer, Em andamento, Em revisão, Bloqueada e Concluída). Marcos e frentes você cria depois, na página do projeto."
+        description="O projeto nasce com os status padrão da Harmony (A fazer, Em andamento, Em revisão, Bloqueada e Concluída). Com um modelo, ele abre na importação com o esqueleto (marcos, frentes e tarefas), para ver o que entra antes de gravar; sem modelo, marcos e frentes você cria depois, na página do projeto."
       />
       <main className="flex w-full flex-col gap-6 px-4 py-6 sm:px-8">
         <Suspense
@@ -45,7 +46,14 @@ async function NewProject() {
       </p>
     );
   }
-  const options = await inTx(ctx, (t) => projectFormOptions(t));
+  const options = await inTx(ctx, async (t) => ({
+    ...(await projectFormOptions(t)),
+    templates: (await listTemplates(t)).map((tpl) => ({
+      id: tpl.id,
+      name: tpl.name,
+      departments: tpl.departments.map((d) => d.slug),
+    })),
+  }));
   return (
     <ProjectForm
       mode="create"

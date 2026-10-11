@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Building2, Plus } from "lucide-react";
+import { Building2, LayoutTemplate, Plus } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
 import { Pill, Progress } from "@/components/shell/pill";
 import { formatDayMonth, formatTimestampDay } from "@/lib/format";
@@ -61,12 +61,20 @@ async function ProjectsActions() {
         </Link>
       </Button>
       {can(user.actor, "workspace.admin") ? (
-        <Button asChild size="lg">
-          <Link href="/projetos/novo">
-            <Plus aria-hidden="true" />
-            Novo projeto
-          </Link>
-        </Button>
+        <>
+          <Button asChild variant="outline" size="lg">
+            <Link href="/modelos">
+              <LayoutTemplate aria-hidden="true" />
+              Modelos
+            </Link>
+          </Button>
+          <Button asChild size="lg">
+            <Link href="/projetos/novo">
+              <Plus aria-hidden="true" />
+              Novo projeto
+            </Link>
+          </Button>
+        </>
       ) : null}
     </>
   );

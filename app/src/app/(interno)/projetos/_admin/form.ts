@@ -68,6 +68,8 @@ export type ProjectFormValue = {
   clientId: string | null;
   newClientName: string | null;
   expectedUpdatedAt: string | null;
+  /** Modelo escolhido na criação (id), ou null. */
+  template: string | null;
   fields: {
     name: string;
     phase: (typeof PHASES)[number];
@@ -167,6 +169,10 @@ export function parseProjectForm(form: FormData): Parsed<ProjectFormValue> {
     ),
   ];
   const updatedAt = text(form, "updated_at");
+  const template = text(form, "template");
+  if (template && !UUID.test(template)) {
+    return { ok: false, message: "Recarregue a página e tente de novo." };
+  }
 
   return {
     ok: true,
@@ -176,6 +182,7 @@ export function parseProjectForm(form: FormData): Parsed<ProjectFormValue> {
       clientId,
       newClientName,
       expectedUpdatedAt: mode === "edit" && updatedAt ? updatedAt : null,
+      template: mode === "create" && template ? template : null,
       fields: {
         name: name.value,
         phase: phase as ProjectFormValue["fields"]["phase"],

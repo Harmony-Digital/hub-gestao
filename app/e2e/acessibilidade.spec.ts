@@ -82,6 +82,16 @@ const OPEN: {
       ),
   },
   {
+    name: "Novo modelo",
+    path: "/modelos",
+    open: (page) =>
+      openDialog(
+        page,
+        page.getByRole("button", { name: "Novo modelo" }),
+        "Novo modelo de projeto",
+      ),
+  },
+  {
     name: "Editar frente (com Depende de)",
     path: "/projetos/EXE",
     open: (page) =>

@@ -181,6 +181,34 @@ describe("estrutura", () => {
     expect(renderPlanFile(parsed.lines)).toBe(text);
   });
 
+  it("lê o departamento escrito logo abaixo da frente, antes dos itens", () => {
+    const text = [
+      "## M1 — Site",
+      "### Layout",
+      "",
+      "Departamento: Design.",
+      "",
+      "- [ ] Desenhar a home",
+      "### Integrações",
+      "**Departamento sugerido:** sistemas",
+      "- [ ] Ligar o formulário",
+      "### Textos",
+      "- [ ] Escrever a home",
+      "Departamento: Marketing.",
+      "### 🔒 GATE M1",
+      "Departamento: Design.",
+      "- [ ] Site no ar",
+    ].join("\n");
+    const parsed = parsePlanFile(text);
+    expect(parsed.workstreams.map((w) => [w.title, w.department])).toEqual([
+      ["Layout", "Design"],
+      ["Integrações", "sistemas"],
+      // Depois do primeiro item, a linha é texto do plano, não o departamento.
+      ["Textos", null],
+    ]);
+    expect(renderPlanFile(parsed.lines)).toBe(text);
+  });
+
   it("junta as linhas de continuação do item", () => {
     const parsed = parsePlanFile(
       "## Entrega — 09/10\n\n- [x] Página nova com o texto\n  “Em breve”, sem revelar o produto.\n- [ ] Próxima\n",
