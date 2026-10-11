@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId, useRef, useState } from "react";
+import { useActionState, useId, useRef, useState, useTransition } from "react";
 import {
   CircleCheck,
   Copy,
@@ -8,6 +8,7 @@ import {
   KeyRound,
   Link2,
   LoaderCircle,
+  Mail,
   Plus,
   UserX,
 } from "lucide-react";
@@ -21,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import type { AccessStatus, ContactRole } from "@/modules/portal/access";
 import {
   criarContato,
+  enviarConvitePorEmail,
   excluirDadosCliente,
   excluirDadosContato,
   gerarLinkPortal,
@@ -28,13 +30,27 @@ import {
 } from "./actions";
 import { PORTAL_IDLE, ROLE_LABEL, type PortalFormState } from "./form";
 
+/** Para quem o convite pode ir por e-mail, e se o envio está ligado no servidor. */
+type InviteEmail = { contactId: string; to: string; on: boolean };
+
 /**
  * O link de uso único, uma vez só, com o botão de copiar, e a mensagem de convite pronta
- * (OB-13), que o dono revisa, copia e manda por onde preferir: o Hub não manda nada.
+ * (OB-13), que o dono revisa e manda: copiando, por onde preferir, ou pelo Hub, por
+ * e-mail, quando o Resend está configurado (D9). Nada sai sem o clique do dono.
  */
-function LinkOnce({ link, invite }: { link: string; invite?: string }) {
+function LinkOnce({
+  link,
+  invite,
+  email,
+}: {
+  link: string;
+  invite?: string;
+  email?: InviteEmail;
+}) {
   const id = useId();
   const [copied, setCopied] = useState<"link" | "invite" | null>(null);
+  const [sending, startSending] = useTransition();
+  const [sent, setSent] = useState<PortalFormState>(PORTAL_IDLE);
   const message = useRef<HTMLTextAreaElement>(null);
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-brand/40 bg-brand-soft/10 p-3">
@@ -65,7 +81,9 @@ function LinkOnce({ link, invite }: { link: string; invite?: string }) {
             htmlFor={`${id}-invite`}
             className="text-sm font-medium text-navy"
           >
-            Mensagem de convite (revise e mande você mesmo)
+            {email?.on
+              ? "Mensagem de convite (revise; mande pelo Hub ou copie)"
+              : "Mensagem de convite (revise e mande você mesmo)"}
           </label>
           <textarea
             id={`${id}-invite`}
@@ -92,6 +110,51 @@ function LinkOnce({ link, invite }: { link: string; invite?: string }) {
               )}
               {copied === "invite" ? "Copiada" : "Copiar mensagem"}
             </Button>
+            {email ? (
+              <Button
+                type="button"
+                className="ml-2"
+                disabled={!email.on || sending || sent.status === "ok"}
+                aria-label={`Enviar o convite por e-mail para ${email.to}`}
+                onClick={() =>
+                  startSending(async () => {
+                    setSent(
+                      await enviarConvitePorEmail({
+                        contactId: email.contactId,
+                        link,
+                        text: message.current?.value ?? invite,
+                      }),
+                    );
+                  })
+                }
+              >
+                {sending ? (
+                  <LoaderCircle aria-hidden="true" className="animate-spin" />
+                ) : (
+                  <Mail aria-hidden="true" />
+                )}
+                Enviar por e-mail
+              </Button>
+            ) : null}
+          </div>
+          {email && !email.on ? (
+            <p className="text-xs text-ink-2">
+              O envio por e-mail liga quando o Resend estiver configurado no
+              servidor (docs/email.md).
+            </p>
+          ) : null}
+          <div aria-live="polite">
+            {sent.status === "error" ? (
+              <ErrorNote message={sent.message} />
+            ) : sent.status === "ok" ? (
+              <p className="flex items-start gap-2 text-sm text-ok-fg">
+                <CircleCheck
+                  aria-hidden="true"
+                  className="mt-0.5 size-4 shrink-0"
+                />
+                {sent.message}
+              </p>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -99,7 +162,13 @@ function LinkOnce({ link, invite }: { link: string; invite?: string }) {
   );
 }
 
-function Result({ state }: { state: PortalFormState }) {
+function Result({
+  state,
+  email,
+}: {
+  state: PortalFormState;
+  email?: InviteEmail;
+}) {
   return (
     <div aria-live="polite" className="flex flex-col gap-2">
       {state.status === "error" ? <ErrorNote message={state.message} /> : null}
@@ -113,7 +182,7 @@ function Result({ state }: { state: PortalFormState }) {
             {state.message}
           </p>
           {state.link ? (
-            <LinkOnce link={state.link} invite={state.invite} />
+            <LinkOnce link={state.link} invite={state.invite} email={email} />
           ) : null}
         </>
       ) : null}
@@ -217,10 +286,16 @@ export function NewContactForm({ clientId }: { clientId: string }) {
 export function ContactAccess({
   contactId,
   name,
+  email,
+  emailOn,
   status,
 }: {
   contactId: string;
   name: string;
+  /** E-mail do contato, para o convite pelo Hub. */
+  email: string;
+  /** O Resend está configurado no servidor. */
+  emailOn: boolean;
   status: AccessStatus;
 }) {
   const [confirming, setConfirming] = useState(false);
@@ -310,7 +385,7 @@ export function ContactAccess({
           )
         ) : null}
       </div>
-      <Result state={linkState} />
+      <Result state={linkState} email={{ contactId, to: email, on: emailOn }} />
       <Result state={revokeState} />
     </div>
   );

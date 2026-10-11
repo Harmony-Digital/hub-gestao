@@ -18,8 +18,10 @@ import {
 } from "@/test/hub";
 import {
   createContact,
+  inviteEmailTarget,
   issuePortalLink,
   listContacts,
+  noteInviteEmailed,
   portalClient,
   revokePortalAccess,
 } from "./access";
@@ -303,5 +305,51 @@ describe("acesso ao portal (D9)", () => {
     expect(
       await portalSessionFromToken(h.db, redeemed!.sessionToken, TEST_PEPPER),
     ).toBeNull();
+  });
+});
+
+describe("convite do portal por e-mail (D9)", () => {
+  it("só o dono, só com o acesso liberado; o histórico guarda o envio, nunca o link", async () => {
+    const contactId = (
+      await inTx(asOwner(), (t) =>
+        createContact(t, clientId, {
+          name: "Carla Convite",
+          email: "carla.convite@clinica.com.br",
+          role: "client_viewer",
+        }),
+      )
+    ).id;
+    // Antes de liberar, não há convite para mandar.
+    expect(
+      await status(inTx(asOwner(), (t) => inviteEmailTarget(t, contactId))),
+    ).toBe(422);
+    const issued = await inTx(asOwner(), (t) =>
+      issuePortalLink(t, contactId, { pepper: TEST_PEPPER, appUrl: APP }),
+    );
+    expect(
+      await inTx(asOwner(), (t) => inviteEmailTarget(t, contactId)),
+    ).toMatchObject({
+      email: "carla.convite@clinica.com.br",
+      name: "Carla Convite",
+    });
+    const admin: UserActor = { ...h.owner_actor, role: "admin" };
+    expect(
+      await status(
+        inTx(ctxFor(h, admin, "ui"), (t) => inviteEmailTarget(t, contactId)),
+      ),
+    ).toBe(403);
+    await inTx(asOwner(), (t) => noteInviteEmailed(t, contactId, "email-123"));
+    const log = await h.raw.query<{ after: unknown }>(
+      `select after from ${S}.activity_log
+        where action = 'portal.invite_emailed' and entity_id = $1`,
+      [contactId],
+    );
+    expect(log.rows).toEqual([{ after: { email_id: "email-123" } }]);
+    expect(JSON.stringify(log.rows)).not.toContain(tokenOf(issued.url));
+    // Revogado, o convite não sai mais.
+    await inTx(asOwner(), (t) => revokePortalAccess(t, contactId));
+    expect(
+      await status(inTx(asOwner(), (t) => inviteEmailTarget(t, contactId))),
+    ).toBe(422);
   });
 });

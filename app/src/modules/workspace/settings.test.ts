@@ -5,6 +5,7 @@ import { inTx } from "@/modules/context";
 import { agentActor, ctxFor, openTestHub, type TestHub } from "@/test/hub";
 import {
   addMember,
+  emailTestTarget,
   renameWorkspace,
   setDepartmentLead,
   setMemberRole,
@@ -180,5 +181,17 @@ describe("configurações do workspace", () => {
     expect(
       await status(inTx(ctxFor(h, agent), (t) => workspaceSettings(t))),
     ).toBe(403);
+    // O e-mail de teste é só do dono, para o próprio endereço.
+    expect(await status(inTx(asAdmin, (t) => emailTestTarget(t)))).toBe(403);
+  });
+
+  it("o e-mail de teste vai para o próprio dono, com o nome do workspace", async () => {
+    const target = await inTx(asOwner(), (t) => emailTestTarget(t));
+    const me = await h.raw.query<{ email: string }>(
+      `select email from ${S}.profiles where id = $1`,
+      [h.owner],
+    );
+    expect(target.email).toBe(me.rows[0].email);
+    expect(target.orgName).toBeTruthy();
   });
 });

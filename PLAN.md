@@ -371,6 +371,41 @@
 
 ---
 
+## Lacunas do PRD (levantamento de 2026-10-11)
+
+> O Fábio pediu o Hub "100% funcional", sem importar ainda os projetos oficiais. Um levantamento item a item do `PRD.md` contra o código (2026-10-11) achou o que ainda não está construído, mesmo onde o checklist acima já estava marcado. Cada item entra num PR próprio, com teste e evidência. Ordem: P0 primeiro, depois P1.
+
+### P0
+- [ ] **RF-25** Aprovação com efeito automático: marco proposto vira marco; replanejamento muda as datas; mensagem externa aprovada vai ao canal do cliente; mudança de escopo e pedido de chave de agente com efeito definido (hoje esses tipos caem em "sem efeito automático")
+- [ ] **RF-38** Busca `⌘K` também por pessoas e agentes (hoje: projetos, tarefas, marcos e frentes)
+- [ ] **RF-04** Logo do cliente: no cadastro e no portal (a coluna existe, nada usa)
+- [ ] **RF-14** Data de início e referência externa nos formulários da tarefa (hoje só na API e no MCP)
+- [ ] **RF-27** Departamentos: criar, renomear e mudar a cor (hoje só o responsável muda)
+- [ ] **RF-09** Ordem dos marcos e GATE opcional por marco (hoje a ordem é a de criação e todo marco tem gate)
+- [ ] **RF-12** Status da frente derivado das tarefas (hoje manual; só o andamento é calculado)
+- [ ] **RF-24** Riscos no Hoje com uma frase e uma ação sugerida (hoje só os motivos da regra)
+- [ ] **RF-43** Linha do tempo de marco, frente, projeto e cliente (hoje só da tarefa e na exportação)
+- [ ] **RF-21** Atalhos de teclado além do `⌘K`
+- [ ] **RF-01** Marca do workspace lida do banco (logo, cores, domínio, fuso, idioma) — vai com o M9 (white-label, D7): para a Harmony, a marca é a dela
+
+### P1
+- [x] **RF-05 e RF-33 (base)** E-mail pelo Resend e o convite do portal por e-mail (D9) — evidência: PR #89. `app/src/lib/email.ts` (só texto, um destinatário, chave de repetição, desligado sem `RESEND_API_KEY` e `HUB_EMAIL_FROM`, nunca registra endereço nem conteúdo); botão "Enviar por e-mail" ao lado de "Copiar mensagem" (só o dono, só com o acesso liberado, a mensagem precisa ter o link; o histórico registra `portal.invite_emailed` sem o link); "E-mail do Hub" em Configurações com o e-mail de teste para o próprio dono; `deploy/vps/hub-email-setup.sh` e `docs/email.md`. Ligar em produção depende do Fábio: domínio verificado no Resend (a conta conectada hoje só tem outro domínio), DNS e a chave
+- [ ] **RF-03** Convite da equipe por e-mail e pessoas nos projetos (papéis de projeto `member` e `guest`, §4.1): hoje quem é "Equipe" só vê os projetos de que é responsável
+- [ ] **RF-05** O contato pede um link novo sozinho, pelo e-mail
+- [ ] **RF-11** Histórico de datas do marco na tela e para os agentes, com o motivo da mudança
+- [ ] **RF-18** Etiquetas nas tarefas; anexos até 25 MB (§8.8; hoje 10 MB)
+- [ ] **RF-23** Visão padrão por departamento
+- [ ] **RF-33** Horário de silêncio das 23h às 8h para os avisos proativos
+- [ ] **RF-34** Relatório aprovado também por e-mail aos contatos, quando o projeto pedir
+- [ ] **RF-36** Modelos de projeto com o conjunto de status e os textos para o cliente
+- [ ] **§5.7** Deriva prevista na regra de saúde (ritmo × trabalho restante contra a folga)
+- [ ] **§5.3** Aviso na caixa de entrada por agente (API e MCP), para o digest e os lembretes
+- [ ] **§12** Prazos de retenção configuráveis (hoje fixos)
+
+Fora por ora (P2 ou opcionais do PRD): MFA (RF-02), `/api/v1/events` (SSE), modo staging, transcrição de voz no servidor e Sentry.
+
+---
+
 ## M9 — Produto replicável
 
 > ⏸ **Adiado por decisão do Fábio (D7, 2026-10-09):** o Hub é de uso interno da Harmony. Este milestone só começa depois de validado e com nova decisão dele. As tarefas ficam como referência.
@@ -502,3 +537,4 @@
 | 2026-10-11 | Claude (Opus 5.5) · Claude Code | PR #85 (M8): alerta de backup parado. Os scripts da VPS (`hub-backup.sh` e `hub-backup-offsite.sh`) avisam o Hub a cada backup que dá certo, pelo próprio contêiner (`app/scripts/backup-report.mjs`, com o `CRON_SECRET` que já está lá, sem segredo novo), na rota `/api/internal/backups/report`; o `ops-watch` alerta o dono e os webhooks (`system.backup_stale`, marcado por padrão para o Telegram) quando um deles fica mais de 30 horas sem sinal, um por dia por tipo. Sem nenhum aviso ainda, não alerta (a cópia no Drive só conta depois de ligada). 4 testes novos; o CI da imagem confere os scripts do contêiner e a rota fora da porta de login. O aviso do dump diário começa quando o Fábio rodar o instalador do Drive, que leva o `hub-backup.sh` novo. | CI e juntar. |
 | 2026-10-11 | Claude (Opus 5.5) · Claude Code | Com o ok do Fábio no chat (ele autorizou só este dos passos de servidor), a rotação dos logs do contêiner foi aplicada na VPS por `deploy/vps/hub-apply-compose.sh`: só o bloco `logging` mudou, a cópia anterior ficou em `/opt/hub-gestao/config/docker-compose.yml.bak-20261011T125215Z` e o contêiner voltou saudável com `json-file`, 5 arquivos de 10 MB. PRs #84 e #85 entraram na `main`; publicação de 7d83729 conferida: `/api/health` com a versão, banco e fila ok; `/api/internal/backups/report` responde 401 sem o segredo; o contêiner tem o `backup-report.mjs` e manteve a rotação dos logs depois da publicação. Seção "Onde estamos" posta em dia. Percentual pelo critério de sempre (sem GATEs, M9 e cancelados): 117 de 139 itens (84%); os 22 abertos e os GATEs M3 a M8 dependem do Fábio. | Fábio: seguir `docs/roteiro-do-fabio.md` (segredo do aviso, cópia no Drive e teste de restauração ficaram com ele). |
 | 2026-10-11 | Claude (Opus 5.5) · Claude Code | Decisão do Fábio no chat: "Suspende o backup por enquanto. Não precisa do backup agora". A cópia diária fora da VPS (Google Drive) e o teste de restauração ficam suspensos até ele retomar; o dump diário na VPS (14 dias) e o backup semanal da Hostinger continuam (desligar o dump seria mudança no servidor, que ele não pediu). Ele não autorizou o segredo do aviso nem a conferência do Hermes: nada foi rodado. Itens "Backups" (M2 e M8) e o GATE M8 anotados; roteiro e resumos em dia. | Fábio: retomar o backup quando quiser; o resto do roteiro segue com ele. |
+| 2026-10-11 | Claude (Opus 5.5) · Claude Code | O Fábio pediu o Hub "100% funcional", sem importar ainda os projetos oficiais. Com essa ordem, o agente ligou o aviso de publicação que falhou (`deploy/vps/hub-alert-secret.sh`: segredo na VPS e no GitHub, contêiner saudável, rota recusando sem o segredo). PR #88: o adaptador de IA ganhou a folga de raciocínio (nos Claude 5.5 o raciocínio não desliga e contava no limite de saída; o Concierge, o Planejador e o Redator falhariam de vez em quando) e `docs/ia.md`, com os modelos Claude e os preços oficiais. Levantamento do PRD contra o código: nova seção "Lacunas do PRD" acima. PR #89: e-mail pelo Resend e o convite do portal por e-mail. | Construir as lacunas, uma por PR; o Fábio liga a IA e o e-mail quando quiser (`docs/ia.md`, `docs/email.md`). |

@@ -24,31 +24,12 @@ secret="$(openssl rand -hex 32)"
 
 echo "2/5 Gravando o segredo na VPS."
 ssh vps-harmony 'mkdir -p ~/hub-gestao-staging'
-scp -q "$here/hub-env-set.sh" vps-harmony:hub-gestao-staging/hub-env-set.sh
+scp -q "$here/hub-env-set.sh" "$here/hub-recreate.sh" vps-harmony:hub-gestao-staging/
 printf '%s\n' "$secret" |
   ssh vps-harmony 'sudo sh ~/hub-gestao-staging/hub-env-set.sh HUB_ALERT_SECRET'
 
 echo "3/5 Recriando o contêiner na versão no ar (alguns segundos fora do ar)."
-ssh vps-harmony 'sudo bash -s' <<'REMOTO'
-set -euo pipefail
-# A mesma trava da publicação (hub-deploy.sh): nunca recriar no meio de uma publicação,
-# o que poderia voltar o contêiner para a versão anterior.
-exec 9>/run/lock/hub-gestao-deploy.lock
-flock -w 900 9 || { echo "Há uma publicação em andamento há mais de 15 minutos; rode de novo depois." >&2; exit 1; }
-sha="$(cat /opt/hub-gestao/shared/current-sha)"
-[[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Versão atual ilegível." >&2; exit 1; }
-HUB_IMAGE_TAG="$sha" docker compose \
-  --env-file /opt/hub-gestao/shared/.env.production \
-  --file /opt/hub-gestao/config/docker-compose.yml \
-  up --detach --no-build --force-recreate </dev/null
-for _ in $(seq 1 40); do
-  status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' hub-app 2>/dev/null || true)"
-  [[ "$status" == healthy ]] && { echo "    Contêiner saudável."; exit 0; }
-  sleep 3
-done
-echo "O contêiner não ficou saudável a tempo: ver docs/operacao.md (Voltar uma versão)." >&2
-exit 1
-REMOTO
+ssh vps-harmony 'sudo bash ~/hub-gestao-staging/hub-recreate.sh'
 
 echo "4/5 Guardando o segredo no GitHub."
 printf '%s' "$secret" | gh secret set HUB_ALERT_SECRET --repo "$REPO"
