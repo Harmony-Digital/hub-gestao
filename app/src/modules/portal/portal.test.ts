@@ -26,7 +26,7 @@ import {
   portalClient,
   revokePortalAccess,
 } from "./access";
-import { portalProjects } from "./views";
+import { portalProject, portalProjects } from "./views";
 
 const S = "proj_hub_gestao";
 const APP = "https://hub.exemplo.com.br";
@@ -208,6 +208,66 @@ describe("acesso ao portal (D9)", () => {
     expect(JSON.stringify(projects)).not.toContain("Margem interna");
     // A equipe não usa a leitura do portal.
     expect(await status(inTx(asOwner(), (t) => portalProjects(t)))).toBe(403);
+  });
+
+  it("andamento: nunca abaixo da fatia de entregas, contando também os marcos internos", async () => {
+    const session = await portalSessionFromToken(
+      h.db,
+      sessionToken,
+      TEST_PEPPER,
+    );
+    const asClient = {
+      db: h.db,
+      actor: session!.actor,
+      source: "ui" as const,
+      requestId: "portal",
+    };
+    // Um marco interno a mais: a fatia conta todos, o cliente vê só o dele.
+    await h.raw.query(
+      `insert into ${S}.milestones (workspace_id, project_id, code, title, sort_order, visibility)
+       select workspace_id, id, 'M90', 'Marco interno do teste', 90, 'internal'
+         from ${S}.projects where id = $1`,
+      [h.vit],
+    );
+    const visible = await h.raw.query<{ id: string }>(
+      `select id from ${S}.milestones
+        where project_id = $1 and visibility = 'client' and archived_at is null`,
+      [h.vit],
+    );
+    const total = Number(
+      (
+        await h.raw.query<{ n: number }>(
+          `select count(*)::int as n from ${S}.milestones
+            where project_id = $1 and archived_at is null`,
+          [h.vit],
+        )
+      ).rows[0].n,
+    );
+    await h.raw.query(
+      `update ${S}.milestones set status = 'delivered', delivered_at = now() where id = $1`,
+      [visible.rows[0].id],
+    );
+    try {
+      const [project] = await inTx(asClient, (t) => portalProjects(t));
+      expect(total).toBeGreaterThan(visible.rows.length);
+      expect(project.progressPct).toBe(Math.round(100 / total));
+      const detail = await inTx(asClient, (t) => portalProject(t, "VIT"));
+      expect(detail.progressPct).toBe(Math.round(100 / total));
+      expect(detail.deliveries).toEqual({
+        done: 1,
+        total: visible.rows.length,
+      });
+      expect(JSON.stringify(detail)).not.toContain("Marco interno do teste");
+    } finally {
+      await h.raw.query(
+        `update ${S}.milestones set status = 'planned', delivered_at = null where id = $1`,
+        [visible.rows[0].id],
+      );
+      await h.raw.query(
+        `delete from ${S}.milestones where project_id = $1 and code = 'M90'`,
+        [h.vit],
+      );
+    }
   });
 
   it("gerar outro link anula o anterior; revogar encerra a sessão na hora", async () => {

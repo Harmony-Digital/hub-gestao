@@ -166,6 +166,13 @@ async function Project({
               label={`Andamento de ${project.name}`}
             />
           </div>
+          {project.deliveries.done > 0 ? (
+            <p className="text-ink">
+              {project.deliveries.done === 1
+                ? "1 entrega concluída"
+                : `${project.deliveries.done} entregas concluídas`}
+            </p>
+          ) : null}
           {project.targetDate ? (
             <p>
               <span className="text-caption">Entrega final prevista: </span>

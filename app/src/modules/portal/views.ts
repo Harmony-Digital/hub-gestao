@@ -7,6 +7,7 @@ import {
   type ChannelMessage,
 } from "@/modules/comments/client-channel";
 import { many, maybeOne, S, type TxCtx } from "@/modules/context";
+import { clientProgress } from "./progress";
 
 /**
  * Leituras do portal do cliente (D9). Rodam com o ator de cliente: a RLS só devolve os
@@ -69,14 +70,23 @@ export async function portalProjects(t: TxCtx): Promise<PortalProject[]> {
       order by m.project_id, m.sort_order, m.code`,
     [projects.map((p) => p.id)],
   );
+  const deliveries = await projectDeliveries(
+    t,
+    projects.map((p) => p.id),
+  );
   return projects.map((p) => {
     const m = next.find((n) => n.project_id === p.id);
+    const d = deliveries.get(p.id);
     return {
       code: p.code,
       name: p.name,
       phase: p.phase,
       objective: p.objective_client,
-      progressPct: Number(p.progress_pct),
+      progressPct: clientProgress(
+        Number(p.progress_pct),
+        d?.delivered ?? 0,
+        d?.total ?? 0,
+      ),
       targetDate: p.target_date,
       nextMilestone: m?.title_client
         ? { title: m.title_client, dueDate: m.due_date }
@@ -123,6 +133,8 @@ export type PortalReport = {
 };
 
 export type PortalProjectDetail = PortalProject & {
+  /** Entregas que o cliente vê: quantas já foram concluídas, de quantas. */
+  deliveries: { done: number; total: number };
   /** O projeto deixa o cliente decisor confirmar o recebimento das entregas (D9). */
   clientCanConfirm: boolean;
   milestones: PortalMilestone[];
@@ -247,12 +259,23 @@ export async function portalProject(
   const next = milestones.find(
     (m) => m.status !== "delivered" && m.status !== "accepted",
   );
+  // A fatia do andamento conta todos os marcos (inclusive os internos); a contagem
+  // mostrada ("1 de 2 entregas") é só a dos marcos que o cliente vê.
+  const all = (await projectDeliveries(t, [project.id])).get(project.id);
+  const deliveredCount = milestones.filter(
+    (m) => m.status === "delivered" || m.status === "accepted",
+  ).length;
   return {
     code: project.code,
     name: project.name,
     phase: project.phase,
     objective: project.objective_client,
-    progressPct: Number(project.progress_pct),
+    progressPct: clientProgress(
+      Number(project.progress_pct),
+      all?.delivered ?? 0,
+      all?.total ?? 0,
+    ),
+    deliveries: { done: deliveredCount, total: milestones.length },
     targetDate: project.target_date,
     nextMilestone: next ? { title: next.title, dueDate: next.dueDate } : null,
     clientCanConfirm: project.client_can_confirm_receipt,
@@ -406,4 +429,28 @@ export async function readPortalLogo(
       where client_id = ${S}.current_client_id()`,
   );
   return row ? { mime: row.mime, content: Buffer.from(row.content) } : null;
+}
+
+/** Entregas concluídas e total de marcos de cada projeto (função 0029, só contagens). */
+async function projectDeliveries(
+  t: TxCtx,
+  ids: string[],
+): Promise<Map<string, { delivered: number; total: number }>> {
+  if (ids.length === 0) return new Map();
+  const rows = await many<{
+    project_id: string;
+    delivered: number;
+    total: number;
+  }>(
+    t,
+    `select project_id, delivered, total
+       from ${S}.client_project_deliveries($1::uuid[])`,
+    [ids],
+  );
+  return new Map(
+    rows.map((r) => [
+      r.project_id,
+      { delivered: Number(r.delivered), total: Number(r.total) },
+    ]),
+  );
 }
